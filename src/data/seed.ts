@@ -7,8 +7,6 @@ const currentMonth = String(now.getMonth() + 1).padStart(2, '0')
 const nextMonth = String(now.getMonth() + 2 > 12 ? 1 : now.getMonth() + 2).padStart(2, '0')
 const nextYear = now.getMonth() + 2 > 12 ? currentYear + 1 : currentYear
 
-const groupId = uuid()
-
 function tx(overrides: Partial<Transaction>): Transaction {
   return {
     id: uuid(),
@@ -203,6 +201,7 @@ export function generateSeed(): FinanceData {
       paymentMethod: 'PIX',
       isDebt: true,
       debtorName: 'João',
+      debtSplits: [{ debtorName: 'João', amount: 200 }],
       isSettled: false,
     }),
 
@@ -222,7 +221,7 @@ export function generateSeed(): FinanceData {
             amount: 300,
             category: 'Shopping',
             paymentMethod: 'CREDIT',
-            parentId: groupId,
+            parentId: installmentGroupId,
             groupId: installmentGroupId,
             installment: { current: i, total: 12 },
             isSettled: false,
