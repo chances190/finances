@@ -27,11 +27,6 @@ export type FinanceAction =
   | { type: 'SEED' }
   | { type: 'IMPORT'; payload: FinanceData }
 
-
-function persist(state: FinanceState): void {
-  saveData({ transactions: state.transactions, budgets: state.budgets })
-}
-
 function reducer(state: FinanceState, action: FinanceAction): FinanceState {
   switch (action.type) {
     case 'LOAD':
@@ -121,7 +116,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (state.loaded) {
-      persist(state)
+      saveData({ transactions: state.transactions, budgets: state.budgets })
     }
   }, [state.transactions, state.budgets, state.loaded])
 
