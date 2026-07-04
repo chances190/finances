@@ -1,5 +1,5 @@
-import type { Transaction, Budget } from './entities'
 import { DAYS_IN_MONTH, SES_ALPHA } from './constants'
+import type { Budget, Transaction } from './entities'
 
 export function addMonths(ym: string, n: number): string {
   const [y, m] = ym.split('-').map(Number)
@@ -10,11 +10,11 @@ export function addMonths(ym: string, n: number): string {
 export function monthDiff(a: string, b: string): number {
   const [ay, am] = a.split('-').map(Number)
   const [by, bm] = b.split('-').map(Number)
-  return (ay * 12 + am) - (by * 12 + bm)
+  return ay * 12 + am - (by * 12 + bm)
 }
 
 export function parseDate(d: string): number {
-  return new Date(d + 'T12:00:00').getTime()
+  return new Date(`${d}T12:00:00`).getTime()
 }
 
 export function daysSince(date: string): number {
@@ -22,11 +22,13 @@ export function daysSince(date: string): number {
 }
 
 export function byMonth(tx: Transaction[], refMonth: string): Transaction[] {
-  return tx.filter(t => t.referenceMonth === refMonth && !t.isSettled && t.type === 'EXPENSE' && !t.isDebt)
+  return tx.filter(
+    (t) => t.referenceMonth === refMonth && !t.isSettled && t.type === 'EXPENSE' && !t.isDebt,
+  )
 }
 
 export function incomeByMonth(tx: Transaction[], refMonth: string): Transaction[] {
-  return tx.filter(t => t.referenceMonth === refMonth && !t.isSettled && t.type === 'INCOME')
+  return tx.filter((t) => t.referenceMonth === refMonth && !t.isSettled && t.type === 'INCOME')
 }
 
 export function totalByMonth(tx: Transaction[], refMonth: string): number {
@@ -48,7 +50,10 @@ export function byCategory(tx: Transaction[], refMonth: string): Record<string, 
   }, {})
 }
 
-export function groupedByPaymentMethod(tx: Transaction[], refMonth: string): Record<string, number> {
+export function groupedByPaymentMethod(
+  tx: Transaction[],
+  refMonth: string,
+): Record<string, number> {
   return byMonth(tx, refMonth).reduce<Record<string, number>>((acc, t) => {
     acc[t.paymentMethod] = (acc[t.paymentMethod] || 0) + t.amount
     return acc
@@ -57,19 +62,19 @@ export function groupedByPaymentMethod(tx: Transaction[], refMonth: string): Rec
 
 export function cashExpenses(tx: Transaction[], refMonth: string): number {
   return byMonth(tx, refMonth)
-    .filter(t => t.paymentMethod !== 'MEAL_VOUCHER' && t.paymentMethod !== 'CREDIT')
+    .filter((t) => t.paymentMethod !== 'MEAL_VOUCHER' && t.paymentMethod !== 'CREDIT')
     .reduce((s, t) => s + t.amount, 0)
 }
 
 export function mealVoucherIncome(tx: Transaction[], refMonth: string): number {
   return incomeByMonth(tx, refMonth)
-    .filter(t => t.paymentMethod === 'MEAL_VOUCHER')
+    .filter((t) => t.paymentMethod === 'MEAL_VOUCHER')
     .reduce((s, t) => s + t.amount, 0)
 }
 
 export function mealVoucherExpenses(tx: Transaction[], refMonth: string): number {
   return byMonth(tx, refMonth)
-    .filter(t => t.paymentMethod === 'MEAL_VOUCHER')
+    .filter((t) => t.paymentMethod === 'MEAL_VOUCHER')
     .reduce((s, t) => s + t.amount, 0)
 }
 
@@ -79,12 +84,12 @@ export function mealVoucherBalance(tx: Transaction[], refMonth: string): number 
 
 export function creditInvoice(tx: Transaction[], refMonth: string): number {
   return byMonth(tx, refMonth)
-    .filter(t => t.paymentMethod === 'CREDIT')
+    .filter((t) => t.paymentMethod === 'CREDIT')
     .reduce((s, t) => s + t.amount, 0)
 }
 
 export function activeDebts(tx: Transaction[]): Transaction[] {
-  return tx.filter(t => t.isDebt && !t.isSettled)
+  return tx.filter((t) => t.isDebt && !t.isSettled)
 }
 
 export function outstandingDebt(tx: Transaction[]): number {
@@ -123,7 +128,7 @@ export interface SpendingPaceResult {
 export function spendingPace(
   tx: Transaction[],
   budget: Budget | undefined,
-  currentDay: number
+  currentDay: number,
 ): SpendingPaceResult {
   const totalSalary = (budget?.plannedIncome ?? 0) + (budget?.plannedMealVoucher ?? 0)
   const limit = totalSalary * 0.8
@@ -133,11 +138,11 @@ export function spendingPace(
   for (let d = 1; d <= DAYS_IN_MONTH; d++) {
     dailyActual.push(
       byMonth(tx, budget?.referenceMonth ?? '')
-        .filter(t => {
+        .filter((t) => {
           const day = parseInt(t.date.split('-')[2], 10)
           return day === d
         })
-        .reduce((s, t) => s + t.amount, 0)
+        .reduce((s, t) => s + t.amount, 0),
     )
   }
 
@@ -146,9 +151,8 @@ export function spendingPace(
 
   const accumulatedSpent = dailyActual.slice(0, currentDay).reduce((s, v) => s + v, 0)
   const remainingDays = DAYS_IN_MONTH - currentDay
-  const suggestionPerDay = remainingDays > 0
-    ? Math.max(0, (limit - accumulatedSpent) / remainingDays)
-    : 0
+  const suggestionPerDay =
+    remainingDays > 0 ? Math.max(0, (limit - accumulatedSpent) / remainingDays) : 0
 
   const daily: SpendingPaceResult['daily'] = []
   const cumulative: SpendingPaceResult['cumulative'] = []
@@ -194,7 +198,7 @@ export function spendingPace(
 
 export function budgetVsActual(
   tx: Transaction[],
-  budget: Budget | undefined
+  budget: Budget | undefined,
 ): { category: string; budgeted: number; actual: number }[] {
   const refMonth = budget?.referenceMonth
   if (!refMonth || !budget) return []
@@ -202,7 +206,7 @@ export function budgetVsActual(
   const categories = new Set([...Object.keys(budget.categoryLimits), ...Object.keys(actuals)])
   return Array.from(categories)
     .sort()
-    .map(category => ({
+    .map((category) => ({
       category,
       budgeted: budget.categoryLimits[category] ?? 0,
       actual: actuals[category] ?? 0,
@@ -226,7 +230,7 @@ export function futureCommitments(tx: Transaction[], months: number = 12): Futur
   }
 
   const installmentChildren = tx.filter(
-    t => t.parentId && !t.isSettled && t.paymentMethod === 'CREDIT'
+    (t) => t.parentId && !t.isSettled && t.paymentMethod === 'CREDIT',
   )
 
   for (const t of installmentChildren) {
@@ -242,21 +246,21 @@ export function futureCommitments(tx: Transaction[], months: number = 12): Futur
 
 export function categoryTimeSeries(
   tx: Transaction[],
-  months: number = 6
+  months: number = 6,
 ): { month: string; [category: string]: number | string }[] {
   const now = new Date()
   const result: { month: string; [category: string]: number | string }[] = []
 
   for (let i = months - 1; i >= 0; i--) {
-    const ym = addMonths(
-      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
-      -i
-    )
+    const ym = addMonths(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, -i)
     const cats = byCategory(tx, ym)
     const top5 = Object.entries(cats)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
-      .reduce<Record<string, number>>((acc, [k, v]) => { acc[k] = v; return acc }, {})
+      .reduce<Record<string, number>>((acc, [k, v]) => {
+        acc[k] = v
+        return acc
+      }, {})
 
     result.push({ month: ym, ...top5 } as { month: string; [category: string]: number | string })
   }
@@ -264,14 +268,18 @@ export function categoryTimeSeries(
   return result
 }
 
-export function yearSummary(tx: Transaction[], year: number): {
+export function yearSummary(
+  tx: Transaction[],
+  year: number,
+): {
   months: { referenceMonth: string; income: number; expenses: number; balance: number }[]
   totalIncome: number
   totalExpenses: number
   totalBalance: number
 } {
   const months: { referenceMonth: string; income: number; expenses: number; balance: number }[] = []
-  let totalIncome = 0, totalExpenses = 0
+  let totalIncome = 0,
+    totalExpenses = 0
 
   for (let m = 1; m <= 12; m++) {
     const refMonth = `${year}-${String(m).padStart(2, '0')}`
@@ -288,14 +296,14 @@ export function yearSummary(tx: Transaction[], year: number): {
 export function budgetVsActualYear(
   tx: Transaction[],
   budgets: Budget[],
-  year: number
+  year: number,
 ): { category: string; budgeted: number; actual: number }[] {
-  const yearBudgets = budgets.filter(b => b.referenceMonth.startsWith(`${year}-`))
+  const yearBudgets = budgets.filter((b) => b.referenceMonth.startsWith(`${year}-`))
 
   const categoryTotals: Record<string, { budgeted: number; actual: number }> = {}
   for (let m = 1; m <= 12; m++) {
     const refMonth = `${year}-${String(m).padStart(2, '0')}`
-    const budget = yearBudgets.find(b => b.referenceMonth === refMonth)
+    const budget = yearBudgets.find((b) => b.referenceMonth === refMonth)
     const actuals = byCategory(tx, refMonth)
 
     if (budget) {
