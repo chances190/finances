@@ -1,7 +1,6 @@
 import {
   ArrowCounterClockwiseIcon,
   CheckCircleIcon,
-  FileArrowDownIcon,
   PlusIcon,
   TrashIcon,
 } from '@phosphor-icons/react'
@@ -27,7 +26,6 @@ import { PAYMENT_METHOD_LABELS, TRANSACTION_TYPE_LABELS } from '@/domain/constan
 import type { Transaction } from '@/domain/entities'
 import { useFinance } from '@/ui/context'
 import AuditLogPanel from '../Common/AuditLogPanel'
-import CSVImportDialog from '../Common/CSVImportDialog'
 import TransactionForm from './TransactionForm'
 
 function formatCurrency(n: number): string {
@@ -57,7 +55,6 @@ function getAvailableMonths(tx: Transaction[]): string[] {
 export default function TransactionTable() {
   const { state, dispatch } = useFinance()
   const [showForm, setShowForm] = useState(false)
-  const [showImport, setShowImport] = useState(false)
   const [showAudit, setShowAudit] = useState(false)
   const [filterMonth, setFilterMonth] = useState<string>('all')
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
@@ -114,9 +111,6 @@ export default function TransactionTable() {
           </Button>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="xs" onClick={() => setShowImport(true)}>
-            <FileArrowDownIcon /> Import
-          </Button>
           <Button size="sm" onClick={() => setShowForm(true)}>
             <PlusIcon /> Add
           </Button>
@@ -217,8 +211,6 @@ export default function TransactionTable() {
       </div>
 
       <TransactionForm open={showForm} onOpenChange={handleFormClose} editTransaction={editingTx} />
-
-      <CSVImportDialog open={showImport} onOpenChange={setShowImport} />
     </div>
   )
 }

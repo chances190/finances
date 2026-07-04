@@ -1,4 +1,4 @@
-import { GearIcon, PlusIcon, TrashIcon, UserIcon, UsersIcon } from '@phosphor-icons/react'
+import { FileArrowDownIcon, GearIcon, PlusIcon, TrashIcon, UserIcon, UsersIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { Button } from '@/components/ui/button'
@@ -22,7 +22,7 @@ import {
 import { addMonths } from '@/domain/calculations'
 import type { PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { useFinance } from '@/ui/context'
-
+import CSVImportDialog from '../Common/CSVImportDialog'
 interface DebtSplitEntry {
   id: string
   debtorName: string
@@ -179,6 +179,7 @@ export default function TransactionForm({
   editTransaction,
 }: TransactionFormProps) {
   const { dispatch } = useFinance()
+  const [showImport, setShowImport] = useState(false)
   const defaultRefMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
   const isEdit = !!editTransaction
 
@@ -296,6 +297,14 @@ export default function TransactionForm({
             {isEdit
               ? 'Update the transaction details.'
               : 'Add one or multiple transactions. For credit installments, the system will auto-generate monthly records.'}
+            {!isEdit && (
+              <>
+                {' '}
+                <button type="button" className="underline cursor-pointer" onClick={() => setShowImport(true)}>
+                  <FileArrowDownIcon className="inline size-3" /> Import from CSV/JSON
+                </button>
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -558,6 +567,7 @@ export default function TransactionForm({
           </div>
         </div>
       </DialogContent>
+      <CSVImportDialog open={showImport} onOpenChange={setShowImport} />
     </Dialog>
   )
 }
