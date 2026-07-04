@@ -9,7 +9,7 @@ import {
 import { v4 as uuid } from 'uuid'
 import { loadData, saveData } from '../../data/repository'
 import { generateSeed } from '../../data/seed'
-import type { Budget, FinanceData, Transaction, AuditEntry } from '../../domain/entities'
+import type { AuditEntry, Budget, FinanceData, Transaction } from '../../domain/entities'
 
 export interface FinanceState {
   transactions: Transaction[]
@@ -44,7 +44,10 @@ function describeAction(action: FinanceAction): string {
     case 'DELETE_TRANSACTION':
       return action.description ?? `Deleted transaction`
     case 'SETTLE_TRANSACTION':
-      return action.description ?? (action.settled === false ? 'Unsettled transaction' : 'Settled transaction')
+      return (
+        action.description ??
+        (action.settled === false ? 'Unsettled transaction' : 'Settled transaction')
+      )
     case 'UPSERT_BUDGET':
       return action.description ?? `Saved budget for ${action.payload.referenceMonth}`
     case 'DELETE_BUDGET':
@@ -60,7 +63,10 @@ function describeAction(action: FinanceAction): string {
   }
 }
 
-function withAudit(state: FinanceState, action: FinanceAction & { description?: string }): FinanceState {
+function withAudit(
+  state: FinanceState,
+  action: FinanceAction & { description?: string },
+): FinanceState {
   const before = snapshot(state)
   let next: FinanceState
 
@@ -71,27 +77,39 @@ function withAudit(state: FinanceState, action: FinanceAction & { description?: 
 
     case 'UPDATE_TRANSACTION': {
       const updated = action.payload
-      next = { ...state, transactions: state.transactions.map((t) => (t.id === updated.id ? updated : t)) }
+      next = {
+        ...state,
+        transactions: state.transactions.map((t) => (t.id === updated.id ? updated : t)),
+      }
       break
     }
 
-    case 'DELETE_TRANSACTION':
+    case 'DELETE_TRANSACTION': {
+      const target = state.transactions.find((t) => t.id === action.payload)
+      const idsToDelete = new Set<string>()
+      if (target) {
+        idsToDelete.add(target.id)
+        if (target.groupId) {
+          state.transactions
+            .filter((t) => t.groupId === target.groupId)
+            .forEach((t) => idsToDelete.add(t.id))
+        }
+      }
       next = {
         ...state,
-        transactions: state.transactions.filter((t) => {
-          if (t.id === action.payload) return false
-          if (t.groupId === action.payload) return false
-          return true
-        }),
+        transactions: state.transactions.filter((t) => !idsToDelete.has(t.id)),
       }
       break
+    }
 
     case 'SETTLE_TRANSACTION': {
       const settled = action.settled ?? true
       next = {
         ...state,
         transactions: state.transactions.map((t) =>
-          t.parentId === action.payload || t.id === action.payload ? { ...t, isSettled: settled } : t,
+          t.parentId === action.payload || t.id === action.payload
+            ? { ...t, isSettled: settled }
+            : t,
         ),
       }
       break
@@ -115,7 +133,11 @@ function withAudit(state: FinanceState, action: FinanceAction & { description?: 
       break
 
     case 'IMPORT':
-      next = { ...state, transactions: action.payload.transactions, budgets: action.payload.budgets }
+      next = {
+        ...state,
+        transactions: action.payload.transactions,
+        budgets: action.payload.budgets,
+      }
       break
 
     case 'SEED':
