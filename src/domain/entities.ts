@@ -48,16 +48,3 @@ export interface AuditEntry {
   snapshot: { transactions: Transaction[]; budgets: Budget[] }
   actionType: string
 }
-
-export interface AuditEntry {
-  id: string
-  timestamp: number
-  description: string
-  snapshot: { transactions: Transaction[]; budgets: Budget[] }
-  actionType: string
-}
-
-export interface DebtSplit {
-  debtorName: string
-  amount: number
-}
