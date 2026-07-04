@@ -1,10 +1,13 @@
-import { useRef } from 'react'
-import { exportCSV, exportJSON, importJSON } from '../../../data/exportImport'
-import { useFinance } from '../../context'
+import { useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { exportCSV, exportJSON, importJSON } from '@/data/exportImport'
+import { useFinance } from '@/ui/context'
+import CSVImportDialog from './CSVImportDialog'
 
 export default function ExportImport() {
   const { state, dispatch } = useFinance()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [showImport, setShowImport] = useState(false)
 
   function handleExportJSON() {
     exportJSON({ transactions: state.transactions, budgets: state.budgets })
@@ -31,35 +34,14 @@ export default function ExportImport() {
   }
 
   return (
-    <div className="flex gap-2">
-      <button
-        type="button"
-        onClick={handleExportJSON}
-        className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-      >
-        Export JSON
-      </button>
-      <button
-        type="button"
-        onClick={handleExportCSV}
-        className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-      >
-        Export CSV
-      </button>
-      <button
-        type="button"
-        onClick={() => fileRef.current?.click()}
-        className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-      >
-        Import JSON
-      </button>
-      <input
-        ref={fileRef}
-        type="file"
-        accept=".json"
-        onChange={handleImportJSON}
-        className="hidden"
-      />
-    </div>
+    <>
+      <div className="flex gap-2">
+        <Button variant="outline" size="xs" onClick={handleExportJSON}>Export JSON</Button>
+        <Button variant="outline" size="xs" onClick={handleExportCSV}>Export CSV</Button>
+        <Button variant="outline" size="xs" onClick={() => setShowImport(true)}>Import</Button>
+        <input ref={fileRef} type="file" accept=".json" onChange={handleImportJSON} className="hidden" />
+      </div>
+      <CSVImportDialog open={showImport} onOpenChange={setShowImport} />
+    </>
   )
 }

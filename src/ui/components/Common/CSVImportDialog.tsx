@@ -1,0 +1,152 @@
+import { useState, useRef } from 'react'
+import { v4 as uuid } from 'uuid'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { useFinance } from '@/ui/context'
+import { importCSV, importJSON } from '@/data/exportImport'
+import type { Transaction } from '@/domain/entities'
+import { FileCsvIcon, FileTextIcon } from '@phosphor-icons/react'
+
+type PreviewData = {
+  type: 'json' | 'csv'
+  transactions: Transaction[]
+  filename: string
+}
+
+export default function CSVImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { dispatch } = useFinance()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [preview, setPreview] = useState<PreviewData | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  function handleFile(file: File) {
+    setError(null)
+    setPreview(null)
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const content = reader.result as string
+        if (file.name.endsWith('.json')) {
+          const data = importJSON(content)
+          setPreview({ type: 'json', transactions: data.transactions, filename: file.name })
+        } else if (file.name.endsWith('.csv')) {
+          const txs = importCSV(content)
+          setPreview({ type: 'csv', transactions: txs, filename: file.name })
+        } else {
+          setError('Unsupported file format. Use .json or .csv')
+        }
+      } catch (err) {
+        setError((err as Error).message)
+      }
+    }
+    reader.readAsText(file)
+  }
+
+  function handleImport() {
+    if (!preview) return
+    dispatch({ type: 'ADD_TRANSACTIONS', payload: preview.transactions.map((t) => ({ ...t, id: t.id || uuid() })) })
+    setPreview(null)
+    onOpenChange(false)
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    const file = e.dataTransfer.files[0]
+    if (file) handleFile(file)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Import Transactions</DialogTitle>
+          <DialogDescription>Upload a .json or .csv file to import transactions.</DialogDescription>
+        </DialogHeader>
+
+        {!preview && !error && (
+          <div
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+            className="border-2 border-dashed border-border rounded-none p-8 text-center space-y-3 cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => fileRef.current?.click()}
+          >
+            <div className="flex justify-center gap-2 text-muted-foreground">
+              <FileCsvIcon size={24} />
+              <FileTextIcon size={24} />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Drop a .json or .csv file here, or click to browse
+            </p>
+            <input ref={fileRef} type="file" accept=".json,.csv" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }} className="hidden" />
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-destructive/10 text-destructive text-xs p-3 rounded-none">
+            {error}
+            <Button variant="ghost" size="xs" className="ml-2" onClick={() => setError(null)}>Dismiss</Button>
+          </div>
+        )}
+
+        {preview && (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              {preview.filename} — {preview.transactions.length} transaction{preview.transactions.length !== 1 ? 's' : ''} found
+            </p>
+            <div className="max-h-60 overflow-y-auto border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Payment</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {preview.transactions.slice(0, 50).map((t, i) => (
+                    <TableRow key={i} className={t.type === 'INCOME' ? '' : ''}>
+                      <TableCell className="text-muted-foreground">{t.date}</TableCell>
+                      <TableCell>{t.type}</TableCell>
+                      <TableCell className="max-w-32 truncate">{t.description}</TableCell>
+                      <TableCell>{t.category}</TableCell>
+                      <TableCell className="text-right font-mono">R$ {t.amount.toFixed(2)}</TableCell>
+                      <TableCell>{t.paymentMethod}</TableCell>
+                    </TableRow>
+                  ))}
+                  {preview.transactions.length > 50 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        ...and {preview.transactions.length - 50} more
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setPreview(null); setError(null) }}>Cancel</Button>
+              <Button onClick={handleImport}>Import {preview.transactions.length} transaction{preview.transactions.length !== 1 ? 's' : ''}</Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
