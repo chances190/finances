@@ -2,6 +2,7 @@ import { useState } from 'react'
 import ExportImport from './ui/components/Common/ExportImport'
 import Tabs from './ui/components/Common/Tabs'
 import TransactionTable from './ui/components/Transactions/TransactionTable'
+import BudgetPage from './ui/components/Budget/BudgetPage'
 import { FinanceProvider } from './ui/context'
 
 const tabs = [
@@ -36,7 +37,7 @@ function AppShell() {
         <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
         {activeTab === 'transactions' && <TransactionTable />}
-        {activeTab === 'budgets' && <PagePlaceholder name="Budgets" />}
+        {activeTab === 'budgets' && <BudgetPage />}
         {activeTab === 'debts' && <PagePlaceholder name="Debts" />}
         {activeTab === 'dashboard' && <PagePlaceholder name="Dashboard" />}
         {activeTab === 'yearly' && <PagePlaceholder name="Yearly Overview" />}

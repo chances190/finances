@@ -6,6 +6,11 @@ export interface InstallmentConfig {
   total: number
 }
 
+export interface DebtSplit {
+  debtorName: string
+  amount: number
+}
+
 export interface Transaction {
   id: string
   type: TransactionType
@@ -20,6 +25,7 @@ export interface Transaction {
   groupId?: string
   isDebt: boolean
   debtorName?: string
+  debtSplits?: DebtSplit[]
   isSettled: boolean
 }
 
@@ -33,4 +39,25 @@ export interface Budget {
 export interface FinanceData {
   transactions: Transaction[]
   budgets: Budget[]
+}
+
+export interface AuditEntry {
+  id: string
+  timestamp: number
+  description: string
+  snapshot: { transactions: Transaction[]; budgets: Budget[] }
+  actionType: string
+}
+
+export interface AuditEntry {
+  id: string
+  timestamp: number
+  description: string
+  snapshot: { transactions: Transaction[]; budgets: Budget[] }
+  actionType: string
+}
+
+export interface DebtSplit {
+  debtorName: string
+  amount: number
 }

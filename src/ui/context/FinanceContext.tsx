@@ -6,26 +6,136 @@ import {
   useEffect,
   useReducer,
 } from 'react'
+import { v4 as uuid } from 'uuid'
 import { loadData, saveData } from '../../data/repository'
 import { generateSeed } from '../../data/seed'
-import type { Budget, FinanceData, Transaction } from '../../domain/entities'
+import type { Budget, FinanceData, Transaction, AuditEntry } from '../../domain/entities'
 
 export interface FinanceState {
   transactions: Transaction[]
   budgets: Budget[]
+  auditLog: AuditEntry[]
   loaded: boolean
 }
 
 export type FinanceAction =
   | { type: 'LOAD'; payload: FinanceData }
-  | { type: 'ADD_TRANSACTIONS'; payload: Transaction[] }
-  | { type: 'UPDATE_TRANSACTION'; payload: Transaction }
-  | { type: 'DELETE_TRANSACTION'; payload: string }
-  | { type: 'SETTLE_TRANSACTION'; payload: string }
-  | { type: 'UPSERT_BUDGET'; payload: Budget }
-  | { type: 'DELETE_BUDGET'; payload: string }
+  | { type: 'ADD_TRANSACTIONS'; payload: Transaction[]; description?: string }
+  | { type: 'UPDATE_TRANSACTION'; payload: Transaction; description?: string }
+  | { type: 'DELETE_TRANSACTION'; payload: string; description?: string }
+  | { type: 'SETTLE_TRANSACTION'; payload: string; settled?: boolean; description?: string }
+  | { type: 'UPSERT_BUDGET'; payload: Budget; description?: string }
+  | { type: 'DELETE_BUDGET'; payload: string; description?: string }
   | { type: 'SEED' }
-  | { type: 'IMPORT'; payload: FinanceData }
+  | { type: 'IMPORT'; payload: FinanceData; description?: string }
+  | { type: 'UNDO'; payload: string }
+  | { type: 'CLEAR_AUDIT' }
+
+function snapshot(state: FinanceState): { transactions: Transaction[]; budgets: Budget[] } {
+  return { transactions: [...state.transactions], budgets: [...state.budgets] }
+}
+
+function describeAction(action: FinanceAction): string {
+  switch (action.type) {
+    case 'ADD_TRANSACTIONS':
+      return action.description ?? `Added ${action.payload.length} transaction(s)`
+    case 'UPDATE_TRANSACTION':
+      return action.description ?? `Updated transaction "${action.payload.description}"`
+    case 'DELETE_TRANSACTION':
+      return action.description ?? `Deleted transaction`
+    case 'SETTLE_TRANSACTION':
+      return action.description ?? (action.settled === false ? 'Unsettled transaction' : 'Settled transaction')
+    case 'UPSERT_BUDGET':
+      return action.description ?? `Saved budget for ${action.payload.referenceMonth}`
+    case 'DELETE_BUDGET':
+      return action.description ?? `Deleted budget for ${action.payload}`
+    case 'IMPORT':
+      return action.description ?? `Imported ${action.payload.transactions.length} transaction(s)`
+    case 'SEED':
+      return 'Loaded seed data'
+    case 'UNDO':
+      return 'Undo'
+    default:
+      return 'Unknown action'
+  }
+}
+
+function withAudit(state: FinanceState, action: FinanceAction & { description?: string }): FinanceState {
+  const before = snapshot(state)
+  let next: FinanceState
+
+  switch (action.type) {
+    case 'ADD_TRANSACTIONS':
+      next = { ...state, transactions: [...state.transactions, ...action.payload] }
+      break
+
+    case 'UPDATE_TRANSACTION': {
+      const updated = action.payload
+      next = { ...state, transactions: state.transactions.map((t) => (t.id === updated.id ? updated : t)) }
+      break
+    }
+
+    case 'DELETE_TRANSACTION':
+      next = {
+        ...state,
+        transactions: state.transactions.filter((t) => {
+          if (t.id === action.payload) return false
+          if (t.groupId === action.payload) return false
+          return true
+        }),
+      }
+      break
+
+    case 'SETTLE_TRANSACTION': {
+      const settled = action.settled ?? true
+      next = {
+        ...state,
+        transactions: state.transactions.map((t) =>
+          t.parentId === action.payload || t.id === action.payload ? { ...t, isSettled: settled } : t,
+        ),
+      }
+      break
+    }
+
+    case 'UPSERT_BUDGET': {
+      const budget = action.payload
+      const idx = state.budgets.findIndex((b) => b.referenceMonth === budget.referenceMonth)
+      if (idx >= 0) {
+        const nextBudgets = [...state.budgets]
+        nextBudgets[idx] = budget
+        next = { ...state, budgets: nextBudgets }
+      } else {
+        next = { ...state, budgets: [...state.budgets, budget] }
+      }
+      break
+    }
+
+    case 'DELETE_BUDGET':
+      next = { ...state, budgets: state.budgets.filter((b) => b.referenceMonth !== action.payload) }
+      break
+
+    case 'IMPORT':
+      next = { ...state, transactions: action.payload.transactions, budgets: action.payload.budgets }
+      break
+
+    case 'SEED':
+      next = { ...state, ...generateSeed(), loaded: true }
+      break
+
+    default:
+      return state
+  }
+
+  const entry: AuditEntry = {
+    id: uuid(),
+    timestamp: Date.now(),
+    description: describeAction(action),
+    snapshot: before,
+    actionType: action.type,
+  }
+
+  return { ...next, auditLog: [entry, ...state.auditLog].slice(0, 200) }
+}
 
 function reducer(state: FinanceState, action: FinanceAction): FinanceState {
   switch (action.type) {
@@ -37,60 +147,29 @@ function reducer(state: FinanceState, action: FinanceAction): FinanceState {
         loaded: true,
       }
 
+    case 'UNDO': {
+      const entry = state.auditLog.find((e) => e.id === action.payload)
+      if (!entry) return state
+      return {
+        ...state,
+        transactions: entry.snapshot.transactions,
+        budgets: entry.snapshot.budgets,
+        auditLog: state.auditLog.filter((e) => e.id !== action.payload),
+      }
+    }
+
+    case 'CLEAR_AUDIT':
+      return { ...state, auditLog: [] }
+
     case 'ADD_TRANSACTIONS':
-      return { ...state, transactions: [...state.transactions, ...action.payload] }
-
-    case 'UPDATE_TRANSACTION': {
-      const updated = action.payload
-      return {
-        ...state,
-        transactions: state.transactions.map((t) => (t.id === updated.id ? updated : t)),
-      }
-    }
-
+    case 'UPDATE_TRANSACTION':
     case 'DELETE_TRANSACTION':
-      return {
-        ...state,
-        transactions: state.transactions.filter((t) => {
-          if (t.id === action.payload) return false
-          if (t.groupId === action.payload) return false
-          return true
-        }),
-      }
-
     case 'SETTLE_TRANSACTION':
-      return {
-        ...state,
-        transactions: state.transactions.map((t) =>
-          t.parentId === action.payload || t.id === action.payload ? { ...t, isSettled: true } : t,
-        ),
-      }
-
-    case 'UPSERT_BUDGET': {
-      const budget = action.payload
-      const idx = state.budgets.findIndex((b) => b.referenceMonth === budget.referenceMonth)
-      if (idx >= 0) {
-        const next = [...state.budgets]
-        next[idx] = budget
-        return { ...state, budgets: next }
-      }
-      return { ...state, budgets: [...state.budgets, budget] }
-    }
-
+    case 'UPSERT_BUDGET':
     case 'DELETE_BUDGET':
-      return { ...state, budgets: state.budgets.filter((b) => b.referenceMonth !== action.payload) }
-
-    case 'SEED': {
-      return { ...state, ...generateSeed(), loaded: true }
-    }
-
     case 'IMPORT':
-      return {
-        ...state,
-        transactions: action.payload.transactions,
-        budgets: action.payload.budgets,
-        loaded: true,
-      }
+    case 'SEED':
+      return withAudit(state, action)
 
     default:
       return state
@@ -103,7 +182,12 @@ const FinanceContext = createContext<{
 } | null>(null)
 
 export function FinanceProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, { transactions: [], budgets: [], loaded: false })
+  const [state, dispatch] = useReducer(reducer, {
+    transactions: [],
+    budgets: [],
+    auditLog: [],
+    loaded: false,
+  })
 
   useEffect(() => {
     const saved = loadData()
