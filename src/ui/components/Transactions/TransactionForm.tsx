@@ -251,10 +251,28 @@ export default function TransactionForm({
 
   function handleSave() {
     if (isEdit && editTransaction) {
-      const txs = toTransactions(rows)
-      if (txs.length === 0) return
-      const updated = { ...editTransaction, ...txs[0] }
-      dispatch({ type: 'UPDATE_TRANSACTION', payload: updated as Transaction })
+      const row = rows[0]
+      if (!row) return
+      const amount = parseFloat(row.amount) || 0
+      if (amount <= 0) return
+      const debtSplits = row.debtSplits
+        .filter((d) => d.debtorName.trim() && parseFloat(d.amount) > 0)
+        .map((d) => ({ debtorName: d.debtorName, amount: parseFloat(d.amount) }))
+      dispatch({
+        type: 'UPDATE_TRANSACTION',
+        payload: {
+          ...editTransaction,
+          date: row.date,
+          referenceMonth: row.referenceMonth,
+          description: row.description,
+          amount,
+          category: row.category,
+          paymentMethod: row.paymentMethod,
+          isDebt: row.isDebt,
+          debtorName: debtSplits.length === 1 ? debtSplits[0].debtorName : undefined,
+          debtSplits: debtSplits.length > 0 ? debtSplits : undefined,
+        },
+      })
     } else {
       const txs = toTransactions(rows)
       if (txs.length === 0) return
