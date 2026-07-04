@@ -23,6 +23,12 @@ import { addMonths } from '@/domain/calculations'
 import type { PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { useFinance } from '@/ui/context'
 
+interface DebtSplitEntry {
+  id: string
+  debtorName: string
+  amount: string
+}
+
 interface FormRow {
   id: string
   date: string
@@ -33,10 +39,12 @@ interface FormRow {
   description: string
   referenceMonth: string
   isDebt: boolean
-  debtorName: string
+  debtSplits: DebtSplitEntry[]
   installmentTotal: string
   isInstallment: boolean
 }
+
+const emptyDebtSplit = (): DebtSplitEntry => ({ id: uuid(), debtorName: '', amount: '' })
 
 const emptyRow = (refMonth: string): FormRow => ({
   id: uuid(),
@@ -48,7 +56,7 @@ const emptyRow = (refMonth: string): FormRow => ({
   description: '',
   referenceMonth: refMonth,
   isDebt: false,
-  debtorName: '',
+  debtSplits: [],
   installmentTotal: '1',
   isInstallment: false,
 })
@@ -106,6 +114,10 @@ function toTransactions(rows: FormRow[]): Omit<Transaction, 'id'>[] {
     ) {
       result.push(...generateInstallments(row))
     } else {
+      const debtSplits = row.debtSplits
+        .filter((d) => d.debtorName.trim() && parseFloat(d.amount) > 0)
+        .map((d) => ({ debtorName: d.debtorName, amount: parseFloat(d.amount) }))
+
       result.push({
         type: row.type,
         date: row.date,
@@ -115,7 +127,8 @@ function toTransactions(rows: FormRow[]): Omit<Transaction, 'id'>[] {
         category: row.category,
         paymentMethod: row.paymentMethod,
         isDebt: row.isDebt,
-        debtorName: row.isDebt ? row.debtorName : undefined,
+        debtorName: debtSplits.length === 1 ? debtSplits[0].debtorName : undefined,
+        debtSplits: debtSplits.length > 0 ? debtSplits : undefined,
         isSettled: false,
       })
     }
@@ -317,12 +330,61 @@ export default function TransactionForm({
                   </Label>
                 </div>
                 {row.isDebt && (
-                  <div className="space-y-1 flex-1">
-                    <Label className="text-xs">Debtor name</Label>
-                    <Input
-                      value={row.debtorName}
-                      onChange={(e) => updateRow(row.id, { debtorName: e.target.value })}
-                    />
+                  <div className="space-y-2 flex-1">
+                    <Label className="text-xs">Debt splits (who owes what)</Label>
+                    {row.debtSplits.map((split) => (
+                      <div key={split.id} className="flex gap-2 items-center">
+                        <Input
+                          placeholder="Name"
+                          value={split.debtorName}
+                          onChange={(e) =>
+                            updateRow(row.id, {
+                              debtSplits: row.debtSplits.map((s) =>
+                                s.id === split.id ? { ...s, debtorName: e.target.value } : s,
+                              ),
+                            })
+                          }
+                          className="flex-1"
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Amount"
+                          value={split.amount}
+                          onChange={(e) =>
+                            updateRow(row.id, {
+                              debtSplits: row.debtSplits.map((s) =>
+                                s.id === split.id ? { ...s, amount: e.target.value } : s,
+                              ),
+                            })
+                          }
+                          className="w-28"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() =>
+                            updateRow(row.id, {
+                              debtSplits: row.debtSplits.filter((s) => s.id !== split.id),
+                            })
+                          }
+                        >
+                          <TrashIcon />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      onClick={() =>
+                        updateRow(row.id, {
+                          debtSplits: [...row.debtSplits, emptyDebtSplit()],
+                        })
+                      }
+                    >
+                      <PlusIcon /> Add debtor
+                    </Button>
                   </div>
                 )}
               </div>
