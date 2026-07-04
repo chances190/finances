@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { DEFAULT_CATEGORIES } from '@/domain/constants'
 import { addMonths } from '@/domain/calculations'
 import type { PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { useFinance } from '@/ui/context'
@@ -64,18 +65,6 @@ const emptyRow = (refMonth: string, defaults?: Partial<FormRow>): FormRow => ({
   ...defaults,
 })
 
-const CATEGORIES = [
-  'Food',
-  'Transport',
-  'Rent',
-  'Leisure',
-  'Utilities',
-  'Health',
-  'Education',
-  'Shopping',
-  'Salary',
-  'Other',
-]
 const PAYMENT_METHODS: PaymentMethod[] = ['CASH', 'DEBIT', 'CREDIT', 'PIX', 'MEAL_VOUCHER']
 
 function generateInstallments(row: FormRow): Omit<Transaction, 'id'>[] {
@@ -368,7 +357,7 @@ export default function TransactionForm({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {CATEGORIES.map((c) => (
+                      {DEFAULT_CATEGORIES.map((c) => (
                         <SelectItem key={c} value={c}>
                           {c}
                         </SelectItem>
@@ -422,6 +411,7 @@ export default function TransactionForm({
                     <Label className="text-xs">Installments</Label>
                     <Select
                       value={row.isInstallment ? 'yes' : 'no'}
+                      disabled={row.isDebt}
                       onValueChange={(v) => updateRow(row.id, { isInstallment: v === 'yes' })}
                     >
                       <SelectTrigger>
@@ -453,6 +443,7 @@ export default function TransactionForm({
                   <Checkbox
                     id={`debt-${row.id}`}
                     checked={row.isDebt}
+                    disabled={row.isInstallment}
                     onCheckedChange={(v) => updateRow(row.id, { isDebt: v === true })}
                   />
                   <Label htmlFor={`debt-${row.id}`} className="text-xs">
