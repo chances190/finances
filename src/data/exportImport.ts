@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid'
-import type { Budget, FinanceData, Transaction } from '../domain/entities'
+import type { FinanceData, Transaction } from '../domain/entities'
 
 export function exportJSON(data: FinanceData): void {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -159,19 +159,4 @@ function downloadBlob(blob: Blob, filename: string): void {
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)
-}
-
-export function exportBudgetCSV(budgets: Budget[]): void {
-  if (budgets.length === 0) return
-  const allCategories = Array.from(new Set(budgets.flatMap((b) => Object.keys(b.categoryLimits))))
-  const headers = ['referenceMonth', 'plannedIncome', 'plannedMealVoucher', ...allCategories]
-  const rows = budgets.map((b) => [
-    b.referenceMonth,
-    String(b.plannedIncome),
-    String(b.plannedMealVoucher),
-    ...allCategories.map((cat) => String(b.categoryLimits[cat] ?? '')),
-  ])
-  const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  downloadBlob(blob, `finances-budgets-${new Date().toISOString().slice(0, 10)}.csv`)
 }
