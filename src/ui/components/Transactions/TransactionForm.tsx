@@ -40,6 +40,7 @@ interface FormRow {
   referenceMonth: string
   isDebt: boolean
   debtSplits: DebtSplitEntry[]
+  debtMode: 'single' | 'equal' | 'custom' | null
   installmentTotal: string
   isInstallment: boolean
 }
@@ -57,6 +58,7 @@ const emptyRow = (refMonth: string, defaults?: Partial<FormRow>): FormRow => ({
   referenceMonth: refMonth,
   isDebt: false,
   debtSplits: [],
+  debtMode: null,
   installmentTotal: '1',
   isInstallment: false,
   ...defaults,
@@ -140,6 +142,14 @@ function toTransactions(rows: FormRow[]): Omit<Transaction, 'id'>[] {
 
 function toRow(tx: Transaction, _refMonth: string): FormRow {
   const hasLegacyDebtor = tx.isDebt && tx.debtorName && !tx.debtSplits?.length
+  const splits = hasLegacyDebtor
+    ? [{ id: uuid(), debtorName: tx.debtorName!, amount: String(tx.amount) }]
+    : tx.debtSplits?.map((d) => ({
+        id: uuid(),
+        debtorName: d.debtorName,
+        amount: String(d.amount),
+      })) ?? []
+
   return {
     id: tx.id,
     date: tx.date,
@@ -150,13 +160,8 @@ function toRow(tx: Transaction, _refMonth: string): FormRow {
     description: tx.description,
     referenceMonth: tx.referenceMonth,
     isDebt: tx.isDebt,
-    debtSplits: hasLegacyDebtor
-      ? [{ id: uuid(), debtorName: tx.debtorName!, amount: String(tx.amount) }]
-      : tx.debtSplits?.map((d) => ({
-          id: uuid(),
-          debtorName: d.debtorName,
-          amount: String(d.amount),
-        })) ?? [],
+    debtSplits: splits,
+    debtMode: splits.length === 1 ? 'single' : tx.debtSplits?.length ? 'custom' : null,
     installmentTotal: String(tx.installment?.total ?? 1),
     isInstallment: !!tx.installment && tx.installment.total > 1,
   }
@@ -209,7 +214,12 @@ export default function TransactionForm({
         if (amount <= 0) return row
 
         if (preset === 'single') {
-          return { ...row, debtSplits: [{ id: uuid(), debtorName: '', amount: String(amount) }] }
+          const name = newDebtorName || ''
+          return {
+            ...row,
+            debtMode: 'single',
+            debtSplits: [{ id: uuid(), debtorName: name, amount: String(amount) }],
+          }
         }
 
         if (preset === 'equal') {
@@ -223,7 +233,15 @@ export default function TransactionForm({
             ...s,
             amount: String(i === debtors.length - 1 ? perPerson + remainder : perPerson),
           }))
-          return { ...row, debtSplits: splits }
+          return { ...row, debtMode: 'equal', debtSplits: splits }
+        }
+
+        if (preset === 'custom') {
+          return {
+            ...row,
+            debtMode: 'custom',
+            debtSplits: [...row.debtSplits, emptyDebtSplit()],
+          }
         }
 
         return row
@@ -422,7 +440,10 @@ export default function TransactionForm({
                       <Button
                         variant="ghost"
                         size="xs"
-                        onClick={() => applyDebtPreset(row.id, 'single')}
+                        onClick={() => {
+                          const name = prompt('Debtor name:')
+                          if (name) applyDebtPreset(row.id, 'single', name)
+                        }}
                       >
                         <UserIcon /> 100% one person
                       </Button>
@@ -439,9 +460,7 @@ export default function TransactionForm({
                       <Button
                         variant="ghost"
                         size="xs"
-                        onClick={() => {
-                          updateRow(row.id, { debtSplits: [...row.debtSplits, emptyDebtSplit()] })
-                        }}
+                        onClick={() => applyDebtPreset(row.id, 'custom')}
                       >
                         <GearIcon /> Custom
                       </Button>
@@ -455,38 +474,41 @@ export default function TransactionForm({
                       )}
                     </div>
 
-                    {row.debtSplits.map((split) => (
-                      <div key={split.id} className="flex gap-2 items-center">
-                        <Input
-                          placeholder="Name"
-                          value={split.debtorName}
-                          onChange={(e) =>
-                            updateRow(row.id, {
-                              debtSplits: row.debtSplits.map((s) =>
-                                s.id === split.id ? { ...s, debtorName: e.target.value } : s,
-                              ),
-                            })
-                          }
-                          className="flex-1"
-                        />
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="Amount"
-                          value={split.amount}
-                          onChange={(e) =>
-                            updateRow(row.id, {
-                              debtSplits: row.debtSplits.map((s) =>
-                                s.id === split.id ? { ...s, amount: e.target.value } : s,
-                              ),
-                            })
-                          }
-                          className="w-28"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
+                    {row.debtSplits.map((split) => {
+                      const amountEditable = row.debtMode === 'custom'
+                      return (
+                        <div key={split.id} className="flex gap-2 items-center">
+                          <Input
+                            placeholder="Name"
+                            value={split.debtorName}
+                            onChange={(e) =>
+                              updateRow(row.id, {
+                                debtSplits: row.debtSplits.map((s) =>
+                                  s.id === split.id ? { ...s, debtorName: e.target.value } : s,
+                                ),
+                              })
+                            }
+                            className="flex-1"
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="Amount"
+                            value={split.amount}
+                            disabled={!amountEditable}
+                            onChange={(e) =>
+                              updateRow(row.id, {
+                                debtSplits: row.debtSplits.map((s) =>
+                                  s.id === split.id ? { ...s, amount: e.target.value } : s,
+                                ),
+                              })
+                            }
+                            className="w-28"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
                           onClick={() =>
                             updateRow(row.id, {
                               debtSplits: row.debtSplits.filter((s) => s.id !== split.id),
@@ -496,7 +518,7 @@ export default function TransactionForm({
                           <TrashIcon />
                         </Button>
                       </div>
-                    ))}
+                    )})}
                   </div>
                 )}
               </div>

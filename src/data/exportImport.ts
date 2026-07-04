@@ -25,28 +25,39 @@ export function exportCSV(transactions: Transaction[]): void {
     'referenceMonth',
     'isDebt',
     'debtorName',
+    'debtNames',
+    'debtAmounts',
     'isSettled',
     'installmentTotal',
     'installmentCurrent',
     'parentId',
     'groupId',
   ]
-  const rows = transactions.map((t) => [
-    t.date,
-    t.type,
-    String(t.amount),
-    t.category,
-    t.paymentMethod,
-    t.description,
-    t.referenceMonth,
-    String(t.isDebt),
-    t.debtorName ?? '',
-    String(t.isSettled),
-    t.installment?.total?.toString() ?? '',
-    t.installment?.current?.toString() ?? '',
-    t.parentId ?? '',
-    t.groupId ?? '',
-  ])
+  const rows = transactions.map((t) => {
+    const debtNames = t.debtSplits?.map((d) => d.debtorName).join('/') ?? ''
+    const userAmount = t.debtSplits ? t.amount - t.debtSplits.reduce((s, d) => s + d.amount, 0) : 0
+    const debtorAmounts = t.debtSplits?.map((d) => d.amount).join('/') ?? ''
+    const debtAmounts = t.debtSplits?.length ? `${userAmount}//${debtorAmounts}` : ''
+
+    return [
+      t.date,
+      t.type,
+      String(t.amount),
+      t.category,
+      t.paymentMethod,
+      t.description,
+      t.referenceMonth,
+      String(t.isDebt),
+      t.debtorName ?? '',
+      debtNames,
+      debtAmounts,
+      String(t.isSettled),
+      t.installment?.total?.toString() ?? '',
+      t.installment?.current?.toString() ?? '',
+      t.parentId ?? '',
+      t.groupId ?? '',
+    ]
+  })
   const csv = [
     headers.join(','),
     ...rows.map((r) => r.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')),
@@ -77,7 +88,7 @@ export function importCSV(csv: string): Transaction[] {
     const date = row.date
     const referenceMonth = row.referenceMonth || date.slice(0, 7)
 
-    transactions.push({
+    const t: Transaction = {
       id: uuid(),
       type: row.type as 'INCOME' | 'EXPENSE',
       date,
@@ -97,7 +108,21 @@ export function importCSV(csv: string): Transaction[] {
       isDebt: row.isDebt === 'true',
       debtorName: row.debtorName || undefined,
       isSettled: row.isSettled === 'true',
-    })
+    }
+
+    if (row.debtNames && row.debtAmounts) {
+      const names = row.debtNames.split('/').filter(Boolean)
+      const amounts = row.debtAmounts.split('//')
+      const debtorAmounts = amounts[1]?.split('/').filter(Boolean) ?? []
+      if (names.length === debtorAmounts.length && names.length > 0) {
+        t.debtSplits = names.map((name, i) => ({
+          debtorName: name,
+          amount: parseFloat(debtorAmounts[i]) || 0,
+        }))
+      }
+    }
+
+    transactions.push(t)
   }
 
   return transactions
