@@ -1,5 +1,5 @@
-import { PlusIcon, TrashIcon } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { GearIcon, PlusIcon, TrashIcon, UserIcon, UsersIcon } from '@phosphor-icons/react'
+import { useEffect, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -46,7 +46,7 @@ interface FormRow {
 
 const emptyDebtSplit = (): DebtSplitEntry => ({ id: uuid(), debtorName: '', amount: '' })
 
-const emptyRow = (refMonth: string): FormRow => ({
+const emptyRow = (refMonth: string, defaults?: Partial<FormRow>): FormRow => ({
   id: uuid(),
   date: new Date().toISOString().slice(0, 10),
   type: 'EXPENSE',
@@ -59,6 +59,7 @@ const emptyRow = (refMonth: string): FormRow => ({
   debtSplits: [],
   installmentTotal: '1',
   isInstallment: false,
+  ...defaults,
 })
 
 const CATEGORIES = [
@@ -93,6 +94,7 @@ function generateInstallments(row: FormRow): Omit<Transaction, 'id'>[] {
       paymentMethod: 'CREDIT',
       installment: { current: i, total },
       groupId,
+      parentId: groupId,
       isDebt: false,
       isSettled: false,
     })
@@ -136,16 +138,56 @@ function toTransactions(rows: FormRow[]): Omit<Transaction, 'id'>[] {
   return result
 }
 
+function toRow(tx: Transaction, _refMonth: string): FormRow {
+  const hasLegacyDebtor = tx.isDebt && tx.debtorName && !tx.debtSplits?.length
+  return {
+    id: tx.id,
+    date: tx.date,
+    type: tx.type,
+    amount: String(tx.amount),
+    category: tx.category,
+    paymentMethod: tx.paymentMethod,
+    description: tx.description,
+    referenceMonth: tx.referenceMonth,
+    isDebt: tx.isDebt,
+    debtSplits: hasLegacyDebtor
+      ? [{ id: uuid(), debtorName: tx.debtorName!, amount: String(tx.amount) }]
+      : tx.debtSplits?.map((d) => ({
+          id: uuid(),
+          debtorName: d.debtorName,
+          amount: String(d.amount),
+        })) ?? [],
+    installmentTotal: String(tx.installment?.total ?? 1),
+    isInstallment: !!tx.installment && tx.installment.total > 1,
+  }
+}
+
+interface TransactionFormProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  editTransaction?: Transaction | null
+}
+
 export default function TransactionForm({
   open,
   onOpenChange,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}) {
+  editTransaction,
+}: TransactionFormProps) {
   const { dispatch } = useFinance()
   const defaultRefMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
-  const [rows, setRows] = useState<FormRow[]>([emptyRow(defaultRefMonth)])
+  const isEdit = !!editTransaction
+
+  const [rows, setRows] = useState<FormRow[]>(
+    editTransaction ? [toRow(editTransaction, defaultRefMonth)] : [emptyRow(defaultRefMonth)],
+  )
+
+  useEffect(() => {
+    if (editTransaction) {
+      setRows([toRow(editTransaction, defaultRefMonth)])
+    } else {
+      setRows([emptyRow(defaultRefMonth)])
+    }
+  }, [editTransaction, defaultRefMonth])
 
   function updateRow(id: string, patch: Partial<FormRow>) {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))
@@ -159,38 +201,81 @@ export default function TransactionForm({
     setRows((prev) => prev.filter((r) => r.id !== id))
   }
 
+  function applyDebtPreset(rowId: string, preset: 'single' | 'equal' | 'custom', newDebtorName?: string) {
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== rowId) return row
+        const amount = parseFloat(row.amount) || 0
+        if (amount <= 0) return row
+
+        if (preset === 'single') {
+          return { ...row, debtSplits: [{ id: uuid(), debtorName: '', amount: String(amount) }] }
+        }
+
+        if (preset === 'equal') {
+          const debtors = newDebtorName
+            ? [...row.debtSplits, { id: uuid(), debtorName: newDebtorName, amount: '0' }]
+            : row.debtSplits
+          const count = debtors.length || 1
+          const perPerson = Math.round((amount / count) * 100) / 100
+          const remainder = Math.round((amount - perPerson * count) * 100) / 100
+          const splits = debtors.map((s, i) => ({
+            ...s,
+            amount: String(i === debtors.length - 1 ? perPerson + remainder : perPerson),
+          }))
+          return { ...row, debtSplits: splits }
+        }
+
+        return row
+      })
+    )
+  }
+
   function handleSave() {
-    const txs = toTransactions(rows)
-    if (txs.length === 0) return
-    dispatch({ type: 'ADD_TRANSACTIONS', payload: txs.map((t) => ({ ...t, id: uuid() })) })
+    if (isEdit && editTransaction) {
+      const txs = toTransactions(rows)
+      if (txs.length === 0) return
+      const updated = { ...editTransaction, ...txs[0] }
+      dispatch({ type: 'UPDATE_TRANSACTION', payload: updated as Transaction })
+    } else {
+      const txs = toTransactions(rows)
+      if (txs.length === 0) return
+      dispatch({ type: 'ADD_TRANSACTIONS', payload: txs.map((t) => ({ ...t, id: uuid() })) })
+    }
     setRows([emptyRow(defaultRefMonth)])
     onOpenChange(false)
   }
+
+  const debtSplit = rows[0]?.debtSplits ?? []
+  const rowAmount = parseFloat(rows[0]?.amount || '0') || 0
+  const totalSplit = debtSplit.reduce((s, d) => s + (parseFloat(d.amount) || 0), 0)
+  const splitMatch = Math.abs(totalSplit - rowAmount) < 0.01
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Add Transactions</DialogTitle>
+          <DialogTitle>{isEdit ? 'Edit Transaction' : 'Add Transactions'}</DialogTitle>
           <DialogDescription>
-            Add one or multiple transactions. For credit installments, the system will auto-generate
-            monthly records.
+            {isEdit
+              ? 'Update the transaction details.'
+              : 'Add one or multiple transactions. For credit installments, the system will auto-generate monthly records.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 max-h-[60vh] overflow-y-auto">
           {rows.map((row, index) => (
-            <div key={row.id} className="border border-border p-3 rounded-none space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Transaction {index + 1}
-                </span>
-                {rows.length > 1 && (
+            <div key={row.id} className="border border-border p-3 space-y-2">
+              {!isEdit && rows.length > 1 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Transaction {index + 1}
+                  </span>
                   <Button variant="ghost" size="icon-xs" onClick={() => removeRow(row.id)}>
                     <TrashIcon />
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div className="space-y-1">
@@ -287,7 +372,7 @@ export default function TransactionForm({
               </div>
 
               {row.paymentMethod === 'CREDIT' && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label className="text-xs">Installments</Label>
                     <Select
@@ -318,8 +403,8 @@ export default function TransactionForm({
                 </div>
               )}
 
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
+              <div className="flex items-start gap-4 pt-1">
+                <div className="flex items-center gap-2 pt-1">
                   <Checkbox
                     id={`debt-${row.id}`}
                     checked={row.isDebt}
@@ -329,9 +414,47 @@ export default function TransactionForm({
                     Is debt (someone owes me)
                   </Label>
                 </div>
+
                 {row.isDebt && (
                   <div className="space-y-2 flex-1">
-                    <Label className="text-xs">Debt splits (who owes what)</Label>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <Label className="text-xs">Splits:</Label>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => applyDebtPreset(row.id, 'single')}
+                      >
+                        <UserIcon /> 100% one person
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => {
+                          const name = prompt('Debtor name:')
+                          if (name) applyDebtPreset(row.id, 'equal', name)
+                        }}
+                      >
+                        <UsersIcon /> Equal per person
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => {
+                          updateRow(row.id, { debtSplits: [...row.debtSplits, emptyDebtSplit()] })
+                        }}
+                      >
+                        <GearIcon /> Custom
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>Total: R$ {rowAmount.toFixed(2)}</span>
+                      <span>Split: R$ {totalSplit.toFixed(2)}</span>
+                      {!splitMatch && rowAmount > 0 && (
+                        <span className="text-destructive">Does not match!</span>
+                      )}
+                    </div>
+
                     {row.debtSplits.map((split) => (
                       <div key={split.id} className="flex gap-2 items-center">
                         <Input
@@ -374,17 +497,6 @@ export default function TransactionForm({
                         </Button>
                       </div>
                     ))}
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      onClick={() =>
-                        updateRow(row.id, {
-                          debtSplits: [...row.debtSplits, emptyDebtSplit()],
-                        })
-                      }
-                    >
-                      <PlusIcon /> Add debtor
-                    </Button>
                   </div>
                 )}
               </div>
@@ -393,14 +505,16 @@ export default function TransactionForm({
         </div>
 
         <div className="flex items-center justify-between pt-2">
-          <Button variant="outline" size="sm" onClick={addRow}>
-            <PlusIcon /> Add Row
-          </Button>
-          <div className="flex gap-2">
+          {!isEdit && (
+            <Button variant="outline" size="sm" onClick={addRow}>
+              <PlusIcon /> Add Row
+            </Button>
+          )}
+          <div className="flex gap-2 ml-auto">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>Save</Button>
+            <Button onClick={handleSave}>{isEdit ? 'Update' : 'Save'}</Button>
           </div>
         </div>
       </DialogContent>
