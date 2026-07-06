@@ -46,9 +46,9 @@
   - Deferred: advance-pay feature (complex, out of scope for this refactor)
   - Deferred: income-hides-debt (installment/debt UI unification)
 
-- [ ] **Commit 8 — Refactor large components**
-  - Split TransactionTable.tsx (~310 lines) — extract PaymentBadge, TransactionRow, month filtering
-  - Split BudgetPage.tsx (~360 lines) — extract BudgetFormDialog into its own file
+- [x] **Commit 8 — Refactor large components**
+  - Extract BudgetFormDialog from BudgetPage.tsx (383 → 108 lines)
+  - Create BudgetFormDialog.tsx with self-contained form state and logic
 
 # Original bug list (from old TODO.md, migrated to Commit 7)
 
