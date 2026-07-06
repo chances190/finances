@@ -16,7 +16,9 @@ import { addMonths } from '@/domain/calculations'
 import { DEFAULT_CATEGORIES } from '@/domain/constants'
 import type { Budget as BudgetType } from '@/domain/entities'
 import { formatCurrency } from '@/lib/format'
+import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
+import { useToast } from '@/ui/context/ToastContext'
 
 interface BudgetFormData {
   referenceMonth: string
@@ -50,10 +52,12 @@ function toBudget(data: BudgetFormData): BudgetType {
 
 export default function BudgetPage() {
   const { state, dispatch } = useFinance()
+  const { toast } = useToast()
   const [showForm, setShowForm] = useState(false)
   const [editingMonth, setEditingMonth] = useState<string | null>(null)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [showAddCategory, setShowAddCategory] = useState(false)
+  const [confirmDeleteMonth, setConfirmDeleteMonth] = useState<string | null>(null)
 
   const sorted = useMemo(
     () => [...state.budgets].sort((a, b) => b.referenceMonth.localeCompare(a.referenceMonth)),
@@ -112,7 +116,7 @@ export default function BudgetPage() {
       : addMonths(form.referenceMonth, -1)
     const source = state.budgets.find((b) => b.referenceMonth === sourceMonth)
     if (!source) {
-      alert(`No budget found for ${sourceMonth}`)
+      toast(`No budget found for ${sourceMonth}`, 'error')
       return
     }
     setForm({
@@ -133,15 +137,13 @@ export default function BudgetPage() {
   }
 
   function handleDelete(month: string) {
-    if (confirm(`Delete budget for ${month}?`)) {
-      dispatch({ type: 'DELETE_BUDGET', payload: month })
-    }
+    setConfirmDeleteMonth(month)
   }
 
   function handleAddCategory() {
     if (!newCategoryName.trim()) return
     if (form.categoryLimits[newCategoryName]) {
-      alert('Category already exists')
+      toast('Category already exists', 'error')
       return
     }
     setForm({
@@ -360,6 +362,22 @@ export default function BudgetPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmDeleteMonth !== null}
+        onOpenChange={(o) => {
+          if (!o) setConfirmDeleteMonth(null)
+        }}
+        title="Delete Budget"
+        message={confirmDeleteMonth ? `Delete budget for ${confirmDeleteMonth}?` : ''}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (confirmDeleteMonth) {
+            dispatch({ type: 'DELETE_BUDGET', payload: confirmDeleteMonth })
+            setConfirmDeleteMonth(null)
+          }
+        }}
+      />
     </div>
   )
 }

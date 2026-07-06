@@ -15,6 +15,7 @@ import { DEFAULT_CATEGORIES, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/do
 
 import type { DebtConfig, PaymentMethod, Transaction } from '@/domain/entities'
 import { useFinance } from '@/ui/context'
+import { useToast } from '@/ui/context/ToastContext'
 import DebtConfigModal from './DebtConfigModal'
 
 interface EditFormState {
@@ -39,6 +40,7 @@ export default function TransactionForm({
   editTransaction,
 }: TransactionFormProps) {
   const { dispatch } = useFinance()
+  const { toast } = useToast()
 
   const [form, setForm] = useState<EditFormState>({
     date: '',
@@ -83,11 +85,11 @@ export default function TransactionForm({
   function handleSave() {
     const amount = parseFloat(form.amount) || 0
     if (amount <= 0) {
-      alert('Amount must be greater than 0')
+      toast('Amount must be greater than 0', 'error')
       return
     }
     if (!form.description.trim()) {
-      alert('Description is required')
+      toast('Description is required', 'error')
       return
     }
 

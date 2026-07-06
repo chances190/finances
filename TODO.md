@@ -22,10 +22,11 @@
   - Fix BudgetPage stale closure — use setForm(f => ...) consistently
   - Add useRef cleanup for FileReader in CSVImportDialog
 
-- [ ] **Commit 4 — Replace alert/confirm with non-blocking UX**
-  - Create a minimal toast notification system (or use shadcn's toast via sonner)
-  - Replace all alert() / confirm() calls with toast/dialog alternatives
-  - Add error boundary wrapper to catch rendering crashes
+- [x] **Commit 4 — Replace alert/confirm with non-blocking UX**
+  - Create lightweight toast notification system (ToastContext)
+  - Create reusable ConfirmDialog component
+  - Add ErrorBoundary wrapper
+  - Replace all 10 alert()/confirm() calls with toast/dialog alternatives
 
 - [ ] **Commit 5 — Extract domain utilities & fix seed data**
   - Move generateInstallments() from TransactionTable.tsx to domain/calculations.ts

@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { DebtConfig, DebtSplitUI } from '@/domain/entities'
+import { useToast } from '@/ui/context/ToastContext'
 
 interface DebtConfigModalProps {
   open: boolean
@@ -23,6 +24,7 @@ export default function DebtConfigModal({
   totalAmount,
 }: DebtConfigModalProps) {
   const [tempConfig, setTempConfig] = useState<DebtConfig>(config)
+  const { toast } = useToast()
 
   const assignedDebtors = tempConfig.splits.reduce((s, d) => s + d.amount, 0)
   const assignedTotal = tempConfig.userShare + assignedDebtors
@@ -76,8 +78,9 @@ export default function DebtConfigModal({
     // If totalAmount is 0, the user will auto-fill it from the config total
     // If totalAmount > 0, validate that splits don't exceed it
     if (totalAmount > 0 && !isBalanced) {
-      alert(
+      toast(
         `Debt splits must total R$ ${totalAmount.toFixed(2)} (currently ${assignedTotal.toFixed(2)})`,
+        'error',
       )
       return
     }

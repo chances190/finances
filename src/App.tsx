@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import BudgetPage from './ui/components/Budget/BudgetPage'
+import ErrorBoundary from './ui/components/Common/ErrorBoundary'
 import ExportImport from './ui/components/Common/ExportImport'
 import Tabs from './ui/components/Common/Tabs'
 import DebtPage from './ui/components/Debts/DebtPage'
 import TransactionTable from './ui/components/Transactions/TransactionTable'
 import { FinanceProvider } from './ui/context'
+import { ToastProvider } from './ui/context/ToastContext'
 
 const tabs = [
   { key: 'transactions', label: 'Transactions' },
@@ -50,7 +52,11 @@ function AppShell() {
 export default function App() {
   return (
     <FinanceProvider>
-      <AppShell />
+      <ToastProvider>
+        <ErrorBoundary>
+          <AppShell />
+        </ErrorBoundary>
+      </ToastProvider>
     </FinanceProvider>
   )
 }

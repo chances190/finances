@@ -12,6 +12,7 @@ import {
 import { TableCell, TableRow } from '@/components/ui/table'
 import { DEFAULT_CATEGORIES, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/domain/constants'
 import type { DebtConfig, PaymentMethod } from '@/domain/entities'
+import { useToast } from '@/ui/context/ToastContext'
 
 interface QuickAddRowState {
   date: string
@@ -53,6 +54,7 @@ export default function QuickAddRow({
 
   const [selectedRefMonth, setSelectedRefMonth] = React.useState(refMonth)
   const [debtConfig, setDebtConfig] = React.useState<DebtConfig>({ userShare: 0, splits: [] })
+  const { toast } = useToast()
 
   const dateInputRef = useRef<HTMLInputElement>(null)
 
@@ -71,19 +73,19 @@ export default function QuickAddRow({
     const amount = parseFloat(row.amount) || 0
 
     if (!row.date) {
-      alert('Date is required')
+      toast('Date is required', 'error')
       return
     }
     if (amount <= 0) {
-      alert('Amount is required and must be greater than 0')
+      toast('Amount is required and must be greater than 0', 'error')
       return
     }
     if (!row.category) {
-      alert('Category is required')
+      toast('Category is required', 'error')
       return
     }
     if (!row.paymentMethod) {
-      alert('Payment method is required')
+      toast('Payment method is required', 'error')
       return
     }
 
