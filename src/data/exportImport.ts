@@ -1,5 +1,17 @@
 import { v4 as uuid } from 'uuid'
-import type { FinanceData, Transaction } from '../domain/entities'
+import type { FinanceData, PaymentMethod, Transaction, TransactionType } from '../domain/entities'
+import { validateFinanceData } from './validation'
+
+const VALID_TYPES: TransactionType[] = ['INCOME', 'EXPENSE']
+const VALID_PAYMENT_METHODS: PaymentMethod[] = ['CASH', 'DEBIT', 'CREDIT', 'PIX', 'MEAL_VOUCHER']
+
+function parseType(s: string | undefined): TransactionType {
+  return s && VALID_TYPES.includes(s as TransactionType) ? (s as TransactionType) : 'EXPENSE'
+}
+
+function parsePaymentMethod(s: string | undefined): PaymentMethod {
+  return s && VALID_PAYMENT_METHODS.includes(s as PaymentMethod) ? (s as PaymentMethod) : 'DEBIT'
+}
 
 export function exportJSON(data: FinanceData): void {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -7,11 +19,7 @@ export function exportJSON(data: FinanceData): void {
 }
 
 export function importJSON(json: string): FinanceData {
-  const data = JSON.parse(json) as FinanceData
-  if (!Array.isArray(data.transactions) || !Array.isArray(data.budgets)) {
-    throw new Error('Invalid format: expected { transactions: [], budgets: [] }')
-  }
-  return data
+  return validateFinanceData(JSON.parse(json))
 }
 
 export function exportCSV(transactions: Transaction[]): void {
@@ -91,13 +99,13 @@ export function importCSV(csv: string): Transaction[] {
 
     const t: Transaction = {
       id: uuid(),
-      type: row.type as 'INCOME' | 'EXPENSE',
+      type: parseType(row.type),
       date,
       referenceMonth,
       description: row.description || '',
       amount: parseFloat(row.amount) || 0,
       category: row.category || 'Other',
-      paymentMethod: row.paymentMethod as Transaction['paymentMethod'],
+      paymentMethod: parsePaymentMethod(row.paymentMethod),
       installment: row.installmentTotal
         ? {
             current: parseInt(row.installmentCurrent, 10) || 1,

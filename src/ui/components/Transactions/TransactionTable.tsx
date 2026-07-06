@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/table'
 import { addMonths } from '@/domain/calculations'
 import { PAYMENT_METHOD_LABELS } from '@/domain/constants'
-import type { DebtConfig, Transaction } from '@/domain/entities'
+import type { DebtConfig, PaymentMethod, Transaction } from '@/domain/entities'
 import { formatCurrency } from '@/lib/format'
 import { useFinance } from '@/ui/context'
 import AuditLogPanel from '../Common/AuditLogPanel'
@@ -76,7 +76,18 @@ export default function TransactionTable() {
       ? filterMonth
       : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
 
-  function handleQuickAdd(rowData: any, refMonth: string, debtConfig?: DebtConfig) {
+  function handleQuickAdd(
+    rowData: {
+      description: string
+      date: string
+      amount: string
+      category: string
+      paymentMethod: PaymentMethod
+      installmentTotal: number
+    },
+    refMonth: string,
+    debtConfig?: DebtConfig,
+  ) {
     const amount = parseFloat(rowData.amount) || 0
     if (amount <= 0) return
 
@@ -98,7 +109,7 @@ export default function TransactionTable() {
     }
 
     if (rowData.paymentMethod === 'CREDIT' && rowData.installmentTotal > 1) {
-      const txs = generateInstallments(tx, rowData)
+      const txs = generateInstallments(tx, rowData.installmentTotal)
       dispatch({ type: 'ADD_TRANSACTIONS', payload: txs.map((t) => ({ ...t, id: uuid() })) })
     } else {
       dispatch({ type: 'ADD_TRANSACTIONS', payload: [{ ...tx, id: uuid() }] })
@@ -286,9 +297,8 @@ export default function TransactionTable() {
 
 function generateInstallments(
   tx: Omit<Transaction, 'id'>,
-  rowData: any,
+  total: number,
 ): Array<Omit<Transaction, 'id'>> {
-  const total = rowData.installmentTotal || 1
   const perInstallment = Math.round(((tx.amount || 0) / total) * 100) / 100
   const groupId = uuid()
   const result: Array<Omit<Transaction, 'id'>> = []

@@ -23,9 +23,14 @@ interface QuickAddRowState {
   isDebt: boolean
 }
 
+type CompletedQuickAddRow = Omit<QuickAddRowState, 'category' | 'paymentMethod'> & {
+  category: string
+  paymentMethod: PaymentMethod
+}
+
 interface QuickAddRowProps {
   refMonth: string
-  onAdd: (row: QuickAddRowState, refMonth: string, debtConfig?: DebtConfig) => void
+  onAdd: (row: CompletedQuickAddRow, refMonth: string, debtConfig?: DebtConfig) => void
   isFilteredMonth: boolean
   onOpenDebtModal?: (callback: (config: DebtConfig) => void, totalAmount: number) => void
 }
@@ -83,10 +88,7 @@ export default function QuickAddRow({
     }
 
     onAdd(
-      row as Omit<QuickAddRowState, 'category' | 'paymentMethod'> & {
-        category: string
-        paymentMethod: PaymentMethod
-      },
+      row as CompletedQuickAddRow,
       selectedRefMonth,
       debtConfig.splits.length > 0 ? debtConfig : undefined,
     )

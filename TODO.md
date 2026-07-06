@@ -11,10 +11,10 @@
 
 ## In progress
 
-- [ ] **Commit 2 — Type safety patch**
+- [x] **Commit 2 — Type safety patch**
   - Replace `rowData: any` in handleQuickAdd with proper QuickAddRowState type
   - Replace `rowData: any` in generateInstallments with typed parameters
-  - Add Zod schema (or manual validator) for FinanceData runtime validation
+  - Add runtime validator for FinanceData (JSON.parse safety)
   - Fix unsafe `as Transaction['paymentMethod']` in CSV import
 
 - [ ] **Commit 3 — State management fixes**

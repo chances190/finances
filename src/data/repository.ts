@@ -1,11 +1,12 @@
 import type { FinanceData } from '../domain/entities'
+import { validateFinanceData } from './validation'
 
 const STORAGE_KEY = 'finances-data'
 
 export function loadData(): FinanceData | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as FinanceData) : null
+    return raw ? validateFinanceData(JSON.parse(raw)) : null
   } catch {
     return null
   }
