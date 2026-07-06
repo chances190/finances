@@ -210,31 +210,54 @@ export default function QuickAddRow({
         )}
       </TableCell>
       <TableCell className="p-1 w-32">
-        <Button
-          size="icon-xs"
-          variant={debtConfig.splits.length > 0 ? 'default' : 'ghost'}
-          onClick={() => {
-            if (onOpenDebtModal) {
-              const amount = parseFloat(row.amount) || 0
-              onOpenDebtModal((config) => {
-                setDebtConfig(config)
-                // If amount was 0, auto-fill with the debt total
-                if (amount === 0) {
-                  const total = config.userShare + config.splits.reduce((s, d) => s + d.amount, 0)
-                  setRow((r) => ({ ...r, amount: String(total) }))
-                }
-              }, amount)
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() =>
+              setRow((r) => ({
+                ...r,
+                isDebt: !r.isDebt,
+                installmentTotal: r.isDebt ? 1 : r.installmentTotal,
+              }))
             }
-          }}
-          title={
-            debtConfig.splits.length > 0 ? `${debtConfig.splits.length} debtors` : 'Add debt splits'
-          }
-        >
-          <UsersIcon className="size-3" />
-          {debtConfig.splits.length > 0 && (
-            <span className="ml-1 text-xs">{debtConfig.splits.length}</span>
+            className={`text-xs px-1.5 py-0.5 border ${
+              row.isDebt
+                ? 'bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-400'
+                : 'border-border text-muted-foreground'
+            }`}
+            title="Toggle debt"
+          >
+            Debt
+          </button>
+          {row.isDebt && (
+            <Button
+              size="icon-xs"
+              variant={debtConfig.splits.length > 0 ? 'default' : 'ghost'}
+              onClick={() => {
+                if (onOpenDebtModal) {
+                  const amount = parseFloat(row.amount) || 0
+                  onOpenDebtModal((config) => {
+                    setDebtConfig(config)
+                    if (amount === 0) {
+                      const total = config.userShare + config.splits.reduce((s, d) => s + d.amount, 0)
+                      setRow((r) => ({ ...r, amount: String(total) }))
+                    }
+                  }, amount)
+                }
+              }}
+              title={
+                debtConfig.splits.length > 0
+                  ? `${debtConfig.splits.length} debtors`
+                  : 'Split debt'
+              }
+            >
+              <UsersIcon className="size-3" />
+              {debtConfig.splits.length > 0 && (
+                <span className="ml-1 text-xs">{debtConfig.splits.length}</span>
+              )}
+            </Button>
           )}
-        </Button>
+        </div>
       </TableCell>
       <TableCell className="p-1 text-right w-20">
         <Button size="icon-xs" onClick={handleAdd} title="Add transaction (or press Enter)">

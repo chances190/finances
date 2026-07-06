@@ -52,6 +52,7 @@ export default function TransactionForm({
     installmentTotal: 1,
   })
 
+  const [isDebt, setIsDebt] = useState(false)
   const [debtConfig, setDebtConfig] = useState<DebtConfig>({ userShare: 0, splits: [] })
   const [showDebtConfig, setShowDebtConfig] = useState(false)
 
@@ -67,6 +68,7 @@ export default function TransactionForm({
         installmentTotal: editTransaction.installment?.total ?? 1,
       })
 
+      setIsDebt(editTransaction.isDebt)
       if (editTransaction.isDebt && editTransaction.debtSplits) {
         setDebtConfig({
           userShare: editTransaction.debtUserShare ?? 0,
@@ -107,10 +109,10 @@ export default function TransactionForm({
         form.installmentTotal > 1
           ? { current: editTransaction.installment?.current ?? 1, total: form.installmentTotal }
           : undefined,
-      isDebt: debtConfig.splits.length > 0,
-      debtUserShare: debtConfig.splits.length > 0 ? debtConfig.userShare : undefined,
+      isDebt,
+      debtUserShare: isDebt ? debtConfig.userShare : undefined,
       debtSplits:
-        debtConfig.splits.length > 0
+        isDebt && debtConfig.splits.length > 0
           ? debtConfig.splits.map((s) => ({ debtorName: s.name, amount: s.amount }))
           : undefined,
     }
@@ -145,6 +147,7 @@ export default function TransactionForm({
                 <Input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={form.amount}
                   onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
                 />
@@ -229,41 +232,54 @@ export default function TransactionForm({
               </div>
             )}
 
-            {/* Debt configuration */}
-            <div className="border-t pt-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium">Debt Configuration</Label>
-                {debtConfig.splits.length > 0 && (
-                  <Button variant="ghost" size="xs" onClick={() => setShowDebtConfig(true)}>
-                    {debtConfig.splits.length} debtor{debtConfig.splits.length !== 1 ? 's' : ''}
-                  </Button>
-                )}
-              </div>
-
-              {debtConfig.splits.length === 0 ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => setShowDebtConfig(true)}
-                >
-                  Configure debt splits
-                </Button>
-              ) : (
-                <div className="text-xs space-y-1 bg-muted/50 p-2 rounded">
-                  {debtConfig.userShare > 0 && (
-                    <div>
-                      Me: <span className="font-mono">R$ {debtConfig.userShare.toFixed(2)}</span>
-                    </div>
+            {/* Debt toggle + configuration */}
+            {form.paymentMethod !== 'MEAL_VOUCHER' && (
+              <div className="border-t pt-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setIsDebt((v) => {
+                        if (v) {
+                          setDebtConfig({ userShare: 0, splits: [] })
+                        }
+                        return !v
+                      })
+                    }
+                    className={`text-xs px-2 py-1 border ${
+                      isDebt
+                        ? 'bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-400'
+                        : 'border-border text-muted-foreground'
+                    }`}
+                  >
+                    Is Debt
+                  </button>
+                  {isDebt && (
+                    <>
+                      {debtConfig.splits.length === 0 ? (
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          onClick={() => setShowDebtConfig(true)}
+                        >
+                          Add splits
+                        </Button>
+                      ) : (
+                        <>
+                          <Button variant="ghost" size="xs" onClick={() => setShowDebtConfig(true)}>
+                            {debtConfig.splits.length} debtor
+                            {debtConfig.splits.length !== 1 ? 's' : ''}
+                          </Button>
+                          <span className="text-xs text-muted-foreground">
+                            (My share: R$ {debtConfig.userShare.toFixed(2)})
+                          </span>
+                        </>
+                      )}
+                    </>
                   )}
-                  {debtConfig.splits.map((s) => (
-                    <div key={s.id}>
-                      {s.name}: <span className="font-mono">R$ {s.amount.toFixed(2)}</span>
-                    </div>
-                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2 justify-end pt-4">

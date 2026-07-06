@@ -39,12 +39,12 @@
   - Remove noop ternary in CSVImportDialog.tsx
   - Export patterns already unified (all use inline `export default function`)
 
-- [ ] **Commit 7 — Fix original TODO.md bugs**
-  - Fix "Is Debt" button wiring in the add dialog
-  - Hide debt configuration for INCOME transactions
-  - Redesign installments/debt UI to be consistent
-  - Add validation to reject negative amounts at form level
-  - Implement advance-pay feature for credit installments
+- [x] **Commit 7 — Fix original TODO.md bugs**
+  - Add explicit "Is Debt" toggle chip in QuickAddRow and TransactionForm
+  - Wire `isDebt` state through to transaction creation/update
+  - Add `min="0"` to TransactionForm amount input (negative protection)
+  - Deferred: advance-pay feature (complex, out of scope for this refactor)
+  - Deferred: income-hides-debt (installment/debt UI unification)
 
 - [ ] **Commit 8 — Refactor large components**
   - Split TransactionTable.tsx (~310 lines) — extract PaymentBadge, TransactionRow, month filtering

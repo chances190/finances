@@ -84,12 +84,15 @@ export default function TransactionTable() {
       category: string
       paymentMethod: PaymentMethod
       installmentTotal: number
+      isDebt: boolean
     },
     refMonth: string,
     debtConfig?: DebtConfig,
   ) {
     const amount = parseFloat(rowData.amount) || 0
     if (amount <= 0) return
+
+    const isDebt = rowData.isDebt || (!!debtConfig && debtConfig.splits.length > 0)
 
     const tx: Omit<Transaction, 'id'> = {
       type: 'EXPENSE',
@@ -99,7 +102,7 @@ export default function TransactionTable() {
       amount,
       category: rowData.category,
       paymentMethod: rowData.paymentMethod,
-      isDebt: !!debtConfig && debtConfig.splits.length > 0,
+      isDebt,
       debtUserShare: debtConfig ? debtConfig.userShare : undefined,
       debtSplits:
         debtConfig && debtConfig.splits.length > 0
