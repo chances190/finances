@@ -1,10 +1,6 @@
-import {
-  ArrowCounterClockwiseIcon,
-  CheckCircleIcon,
-  PlusIcon,
-  TrashIcon,
-} from '@phosphor-icons/react'
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, TrashIcon } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
+import { v4 as uuid } from 'uuid'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,15 +18,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { PAYMENT_METHOD_LABELS, TRANSACTION_TYPE_LABELS } from '@/domain/constants'
-import type { Transaction } from '@/domain/entities'
+import { addMonths } from '@/domain/calculations'
+import { PAYMENT_METHOD_LABELS } from '@/domain/constants'
+import type { DebtConfig, Transaction } from '@/domain/entities'
+import { formatCurrency } from '@/lib/format'
 import { useFinance } from '@/ui/context'
 import AuditLogPanel from '../Common/AuditLogPanel'
+import DebtConfigModal from './DebtConfigModal'
+import QuickAddRow from './QuickAddRow'
 import TransactionForm from './TransactionForm'
-
-function formatCurrency(n: number): string {
-  return `R$ ${n.toFixed(2)}`
-}
 
 function PaymentBadge({ method }: { method: string }) {
   const colors: Record<string, string> = {
@@ -54,10 +50,16 @@ function getAvailableMonths(tx: Transaction[]): string[] {
 
 export default function TransactionTable() {
   const { state, dispatch } = useFinance()
-  const [showForm, setShowForm] = useState(false)
   const [showAudit, setShowAudit] = useState(false)
   const [filterMonth, setFilterMonth] = useState<string>('all')
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
+  const [showEditForm, setShowEditForm] = useState(false)
+  const [showDebtModal, setShowDebtModal] = useState(false)
+  const [debtModalCallback, setDebtModalCallback] = useState<((config: DebtConfig) => void) | null>(
+    null,
+  )
+  const [debtModalAmount, setDebtModalAmount] = useState(0)
+  const [tempDebtConfig, setTempDebtConfig] = useState<DebtConfig>({ userShare: 0, splits: [] })
 
   const months = useMemo(() => getAvailableMonths(state.transactions), [state.transactions])
 
@@ -69,6 +71,54 @@ export default function TransactionTable() {
     return txs.sort((a, b) => b.date.localeCompare(a.date))
   }, [state.transactions, filterMonth])
 
+  const displayRefMonth =
+    filterMonth !== 'all'
+      ? filterMonth
+      : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+
+  function handleQuickAdd(rowData: any, refMonth: string, debtConfig?: DebtConfig) {
+    const amount = parseFloat(rowData.amount) || 0
+    if (amount <= 0) return
+
+    const tx: Omit<Transaction, 'id'> = {
+      type: 'EXPENSE',
+      date: rowData.date,
+      referenceMonth: refMonth,
+      description: rowData.description,
+      amount,
+      category: rowData.category,
+      paymentMethod: rowData.paymentMethod,
+      isDebt: !!debtConfig && debtConfig.splits.length > 0,
+      debtUserShare: debtConfig ? debtConfig.userShare : undefined,
+      debtSplits:
+        debtConfig && debtConfig.splits.length > 0
+          ? debtConfig.splits.map((s) => ({ debtorName: s.name, amount: s.amount }))
+          : undefined,
+      isSettled: false,
+    }
+
+    if (rowData.paymentMethod === 'CREDIT' && rowData.installmentTotal > 1) {
+      const txs = generateInstallments(tx, rowData)
+      dispatch({ type: 'ADD_TRANSACTIONS', payload: txs.map((t) => ({ ...t, id: uuid() })) })
+    } else {
+      dispatch({ type: 'ADD_TRANSACTIONS', payload: [{ ...tx, id: uuid() }] })
+    }
+  }
+
+  function handleOpenDebtModal(callback: (config: DebtConfig) => void, totalAmount: number) {
+    setDebtModalCallback(() => callback)
+    setDebtModalAmount(totalAmount)
+    setTempDebtConfig({ userShare: 0, splits: [] })
+    setShowDebtModal(true)
+  }
+
+  function handleDebtModalSave(config: DebtConfig) {
+    if (debtModalCallback) {
+      debtModalCallback(config)
+    }
+    setShowDebtModal(false)
+  }
+
   function handleDelete(id: string) {
     dispatch({ type: 'DELETE_TRANSACTION', payload: id })
   }
@@ -79,11 +129,11 @@ export default function TransactionTable() {
 
   function handleEdit(tx: Transaction) {
     setEditingTx(tx)
-    setShowForm(true)
+    setShowEditForm(true)
   }
 
   function handleFormClose(open: boolean) {
-    setShowForm(open)
+    setShowEditForm(open)
     if (!open) setEditingTx(null)
   }
 
@@ -110,11 +160,6 @@ export default function TransactionTable() {
             {state.auditLog.length > 0 ? `Undo (${state.auditLog.length})` : 'History'}
           </Button>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" onClick={() => setShowForm(true)}>
-            <PlusIcon /> Add
-          </Button>
-        </div>
       </div>
 
       {showAudit && <AuditLogPanel onClose={() => setShowAudit(false)} />}
@@ -123,78 +168,90 @@ export default function TransactionTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Payment</TableHead>
-              <TableHead>Ref</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right w-24">Actions</TableHead>
+              <TableHead className="w-20">Ref Month</TableHead>
+              <TableHead className="w-20">Date</TableHead>
+              <TableHead className="flex-1">Description</TableHead>
+              <TableHead className="w-20">Category</TableHead>
+              <TableHead className="text-right w-24">Amount</TableHead>
+              <TableHead className="w-20">Payment</TableHead>
+              <TableHead className="w-16 text-center">Install</TableHead>
+              <TableHead className="w-32">Details</TableHead>
+              <TableHead className="text-right w-20">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
+            {/* Quick-add row */}
+            <QuickAddRow
+              refMonth={displayRefMonth}
+              onAdd={handleQuickAdd}
+              isFilteredMonth={filterMonth !== 'all'}
+              onOpenDebtModal={handleOpenDebtModal}
+            />
+
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-muted-foreground py-12">
-                  No transactions yet. Click "Add" to create one.
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-12">
+                  No transactions yet.
                 </TableCell>
               </TableRow>
             )}
+
             {filtered.map((tx) => (
               <TableRow
                 key={tx.id}
                 className={`cursor-pointer ${tx.isSettled ? 'opacity-50' : ''}`}
                 onClick={() => !tx.parentId && handleEdit(tx)}
               >
-                <TableCell className="text-muted-foreground">{tx.date}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{tx.referenceMonth}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{tx.date}</TableCell>
                 <TableCell>
-                  <Badge variant={tx.type === 'INCOME' ? 'default' : 'secondary'}>
-                    {TRANSACTION_TYPE_LABELS[tx.type]}
-                  </Badge>
+                  <div className="max-w-48 truncate">
+                    {tx.description}
+                    {tx.parentId && (
+                      <span className="text-muted-foreground ml-1 text-[10px]">(installment)</span>
+                    )}
+                  </div>
                 </TableCell>
-                <TableCell className="max-w-48 truncate">
-                  {tx.description}
-                  {tx.parentId && (
-                    <span className="text-muted-foreground ml-1 text-[10px]">(installment)</span>
-                  )}
-                  {tx.debtSplits && tx.debtSplits.length > 1 && (
-                    <span className="text-muted-foreground ml-1 text-[10px]">
-                      ({tx.debtSplits.length} debtors)
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell>{tx.category}</TableCell>
+                <TableCell className="text-xs">{tx.category}</TableCell>
                 <TableCell
-                  className={`text-right font-mono ${tx.type === 'INCOME' ? 'text-green-600' : ''}`}
+                  className={`text-right font-mono text-xs ${tx.type === 'INCOME' ? 'text-green-600' : ''}`}
                 >
                   {formatCurrency(tx.amount)}
                 </TableCell>
                 <TableCell>
                   <PaymentBadge method={tx.paymentMethod} />
                 </TableCell>
-                <TableCell className="text-muted-foreground">{tx.referenceMonth}</TableCell>
-                <TableCell>
-                  {tx.isSettled ? (
-                    <Badge variant="outline" className="text-green-600">
-                      Settled
+                <TableCell className="text-center text-xs">
+                  {tx.installment ? (
+                    <Badge variant="outline" className="text-xs">
+                      {tx.installment.current}/{tx.installment.total}
                     </Badge>
-                  ) : tx.isDebt ? (
-                    <Badge variant="outline" className="text-amber-600">
-                      Active
-                    </Badge>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
+                  ) : null}
                 </TableCell>
                 <TableCell>
+                  {tx.isDebt ? (
+                    <div className="text-xs space-y-0.5">
+                      {tx.debtUserShare! > 0 && (
+                        <div className="text-muted-foreground">
+                          Me: {formatCurrency(tx.debtUserShare!)}
+                        </div>
+                      )}
+                      {tx.debtSplits?.map((s, i) => (
+                        <div key={i} className="text-muted-foreground">
+                          {s.debtorName}: {formatCurrency(s.amount)}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </TableCell>
+                <TableCell className="text-right">
                   <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
                     {tx.isDebt && (
                       <Button
                         variant="ghost"
                         size="icon-xs"
                         onClick={() => handleSettle(tx.id, tx.isSettled)}
+                        title={tx.isSettled ? 'Unsettle' : 'Settle debt'}
                       >
                         <CheckCircleIcon />
                       </Button>
@@ -210,7 +267,46 @@ export default function TransactionTable() {
         </Table>
       </div>
 
-      <TransactionForm open={showForm} onOpenChange={handleFormClose} editTransaction={editingTx} />
+      <TransactionForm
+        open={showEditForm}
+        onOpenChange={handleFormClose}
+        editTransaction={editingTx}
+      />
+
+      <DebtConfigModal
+        open={showDebtModal}
+        onOpenChange={setShowDebtModal}
+        config={tempDebtConfig}
+        onConfigChange={handleDebtModalSave}
+        totalAmount={debtModalAmount}
+      />
     </div>
   )
+}
+
+function generateInstallments(
+  tx: Omit<Transaction, 'id'>,
+  rowData: any,
+): Array<Omit<Transaction, 'id'>> {
+  const total = rowData.installmentTotal || 1
+  const perInstallment = Math.round(((tx.amount || 0) / total) * 100) / 100
+  const groupId = uuid()
+  const result: Array<Omit<Transaction, 'id'>> = []
+
+  for (let i = 1; i <= total; i++) {
+    result.push({
+      ...tx,
+      referenceMonth: i === 1 ? tx.referenceMonth : addMonths(tx.referenceMonth, i - 1),
+      description: `${tx.description} - ${i}/${total}`,
+      amount: i === total ? (tx.amount || 0) - perInstallment * (total - 1) : perInstallment,
+      type: 'EXPENSE',
+      installment: { current: i, total },
+      groupId,
+      parentId: groupId,
+      isDebt: false,
+      isSettled: false,
+    })
+  }
+
+  return result
 }

@@ -11,6 +11,17 @@ export interface DebtSplit {
   amount: number
 }
 
+export interface DebtSplitUI {
+  id: string
+  name: string
+  amount: number
+}
+
+export interface DebtConfig {
+  userShare: number
+  splits: DebtSplitUI[]
+}
+
 export interface Transaction {
   id: string
   type: TransactionType
@@ -26,6 +37,7 @@ export interface Transaction {
   isDebt: boolean
   debtorName?: string
   debtSplits?: DebtSplit[]
+  debtUserShare?: number
   isSettled: boolean
 }
 

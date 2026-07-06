@@ -1,0 +1,5076 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+src/
+  application/
+    useCases.ts
+  components/
+    ui/
+      badge.tsx
+      button.tsx
+      calendar.tsx
+      card.tsx
+      checkbox.tsx
+      command.tsx
+      dialog.tsx
+      input-group.tsx
+      input.tsx
+      label.tsx
+      popover.tsx
+      scroll-area.tsx
+      select.tsx
+      separator.tsx
+      table.tsx
+      tabs.tsx
+      textarea.tsx
+  data/
+    exportImport.ts
+    repository.ts
+    seed.ts
+  domain/
+    calculations.ts
+    constants.ts
+    entities.ts
+  lib/
+    utils.ts
+  ui/
+    components/
+      Budget/
+        BudgetPage.tsx
+      Common/
+        AuditLogPanel.tsx
+        CSVImportDialog.tsx
+        ExportImport.tsx
+        Tabs.tsx
+      Debts/
+        DebtPage.tsx
+      Transactions/
+        DebtConfigModal.tsx
+        QuickAddRow.tsx
+        TransactionForm.tsx
+        TransactionTable.tsx
+    context/
+      FinanceContext.tsx
+      index.ts
+  App.tsx
+  index.css
+  main.tsx
+  vite-env.d.ts
+.gitignore
+biome.json
+components.json
+index.html
+opencode.json
+package.json
+TODO.md
+tsconfig.json
+tsconfig.tsbuildinfo
+vite.config.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="src/components/ui/scroll-area.tsx">
+import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area'
+
+import { cn } from '@/lib/utils'
+
+function ScrollArea({ className, children, ...props }: ScrollAreaPrimitive.Root.Props) {
+  return (
+    <ScrollAreaPrimitive.Root
+      data-slot="scroll-area"
+      className={cn('relative', className)}
+      {...props}
+    >
+      <ScrollAreaPrimitive.Viewport
+        data-slot="scroll-area-viewport"
+        className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
+      >
+        {children}
+      </ScrollAreaPrimitive.Viewport>
+      <ScrollBar />
+      <ScrollAreaPrimitive.Corner />
+    </ScrollAreaPrimitive.Root>
+  )
+}
+
+function ScrollBar({
+  className,
+  orientation = 'vertical',
+  ...props
+}: ScrollAreaPrimitive.Scrollbar.Props) {
+  return (
+    <ScrollAreaPrimitive.Scrollbar
+      data-slot="scroll-area-scrollbar"
+      data-orientation={orientation}
+      orientation={orientation}
+      className={cn(
+        'flex touch-none p-px transition-colors select-none data-horizontal:h-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:h-full data-vertical:w-2.5 data-vertical:border-l data-vertical:border-l-transparent',
+        className,
+      )}
+      {...props}
+    >
+      <ScrollAreaPrimitive.Thumb
+        data-slot="scroll-area-thumb"
+        className="relative flex-1 rounded-none bg-border"
+      />
+    </ScrollAreaPrimitive.Scrollbar>
+  )
+}
+
+export { ScrollArea, ScrollBar }
+</file>
+
+<file path="src/ui/components/Common/AuditLogPanel.tsx">
+import { ArrowCounterClockwiseIcon, ClockIcon, XIcon } from '@phosphor-icons/react'
+import { Button } from '@/components/ui/button'
+import { useFinance } from '@/ui/context'
+
+export default function AuditLogPanel({ onClose }: { onClose: () => void }) {
+  const { state, dispatch } = useFinance()
+
+  function handleUndo(entryId: string) {
+    dispatch({ type: 'UNDO', payload: entryId })
+  }
+
+  return (
+    <div className="border border-border bg-card p-3">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-xs font-semibold flex items-center gap-1">
+          <ClockIcon /> Action History
+        </h3>
+        <div className="flex gap-2">
+          {state.auditLog.length > 0 && (
+            <Button variant="ghost" size="xs" onClick={() => dispatch({ type: 'CLEAR_AUDIT' })}>
+              Clear
+            </Button>
+          )}
+          <Button variant="ghost" size="icon-xs" onClick={onClose}>
+            <XIcon />
+          </Button>
+        </div>
+      </div>
+
+      {state.auditLog.length === 0 ? (
+        <p className="text-xs text-muted-foreground py-4 text-center">No actions recorded yet.</p>
+      ) : (
+        <div className="space-y-1 max-h-48 overflow-y-auto">
+          {state.auditLog.map((entry) => (
+            <div
+              key={entry.id}
+              className="flex items-center justify-between py-1.5 px-2 hover:bg-muted text-xs"
+            >
+              <div className="flex-1 min-w-0">
+                <span className="truncate block">{entry.description}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  {new Date(entry.timestamp).toLocaleString()}
+                </span>
+              </div>
+              <Button variant="ghost" size="xs" onClick={() => handleUndo(entry.id)}>
+                <ArrowCounterClockwiseIcon /> Undo
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+</file>
+
+<file path="src/ui/components/Debts/DebtPage.tsx">
+import { CheckCircleIcon, UserIcon } from '@phosphor-icons/react'
+import { useMemo } from 'react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { activeDebts, daysSince } from '@/domain/calculations'
+import { useFinance } from '@/ui/context'
+
+function formatCurrency(n: number): string {
+  return `R$ ${n.toFixed(2)}`
+}
+
+function DebtUrgency({ days }: { days: number }) {
+  const color =
+    days > 30
+      ? 'text-red-600 bg-red-50 dark:bg-red-900/20'
+      : days > 15
+        ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20'
+        : 'text-green-600 bg-green-50 dark:bg-green-900/20'
+  return (
+    <Badge variant="outline" className={color}>
+      {days}d
+    </Badge>
+  )
+}
+
+export default function DebtPage() {
+  const { state, dispatch } = useFinance()
+
+  const debts = useMemo(() => activeDebts(state.transactions), [state.transactions])
+
+  function handleSettle(id: string) {
+    dispatch({ type: 'SETTLE_TRANSACTION', payload: id, settled: true })
+  }
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-sm font-semibold">Active Debts (who owes me)</h2>
+
+      {debts.length === 0 ? (
+        <div className="border border-border p-8 text-center text-muted-foreground text-sm">
+          No active debts.
+        </div>
+      ) : (
+        <div className="border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Debtor</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Age</TableHead>
+                <TableHead>Date Lent</TableHead>
+                <TableHead>Splits</TableHead>
+                <TableHead className="text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {debts.map((tx) => {
+                const days = daysSince(tx.date)
+                const splits = tx.debtSplits?.filter((s) => s.amount > 0) ?? []
+                return (
+                  <TableRow key={tx.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-1">
+                        <UserIcon className="size-3" />
+                        {splits.length === 1 ? splits[0].debtorName : tx.debtorName || 'Multiple'}
+                      </div>
+                    </TableCell>
+                    <TableCell>{tx.description}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(tx.amount)}
+                    </TableCell>
+                    <TableCell>
+                      <DebtUrgency days={days} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{tx.date}</TableCell>
+                    <TableCell>
+                      {splits.length > 1 ? (
+                        <div className="text-xs space-y-0.5">
+                          {splits.map((s, i) => (
+                            <div key={i} className="text-muted-foreground">
+                              {s.debtorName}: {formatCurrency(s.amount)}
+                            </div>
+                          ))}
+                        </div>
+                      ) : splits.length === 1 ? (
+                        <span className="text-xs text-muted-foreground">100%</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon-sm" onClick={() => handleSettle(tx.id)}>
+                        <CheckCircleIcon />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  )
+}
+</file>
+
+<file path="src/ui/components/Transactions/DebtConfigModal.tsx">
+import { LightningAIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
+import { useState } from 'react'
+import { v4 as uuid } from 'uuid'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+
+interface DebtSplit {
+  id: string
+  name: string
+  amount: number
+}
+
+interface DebtConfig {
+  userShare: number
+  splits: DebtSplit[]
+}
+
+interface DebtConfigModalProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  config: DebtConfig
+  onConfigChange: (config: DebtConfig) => void
+  totalAmount: number
+}
+
+export default function DebtConfigModal({
+  open,
+  onOpenChange,
+  config,
+  onConfigChange,
+  totalAmount,
+}: DebtConfigModalProps) {
+  const [tempConfig, setTempConfig] = useState<DebtConfig>(config)
+
+  const assignedDebtors = tempConfig.splits.reduce((s, d) => s + d.amount, 0)
+  const assignedTotal = tempConfig.userShare + assignedDebtors
+  const remaining = Math.max(0, totalAmount - assignedTotal)
+  const isBalanced = Math.abs(remaining) < 0.01
+
+  function handleAddPerson() {
+    setTempConfig((c) => ({
+      ...c,
+      splits: [...c.splits, { id: uuid(), name: '', amount: 0 }],
+    }))
+  }
+
+  function handleUpdateSplit(id: string, patch: Partial<DebtSplit>) {
+    setTempConfig((c) => ({
+      ...c,
+      splits: c.splits.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+    }))
+  }
+
+  function handleRemoveSplit(id: string) {
+    setTempConfig((c) => ({
+      ...c,
+      splits: c.splits.filter((s) => s.id !== id),
+    }))
+  }
+
+  function handleFillRemainder(id: string) {
+    setTempConfig((c) => ({
+      ...c,
+      splits: c.splits.map((s) => (s.id === id ? { ...s, amount: remaining } : s)),
+    }))
+  }
+
+  function handleSplitEvenly() {
+    const count = tempConfig.splits.length
+    if (count === 0) return
+    const perPerson = Math.round((totalAmount / count) * 100) / 100
+    const remainder = Math.round((totalAmount - perPerson * count) * 100) / 100
+    setTempConfig((c) => ({
+      ...c,
+      userShare: 0,
+      splits: c.splits.map((s, i) => ({
+        ...s,
+        amount: i === c.splits.length - 1 ? perPerson + remainder : perPerson,
+      })),
+    }))
+  }
+
+  function handleSave() {
+    // If totalAmount is 0, the user will auto-fill it from the config total
+    // If totalAmount > 0, validate that splits don't exceed it
+    if (totalAmount > 0 && !isBalanced) {
+      alert(
+        `Debt splits must total R$ ${totalAmount.toFixed(2)} (currently ${assignedTotal.toFixed(2)})`,
+      )
+      return
+    }
+    onConfigChange(tempConfig)
+    onOpenChange(false)
+  }
+
+  function handleCancel() {
+    setTempConfig(config)
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            Configure Debt Split
+            {totalAmount === 0 ? ' (will set amount)' : null}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Me row */}
+          <div className="border-b pb-3">
+            <Label className="text-xs font-medium mb-2 block">Your share (R$)</Label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium flex-1">Me</span>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={tempConfig.userShare}
+                onChange={(e) =>
+                  setTempConfig((c) => ({
+                    ...c,
+                    userShare: parseFloat(e.target.value) || 0,
+                  }))
+                }
+                className="w-28"
+              />
+            </div>
+          </div>
+
+          {/* Debtors */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium">Debtors</Label>
+              <Button variant="ghost" size="xs" onClick={handleAddPerson}>
+                <PlusIcon className="size-3" /> Add person
+              </Button>
+            </div>
+
+            {tempConfig.splits.length === 0 ? (
+              <div className="text-xs text-muted-foreground py-4 text-center border border-dashed p-2">
+                No debtors yet. Click "Add person" to get started.
+              </div>
+            ) : (
+              <>
+                {tempConfig.splits.map((split) => (
+                  <div key={split.id} className="flex gap-2 items-center">
+                    <Input
+                      placeholder="Name"
+                      value={split.name}
+                      onChange={(e) => handleUpdateSplit(split.id, { name: e.target.value })}
+                      className="flex-1"
+                    />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="Amount"
+                      value={split.amount}
+                      onChange={(e) =>
+                        handleUpdateSplit(split.id, { amount: parseFloat(e.target.value) || 0 })
+                      }
+                      className="w-28"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      title="Fill with remaining amount"
+                      onClick={() => handleFillRemainder(split.id)}
+                      disabled={remaining < 0.01}
+                    >
+                      <LightningAIcon />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => handleRemoveSplit(split.id)}
+                    >
+                      <TrashIcon />
+                    </Button>
+                  </div>
+                ))}
+
+                {tempConfig.splits.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={handleSplitEvenly}
+                  >
+                    Split evenly across {tempConfig.splits.length} person
+                    {tempConfig.splits.length !== 1 ? 's' : ''}
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Balance indicator */}
+          <div
+            className={`flex items-center justify-between text-xs p-2 rounded border ${
+              totalAmount === 0
+                ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400'
+                : isBalanced
+                  ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400'
+                  : 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-400'
+            }`}
+          >
+            <span>{totalAmount === 0 ? 'Amount will be set to:' : 'Balance:'}</span>
+            <span className="font-mono font-medium">
+              {totalAmount === 0
+                ? `R$ ${(tempConfig.userShare + tempConfig.splits.reduce((s, d) => s + d.amount, 0)).toFixed(2)}`
+                : `R$ ${tempConfig.userShare.toFixed(2)} + R$ ${assignedDebtors.toFixed(2)} = R$ ${assignedTotal.toFixed(2)} / R$ ${totalAmount.toFixed(2)}`}
+            </span>
+          </div>
+
+          {!isBalanced && remaining !== 0 && (
+            <div className="text-xs text-muted-foreground">
+              Remaining: R$ {remaining.toFixed(2)}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-2 justify-end pt-4">
+          <Button variant="outline" onClick={handleCancel}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={totalAmount > 0 && !isBalanced}>
+            {totalAmount === 0 ? 'Set Amount & Continue' : 'Save'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+</file>
+
+<file path="src/ui/components/Transactions/QuickAddRow.tsx">
+import { PlusIcon, UsersIcon } from '@phosphor-icons/react'
+import React, { useEffect, useRef } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { TableCell, TableRow } from '@/components/ui/table'
+import { DEFAULT_CATEGORIES, PAYMENT_METHOD_LABELS } from '@/domain/constants'
+import type { PaymentMethod } from '@/domain/entities'
+
+const PAYMENT_METHODS: PaymentMethod[] = ['CASH', 'DEBIT', 'CREDIT', 'PIX', 'MEAL_VOUCHER']
+
+interface QuickAddRowState {
+  date: string
+  amount: string
+  description: string
+  category: string | null
+  paymentMethod: PaymentMethod | null
+  installmentTotal: number
+  isDebt: boolean
+}
+
+interface DebtConfig {
+  userShare: number
+  splits: Array<{ id: string; name: string; amount: number }>
+}
+
+interface QuickAddRowProps {
+  refMonth: string
+  onAdd: (row: QuickAddRowState, refMonth: string, debtConfig?: DebtConfig) => void
+  isFilteredMonth: boolean
+  onOpenDebtModal?: (callback: (config: DebtConfig) => void, totalAmount: number) => void
+}
+
+export default function QuickAddRow({
+  refMonth,
+  onAdd,
+  isFilteredMonth,
+  onOpenDebtModal,
+}: QuickAddRowProps) {
+  const [row, setRow] = React.useState<QuickAddRowState>({
+    date: new Date().toISOString().slice(0, 10),
+    amount: '',
+    description: '',
+    category: null,
+    paymentMethod: null,
+    installmentTotal: 1,
+    isDebt: false,
+  })
+
+  const [selectedRefMonth, setSelectedRefMonth] = React.useState(refMonth)
+  const [debtConfig, setDebtConfig] = React.useState<DebtConfig>({ userShare: 0, splits: [] })
+
+  const dateInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    // Auto-focus date input when row mounts
+    dateInputRef.current?.focus()
+  }, [])
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') {
+      handleAdd()
+    }
+  }
+
+  function handleAdd() {
+    const amount = parseFloat(row.amount) || 0
+
+    if (!row.date) {
+      alert('Date is required')
+      return
+    }
+    if (amount <= 0) {
+      alert('Amount is required and must be greater than 0')
+      return
+    }
+    if (!row.category) {
+      alert('Category is required')
+      return
+    }
+    if (!row.paymentMethod) {
+      alert('Payment method is required')
+      return
+    }
+
+    onAdd(
+      row as Omit<QuickAddRowState, 'category' | 'paymentMethod'> & {
+        category: string
+        paymentMethod: PaymentMethod
+      },
+      selectedRefMonth,
+      debtConfig.splits.length > 0 ? debtConfig : undefined,
+    )
+
+    // Reset for next entry
+    setRow({
+      date: new Date().toISOString().slice(0, 10),
+      amount: '',
+      description: '',
+      category: null,
+      paymentMethod: null,
+      installmentTotal: 1,
+      isDebt: false,
+    })
+    setDebtConfig({ userShare: 0, splits: [] })
+    dateInputRef.current?.focus()
+  }
+
+  return (
+    <TableRow className="bg-muted/30 hover:bg-muted/50">
+      <TableCell className="p-1 w-20">
+        {isFilteredMonth ? (
+          <div className="text-xs text-muted-foreground pt-2">{refMonth}</div>
+        ) : (
+          <Input
+            type="month"
+            value={selectedRefMonth}
+            onChange={(e) => setSelectedRefMonth(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="h-6 text-xs"
+          />
+        )}
+      </TableCell>
+      <TableCell className="p-1 w-20">
+        <Input
+          ref={dateInputRef}
+          type="date"
+          value={row.date}
+          onChange={(e) => setRow((r) => ({ ...r, date: e.target.value }))}
+          onKeyDown={handleKeyDown}
+          className="h-6 text-xs"
+        />
+      </TableCell>
+      <TableCell className="p-1 flex-1">
+        <Input
+          placeholder="Description"
+          value={row.description}
+          onChange={(e) => setRow((r) => ({ ...r, description: e.target.value }))}
+          onKeyDown={handleKeyDown}
+          className="h-6 text-xs"
+        />
+      </TableCell>
+      <TableCell className="p-1 w-20">
+        <Select
+          value={row.category ?? ''}
+          onValueChange={(v) => setRow((r) => ({ ...r, category: v || null }))}
+        >
+          <SelectTrigger className="h-6 text-xs">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            {DEFAULT_CATEGORIES.map((c) => (
+              <SelectItem key={c} value={c} className="text-xs">
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell className="p-1 w-24">
+        <Input
+          type="number"
+          step="0.01"
+          min="0"
+          placeholder="0.00"
+          value={row.amount}
+          onChange={(e) => setRow((r) => ({ ...r, amount: e.target.value }))}
+          onKeyDown={handleKeyDown}
+          className="h-6 text-xs text-right font-mono"
+        />
+      </TableCell>
+      <TableCell className="p-1 w-20">
+        <Select
+          value={row.paymentMethod ?? ''}
+          onValueChange={(v) =>
+            setRow((r) => ({ ...r, paymentMethod: (v || null) as PaymentMethod | null }))
+          }
+        >
+          <SelectTrigger className="h-6 text-xs">
+            <SelectValue placeholder="Payment" />
+          </SelectTrigger>
+          <SelectContent>
+            {PAYMENT_METHODS.map((pm) => (
+              <SelectItem key={pm} value={pm} className="text-xs">
+                {PAYMENT_METHOD_LABELS[pm] ?? pm}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell className="p-1 w-16 text-center">
+        {row.paymentMethod === 'CREDIT' && (
+          <Input
+            type="number"
+            min="1"
+            max="48"
+            value={row.installmentTotal}
+            onChange={(e) =>
+              setRow((r) => ({
+                ...r,
+                installmentTotal: Math.max(1, parseInt(e.target.value, 10) || 1),
+              }))
+            }
+            onKeyDown={handleKeyDown}
+            className="h-6 text-xs text-center"
+          />
+        )}
+      </TableCell>
+      <TableCell className="p-1 w-32">
+        <Button
+          size="icon-xs"
+          variant={debtConfig.splits.length > 0 ? 'default' : 'ghost'}
+          onClick={() => {
+            if (onOpenDebtModal) {
+              const amount = parseFloat(row.amount) || 0
+              onOpenDebtModal((config) => {
+                setDebtConfig(config)
+                // If amount was 0, auto-fill with the debt total
+                if (amount === 0) {
+                  const total = config.userShare + config.splits.reduce((s, d) => s + d.amount, 0)
+                  setRow((r) => ({ ...r, amount: String(total) }))
+                }
+              }, amount)
+            }
+          }}
+          title={
+            debtConfig.splits.length > 0 ? `${debtConfig.splits.length} debtors` : 'Add debt splits'
+          }
+        >
+          <UsersIcon className="size-3" />
+          {debtConfig.splits.length > 0 && (
+            <span className="ml-1 text-xs">{debtConfig.splits.length}</span>
+          )}
+        </Button>
+      </TableCell>
+      <TableCell className="p-1 text-right w-20">
+        <Button size="icon-xs" onClick={handleAdd} title="Add transaction (or press Enter)">
+          <PlusIcon />
+        </Button>
+      </TableCell>
+    </TableRow>
+  )
+}
+</file>
+
+<file path="TODO.md">
+- [ ] The is Debit buttons on add transaction model STILL DON'T WORK
+- [ ] Incomes shouldn't have debitors
+- [ ] Installments and "is debt" should have consistent UI
+- [ ] The user must be able to advance pay on credit transactions (pay the next N months, shift the rest if any)
+- [ ] Ensure the application either rejects or doesn't break with negative values
+</file>
+
+<file path="src/application/useCases.ts">
+import {
+  activeDebts,
+  balance,
+  budgetVsActual,
+  budgetVsActualYear,
+  byCategory,
+  cashExpenses,
+  categoryTimeSeries,
+  creditInvoice,
+  expensesByMonth,
+  futureCommitments,
+  mealVoucherBalance,
+  outstandingDebt,
+  type SpendingPaceResult,
+  spendingPace,
+  totalByMonth,
+  yearSummary,
+} from '../domain/calculations'
+import type { Budget, Transaction } from '../domain/entities'
+
+export function useMonthSummary(transactions: Transaction[], refMonth: string) {
+  return {
+    income: totalByMonth(transactions, refMonth),
+    expenses: expensesByMonth(transactions, refMonth),
+    balance: balance(transactions, refMonth),
+    byCategory: byCategory(transactions, refMonth),
+    cashExpenses: cashExpenses(transactions, refMonth),
+    mealVoucher: mealVoucherBalance(transactions, refMonth),
+    creditInvoice: creditInvoice(transactions, refMonth),
+  }
+}
+
+export function useSpendingPace(
+  transactions: Transaction[],
+  budget: Budget | undefined,
+  currentDay: number,
+): SpendingPaceResult {
+  return spendingPace(transactions, budget, currentDay)
+}
+
+export function useBudgetVsActual(transactions: Transaction[], budget: Budget | undefined) {
+  return budgetVsActual(transactions, budget)
+}
+
+export function useFutureCommitments(transactions: Transaction[], months = 12) {
+  return futureCommitments(transactions, months)
+}
+
+export function useActiveDebts(transactions: Transaction[]) {
+  return {
+    debts: activeDebts(transactions),
+    total: outstandingDebt(transactions),
+  }
+}
+
+export function useCategoryTimeSeries(transactions: Transaction[], months = 6) {
+  return categoryTimeSeries(transactions, months)
+}
+
+export function useYearSummary(transactions: Transaction[], year: number) {
+  return yearSummary(transactions, year)
+}
+
+export function useYearBudgetVsActual(
+  transactions: Transaction[],
+  budgets: Budget[],
+  year: number,
+) {
+  return budgetVsActualYear(transactions, budgets, year)
+}
+</file>
+
+<file path="src/components/ui/calendar.tsx">
+'use client'
+
+import { CaretDownIcon, CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
+import * as React from 'react'
+import { type DayButton, DayPicker, getDefaultClassNames, type Locale } from 'react-day-picker'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+
+function Calendar({
+  className,
+  classNames,
+  showOutsideDays = true,
+  captionLayout = 'label',
+  buttonVariant = 'ghost',
+  locale,
+  formatters,
+  components,
+  ...props
+}: React.ComponentProps<typeof DayPicker> & {
+  buttonVariant?: React.ComponentProps<typeof Button>['variant']
+}) {
+  const defaultClassNames = getDefaultClassNames()
+
+  return (
+    <DayPicker
+      showOutsideDays={showOutsideDays}
+      className={cn(
+        'group/calendar bg-background p-2 [--cell-size:--spacing(7)] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent',
+        String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
+        String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
+        className,
+      )}
+      captionLayout={captionLayout}
+      locale={locale}
+      formatters={{
+        formatMonthDropdown: (date) => date.toLocaleString(locale?.code, { month: 'short' }),
+        ...formatters,
+      }}
+      classNames={{
+        root: cn('w-fit', defaultClassNames.root),
+        months: cn('relative flex flex-col gap-4 md:flex-row', defaultClassNames.months),
+        month: cn('flex w-full flex-col gap-4', defaultClassNames.month),
+        nav: cn(
+          'absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1',
+          defaultClassNames.nav,
+        ),
+        button_previous: cn(
+          buttonVariants({ variant: buttonVariant }),
+          'size-(--cell-size) p-0 select-none aria-disabled:opacity-50',
+          defaultClassNames.button_previous,
+        ),
+        button_next: cn(
+          buttonVariants({ variant: buttonVariant }),
+          'size-(--cell-size) p-0 select-none aria-disabled:opacity-50',
+          defaultClassNames.button_next,
+        ),
+        month_caption: cn(
+          'flex h-(--cell-size) w-full items-center justify-center px-(--cell-size)',
+          defaultClassNames.month_caption,
+        ),
+        dropdowns: cn(
+          'flex h-(--cell-size) w-full items-center justify-center gap-1.5 text-sm font-medium',
+          defaultClassNames.dropdowns,
+        ),
+        dropdown_root: cn('relative rounded-(--cell-radius)', defaultClassNames.dropdown_root),
+        dropdown: cn('absolute inset-0 bg-popover opacity-0', defaultClassNames.dropdown),
+        caption_label: cn(
+          'font-medium select-none',
+          captionLayout === 'label'
+            ? 'text-sm'
+            : 'flex items-center gap-1 rounded-(--cell-radius) text-sm [&>svg]:size-3.5 [&>svg]:text-muted-foreground',
+          defaultClassNames.caption_label,
+        ),
+        month_grid: cn('w-full border-collapse', defaultClassNames.month_grid),
+        weekdays: cn('flex', defaultClassNames.weekdays),
+        weekday: cn(
+          'flex-1 rounded-(--cell-radius) text-[0.8rem] font-normal text-muted-foreground select-none',
+          defaultClassNames.weekday,
+        ),
+        week: cn('mt-2 flex w-full', defaultClassNames.week),
+        week_number_header: cn('w-(--cell-size) select-none', defaultClassNames.week_number_header),
+        week_number: cn(
+          'text-[0.8rem] text-muted-foreground select-none',
+          defaultClassNames.week_number,
+        ),
+        day: cn(
+          'group/day relative aspect-square h-full w-full rounded-(--cell-radius) p-0 text-center select-none [&:last-child[data-selected=true]_button]:rounded-r-(--cell-radius)',
+          props.showWeekNumber
+            ? '[&:nth-child(2)[data-selected=true]_button]:rounded-l-(--cell-radius)'
+            : '[&:first-child[data-selected=true]_button]:rounded-l-(--cell-radius)',
+          defaultClassNames.day,
+        ),
+        range_start: cn(
+          'relative isolate z-0 rounded-l-(--cell-radius) bg-muted after:absolute after:inset-y-0 after:right-0 after:w-4 after:bg-muted',
+          defaultClassNames.range_start,
+        ),
+        range_middle: cn('rounded-none', defaultClassNames.range_middle),
+        range_end: cn(
+          'relative isolate z-0 rounded-r-(--cell-radius) bg-muted after:absolute after:inset-y-0 after:left-0 after:w-4 after:bg-muted',
+          defaultClassNames.range_end,
+        ),
+        today: cn(
+          'rounded-(--cell-radius) bg-muted text-foreground data-[selected=true]:rounded-none',
+          defaultClassNames.today,
+        ),
+        outside: cn(
+          'text-muted-foreground aria-selected:text-muted-foreground',
+          defaultClassNames.outside,
+        ),
+        disabled: cn('text-muted-foreground opacity-50', defaultClassNames.disabled),
+        hidden: cn('invisible', defaultClassNames.hidden),
+        ...classNames,
+      }}
+      components={{
+        Root: ({ className, rootRef, ...props }) => {
+          return <div data-slot="calendar" ref={rootRef} className={cn(className)} {...props} />
+        },
+        Chevron: ({ className, orientation, ...props }) => {
+          if (orientation === 'left') {
+            return <CaretLeftIcon className={cn('size-4', className)} {...props} />
+          }
+
+          if (orientation === 'right') {
+            return <CaretRightIcon className={cn('size-4', className)} {...props} />
+          }
+
+          return <CaretDownIcon className={cn('size-4', className)} {...props} />
+        },
+        DayButton: ({ ...props }) => <CalendarDayButton locale={locale} {...props} />,
+        WeekNumber: ({ children, ...props }) => {
+          return (
+            <td {...props}>
+              <div className="flex size-(--cell-size) items-center justify-center text-center">
+                {children}
+              </div>
+            </td>
+          )
+        },
+        ...components,
+      }}
+      {...props}
+    />
+  )
+}
+
+function CalendarDayButton({
+  className,
+  day,
+  modifiers,
+  locale,
+  ...props
+}: React.ComponentProps<typeof DayButton> & { locale?: Partial<Locale> }) {
+  const defaultClassNames = getDefaultClassNames()
+
+  const ref = React.useRef<HTMLButtonElement>(null)
+  React.useEffect(() => {
+    if (modifiers.focused) ref.current?.focus()
+  }, [modifiers.focused])
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      data-day={day.date.toLocaleDateString(locale?.code)}
+      data-selected-single={
+        modifiers.selected &&
+        !modifiers.range_start &&
+        !modifiers.range_end &&
+        !modifiers.range_middle
+      }
+      data-range-start={modifiers.range_start}
+      data-range-end={modifiers.range_end}
+      data-range-middle={modifiers.range_middle}
+      className={cn(
+        'relative isolate z-10 flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 border-0 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-[3px] group-data-[focused=true]/day:ring-ring/50 data-[range-end=true]:rounded-(--cell-radius) data-[range-end=true]:rounded-r-(--cell-radius) data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-muted data-[range-middle=true]:text-foreground data-[range-start=true]:rounded-(--cell-radius) data-[range-start=true]:rounded-l-(--cell-radius) data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground dark:hover:text-foreground [&>span]:text-xs [&>span]:opacity-70',
+        defaultClassNames.day,
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Calendar, CalendarDayButton }
+</file>
+
+<file path="src/components/ui/checkbox.tsx">
+import { Checkbox as CheckboxPrimitive } from '@base-ui/react/checkbox'
+import { CheckIcon } from '@phosphor-icons/react'
+import { cn } from '@/lib/utils'
+
+function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
+  return (
+    <CheckboxPrimitive.Root
+      data-slot="checkbox"
+      className={cn(
+        'peer relative flex size-4 shrink-0 items-center justify-center rounded-none border border-input transition-colors outline-none group-has-disabled/field:opacity-50 after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 aria-invalid:aria-checked:border-primary dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:data-checked:bg-primary',
+        className,
+      )}
+      {...props}
+    >
+      <CheckboxPrimitive.Indicator
+        data-slot="checkbox-indicator"
+        className="grid place-content-center text-current transition-none [&>svg]:size-3.5"
+      >
+        <CheckIcon />
+      </CheckboxPrimitive.Indicator>
+    </CheckboxPrimitive.Root>
+  )
+}
+
+export { Checkbox }
+</file>
+
+<file path="src/components/ui/command.tsx">
+'use client'
+
+import { CheckIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
+import { Command as CommandPrimitive } from 'cmdk'
+import type * as React from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { InputGroup, InputGroupAddon } from '@/components/ui/input-group'
+import { cn } from '@/lib/utils'
+
+function Command({ className, ...props }: React.ComponentProps<typeof CommandPrimitive>) {
+  return (
+    <CommandPrimitive
+      data-slot="command"
+      className={cn(
+        'flex size-full flex-col overflow-hidden rounded-none bg-popover text-popover-foreground',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+function CommandDialog({
+  title = 'Command Palette',
+  description = 'Search for a command to run...',
+  children,
+  className,
+  showCloseButton = false,
+  ...props
+}: Omit<React.ComponentProps<typeof Dialog>, 'children'> & {
+  title?: string
+  description?: string
+  className?: string
+  showCloseButton?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <Dialog {...props}>
+      <DialogHeader className="sr-only">
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{description}</DialogDescription>
+      </DialogHeader>
+      <DialogContent
+        className={cn('top-1/3 translate-y-0 overflow-hidden rounded-none p-0', className)}
+        showCloseButton={showCloseButton}
+      >
+        {children}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function CommandInput({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Input>) {
+  return (
+    <div data-slot="command-input-wrapper" className="border-b pb-0">
+      <InputGroup className="h-8 border-none border-input/30 bg-input/30 shadow-none! *:data-[slot=input-group-addon]:pl-2!">
+        <CommandPrimitive.Input
+          data-slot="command-input"
+          className={cn(
+            'w-full text-xs outline-hidden disabled:cursor-not-allowed disabled:opacity-50',
+            className,
+          )}
+          {...props}
+        />
+        <InputGroupAddon>
+          <MagnifyingGlassIcon className="size-4 shrink-0 opacity-50" />
+        </InputGroupAddon>
+      </InputGroup>
+    </div>
+  )
+}
+
+function CommandList({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.List>) {
+  return (
+    <CommandPrimitive.List
+      data-slot="command-list"
+      className={cn(
+        'no-scrollbar max-h-72 scroll-py-0 overflow-x-hidden overflow-y-auto outline-none',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+function CommandEmpty({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Empty>) {
+  return (
+    <CommandPrimitive.Empty
+      data-slot="command-empty"
+      className={cn('py-6 text-center text-xs', className)}
+      {...props}
+    />
+  )
+}
+
+function CommandGroup({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Group>) {
+  return (
+    <CommandPrimitive.Group
+      data-slot="command-group"
+      className={cn(
+        'overflow-hidden text-foreground **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:text-muted-foreground',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+function CommandSeparator({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Separator>) {
+  return (
+    <CommandPrimitive.Separator
+      data-slot="command-separator"
+      className={cn('-mx-1 h-px bg-border', className)}
+      {...props}
+    />
+  )
+}
+
+function CommandItem({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Item>) {
+  return (
+    <CommandPrimitive.Item
+      data-slot="command-item"
+      className={cn(
+        "group/command-item relative flex cursor-default items-center gap-2 rounded-none px-2 py-2 text-xs outline-hidden select-none in-data-[slot=dialog-content]:rounded-none! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:bg-muted data-selected:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-selected:*:[svg]:text-foreground",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+      <CheckIcon className="ml-auto opacity-0 group-has-data-[slot=command-shortcut]/command-item:hidden group-data-[checked=true]/command-item:opacity-100" />
+    </CommandPrimitive.Item>
+  )
+}
+
+function CommandShortcut({ className, ...props }: React.ComponentProps<'span'>) {
+  return (
+    <span
+      data-slot="command-shortcut"
+      className={cn(
+        'ml-auto text-xs tracking-widest text-muted-foreground group-data-selected/command-item:text-foreground',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  CommandShortcut,
+}
+</file>
+
+<file path="src/components/ui/input-group.tsx">
+import { cva, type VariantProps } from 'class-variance-authority'
+import type * as React from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
+
+function InputGroup({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="input-group"
+      role="group"
+      className={cn(
+        'group/input-group relative flex h-8 w-full min-w-0 items-center rounded-none border border-input transition-colors outline-none in-data-[slot=combobox-content]:focus-within:border-inherit in-data-[slot=combobox-content]:focus-within:ring-0 has-disabled:bg-input/50 has-disabled:opacity-50 has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot=input-group-control]:focus-visible]:ring-1 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/50 has-[[data-slot][aria-invalid=true]]:border-destructive has-[[data-slot][aria-invalid=true]]:ring-1 has-[[data-slot][aria-invalid=true]]:ring-destructive/20 has-[>[data-align=block-end]]:h-auto has-[>[data-align=block-end]]:flex-col has-[>[data-align=block-start]]:h-auto has-[>[data-align=block-start]]:flex-col has-[>textarea]:h-auto dark:bg-input/30 dark:has-disabled:bg-input/80 dark:has-[[data-slot][aria-invalid=true]]:ring-destructive/40 has-[>[data-align=block-end]]:[&>input]:pt-3 has-[>[data-align=block-start]]:[&>input]:pb-3 has-[>[data-align=inline-end]]:[&>input]:pr-1.5 has-[>[data-align=inline-start]]:[&>input]:pl-1.5',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+const inputGroupAddonVariants = cva(
+  "flex h-auto cursor-text items-center justify-center gap-2 py-1.5 text-xs font-medium text-muted-foreground select-none group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-none [&>svg:not([class*='size-'])]:size-4",
+  {
+    variants: {
+      align: {
+        'inline-start': 'order-first pl-2 has-[>button]:ml-[-0.3rem] has-[>kbd]:ml-[-0.15rem]',
+        'inline-end': 'order-last pr-2 has-[>button]:mr-[-0.3rem] has-[>kbd]:mr-[-0.15rem]',
+        'block-start':
+          'order-first w-full justify-start px-2.5 pt-2 group-has-[>input]/input-group:pt-2 [.border-b]:pb-2',
+        'block-end':
+          'order-last w-full justify-start px-2.5 pb-2 group-has-[>input]/input-group:pb-2 [.border-t]:pt-2',
+      },
+    },
+    defaultVariants: {
+      align: 'inline-start',
+    },
+  },
+)
+
+function InputGroupAddon({
+  className,
+  align = 'inline-start',
+  ...props
+}: React.ComponentProps<'div'> & VariantProps<typeof inputGroupAddonVariants>) {
+  return (
+    <div
+      role="group"
+      data-slot="input-group-addon"
+      data-align={align}
+      className={cn(inputGroupAddonVariants({ align }), className)}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest('button')) {
+          return
+        }
+        e.currentTarget.parentElement?.querySelector('input')?.focus()
+      }}
+      {...props}
+    />
+  )
+}
+
+const inputGroupButtonVariants = cva('flex items-center gap-2 text-xs shadow-none', {
+  variants: {
+    size: {
+      xs: "h-6 gap-1 rounded-none px-1.5 [&>svg:not([class*='size-'])]:size-3.5",
+      sm: 'gap-1',
+      'icon-xs': 'size-6 rounded-none p-0 has-[>svg]:p-0',
+      'icon-sm': 'size-7 p-0 has-[>svg]:p-0',
+    },
+  },
+  defaultVariants: {
+    size: 'xs',
+  },
+})
+
+function InputGroupButton({
+  className,
+  type = 'button',
+  variant = 'ghost',
+  size = 'xs',
+  ...props
+}: Omit<React.ComponentProps<typeof Button>, 'size' | 'type'> &
+  VariantProps<typeof inputGroupButtonVariants> & {
+    type?: 'button' | 'submit' | 'reset'
+  }) {
+  return (
+    <Button
+      type={type}
+      data-size={size}
+      variant={variant}
+      className={cn(inputGroupButtonVariants({ size }), className)}
+      {...props}
+    />
+  )
+}
+
+function InputGroupText({ className, ...props }: React.ComponentProps<'span'>) {
+  return (
+    <span
+      className={cn(
+        "flex items-center gap-2 text-xs text-muted-foreground [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4",
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+function InputGroupInput({ className, ...props }: React.ComponentProps<'input'>) {
+  return (
+    <Input
+      data-slot="input-group-control"
+      className={cn(
+        'flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+function InputGroupTextarea({ className, ...props }: React.ComponentProps<'textarea'>) {
+  return (
+    <Textarea
+      data-slot="input-group-control"
+      className={cn(
+        'flex-1 resize-none rounded-none border-0 bg-transparent py-2 shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupText,
+  InputGroupTextarea,
+}
+</file>
+
+<file path="src/components/ui/input.tsx">
+import { Input as InputPrimitive } from '@base-ui/react/input'
+import type * as React from 'react'
+
+import { cn } from '@/lib/utils'
+
+function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
+  return (
+    <InputPrimitive
+      type={type}
+      data-slot="input"
+      className={cn(
+        'h-8 w-full min-w-0 rounded-none border border-input bg-transparent px-2.5 py-1 text-xs transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-xs file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 md:text-xs dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Input }
+</file>
+
+<file path="src/components/ui/label.tsx">
+import type * as React from 'react'
+
+import { cn } from '@/lib/utils'
+
+function Label({ className, ...props }: React.ComponentProps<'label'>) {
+  return (
+    <label
+      data-slot="label"
+      className={cn(
+        'flex items-center gap-2 text-xs leading-none select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Label }
+</file>
+
+<file path="src/components/ui/popover.tsx">
+'use client'
+
+import { Popover as PopoverPrimitive } from '@base-ui/react/popover'
+import type * as React from 'react'
+
+import { cn } from '@/lib/utils'
+
+function Popover({ ...props }: PopoverPrimitive.Root.Props) {
+  return <PopoverPrimitive.Root data-slot="popover" {...props} />
+}
+
+function PopoverTrigger({ ...props }: PopoverPrimitive.Trigger.Props) {
+  return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />
+}
+
+function PopoverContent({
+  className,
+  align = 'center',
+  alignOffset = 0,
+  side = 'bottom',
+  sideOffset = 4,
+  ...props
+}: PopoverPrimitive.Popup.Props &
+  Pick<PopoverPrimitive.Positioner.Props, 'align' | 'alignOffset' | 'side' | 'sideOffset'>) {
+  return (
+    <PopoverPrimitive.Portal>
+      <PopoverPrimitive.Positioner
+        align={align}
+        alignOffset={alignOffset}
+        side={side}
+        sideOffset={sideOffset}
+        className="isolate z-50"
+      >
+        <PopoverPrimitive.Popup
+          data-slot="popover-content"
+          className={cn(
+            'z-50 flex w-72 origin-(--transform-origin) flex-col gap-2.5 rounded-none bg-popover p-2.5 text-xs text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+            className,
+          )}
+          {...props}
+        />
+      </PopoverPrimitive.Positioner>
+    </PopoverPrimitive.Portal>
+  )
+}
+
+function PopoverHeader({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="popover-header"
+      className={cn('flex flex-col gap-1 text-xs', className)}
+      {...props}
+    />
+  )
+}
+
+function PopoverTitle({ className, ...props }: PopoverPrimitive.Title.Props) {
+  return (
+    <PopoverPrimitive.Title
+      data-slot="popover-title"
+      className={cn('text-sm font-medium', className)}
+      {...props}
+    />
+  )
+}
+
+function PopoverDescription({ className, ...props }: PopoverPrimitive.Description.Props) {
+  return (
+    <PopoverPrimitive.Description
+      data-slot="popover-description"
+      className={cn('text-xs/relaxed text-muted-foreground', className)}
+      {...props}
+    />
+  )
+}
+
+export { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger }
+</file>
+
+<file path="src/components/ui/separator.tsx">
+import { Separator as SeparatorPrimitive } from '@base-ui/react/separator'
+
+import { cn } from '@/lib/utils'
+
+function Separator({ className, orientation = 'horizontal', ...props }: SeparatorPrimitive.Props) {
+  return (
+    <SeparatorPrimitive
+      data-slot="separator"
+      orientation={orientation}
+      className={cn(
+        'shrink-0 bg-border data-horizontal:h-px data-horizontal:w-full data-vertical:w-px data-vertical:self-stretch',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Separator }
+</file>
+
+<file path="src/components/ui/textarea.tsx">
+import type * as React from 'react'
+
+import { cn } from '@/lib/utils'
+
+function Textarea({ className, ...props }: React.ComponentProps<'textarea'>) {
+  return (
+    <textarea
+      data-slot="textarea"
+      className={cn(
+        'flex field-sizing-content min-h-16 w-full rounded-none border border-input bg-transparent px-2.5 py-2 text-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 md:text-xs dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Textarea }
+</file>
+
+<file path="src/ui/components/Budget/BudgetPage.tsx">
+import { CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
+import { useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { addMonths } from '@/domain/calculations'
+import { DEFAULT_CATEGORIES } from '@/domain/constants'
+import type { Budget as BudgetType } from '@/domain/entities'
+import { useFinance } from '@/ui/context'
+
+interface BudgetFormData {
+  referenceMonth: string
+  plannedIncome: string
+  plannedMealVoucher: string
+  categoryLimits: Record<string, string>
+}
+
+function emptyBudget(refMonth: string): BudgetFormData {
+  return {
+    referenceMonth: refMonth,
+    plannedIncome: '',
+    plannedMealVoucher: '',
+    categoryLimits: Object.fromEntries(DEFAULT_CATEGORIES.map((c) => [c, ''])),
+  }
+}
+
+function toBudget(data: BudgetFormData): BudgetType {
+  const limits: Record<string, number> = {}
+  for (const [cat, val] of Object.entries(data.categoryLimits)) {
+    const n = parseFloat(val)
+    if (n > 0) limits[cat] = n
+  }
+  return {
+    referenceMonth: data.referenceMonth,
+    plannedIncome: parseFloat(data.plannedIncome) || 0,
+    plannedMealVoucher: parseFloat(data.plannedMealVoucher) || 0,
+    categoryLimits: limits,
+  }
+}
+
+function formatCurrency(n: number): string {
+  return `R$ ${n.toFixed(2)}`
+}
+
+export default function BudgetPage() {
+  const { state, dispatch } = useFinance()
+  const [showForm, setShowForm] = useState(false)
+  const [editingMonth, setEditingMonth] = useState<string | null>(null)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [showAddCategory, setShowAddCategory] = useState(false)
+
+  const sorted = useMemo(
+    () => [...state.budgets].sort((a, b) => b.referenceMonth.localeCompare(a.referenceMonth)),
+    [state.budgets],
+  )
+
+  const existingBudget = editingMonth
+    ? state.budgets.find((b) => b.referenceMonth === editingMonth)
+    : null
+
+  const initialFormData = (): BudgetFormData => {
+    if (existingBudget) {
+      return {
+        referenceMonth: existingBudget.referenceMonth,
+        plannedIncome: String(existingBudget.plannedIncome),
+        plannedMealVoucher: String(existingBudget.plannedMealVoucher),
+        categoryLimits: Object.fromEntries(
+          Object.entries(existingBudget.categoryLimits).map(([k, v]) => [k, String(v)]),
+        ),
+      }
+    }
+    return emptyBudget(editingMonth ?? new Date().toISOString().slice(0, 7))
+  }
+
+  const [form, setForm] = useState<BudgetFormData>(initialFormData)
+
+  function openNew() {
+    const nextMonth =
+      sorted.length > 0
+        ? addMonths(sorted[0].referenceMonth, 1)
+        : new Date().toISOString().slice(0, 7)
+    setEditingMonth(null)
+    setForm(emptyBudget(nextMonth))
+    setShowForm(true)
+  }
+
+  function openEdit(month: string) {
+    setEditingMonth(month)
+    const budget = state.budgets.find((b) => b.referenceMonth === month)
+    if (budget) {
+      setForm({
+        referenceMonth: budget.referenceMonth,
+        plannedIncome: String(budget.plannedIncome),
+        plannedMealVoucher: String(budget.plannedMealVoucher),
+        categoryLimits: Object.fromEntries(
+          Object.entries(budget.categoryLimits).map(([k, v]) => [k, String(v)]),
+        ),
+      })
+    }
+    setShowForm(true)
+  }
+
+  function handleClone() {
+    const sourceMonth = editingMonth
+      ? addMonths(editingMonth, -1)
+      : addMonths(form.referenceMonth, -1)
+    const source = state.budgets.find((b) => b.referenceMonth === sourceMonth)
+    if (!source) {
+      alert(`No budget found for ${sourceMonth}`)
+      return
+    }
+    setForm({
+      referenceMonth: editingMonth ?? form.referenceMonth,
+      plannedIncome: String(source.plannedIncome),
+      plannedMealVoucher: String(source.plannedMealVoucher),
+      categoryLimits: Object.fromEntries(
+        Object.entries(source.categoryLimits).map(([k, v]) => [k, String(v)]),
+      ),
+    })
+  }
+
+  function handleSave() {
+    const budget = toBudget(form)
+    dispatch({ type: 'UPSERT_BUDGET', payload: budget })
+    setShowForm(false)
+    setEditingMonth(null)
+  }
+
+  function handleDelete(month: string) {
+    if (confirm(`Delete budget for ${month}?`)) {
+      dispatch({ type: 'DELETE_BUDGET', payload: month })
+    }
+  }
+
+  function handleAddCategory() {
+    if (!newCategoryName.trim()) return
+    if (form.categoryLimits[newCategoryName]) {
+      alert('Category already exists')
+      return
+    }
+    setForm({
+      ...form,
+      categoryLimits: {
+        ...form.categoryLimits,
+        [newCategoryName]: '',
+      },
+    })
+    setNewCategoryName('')
+    setShowAddCategory(false)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold">Budgets</h2>
+        <Button size="sm" onClick={openNew}>
+          <PlusIcon /> New Budget
+        </Button>
+      </div>
+
+      <div className="border border-border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Month</TableHead>
+              <TableHead className="text-right">Planned Income</TableHead>
+              <TableHead className="text-right">Meal Voucher</TableHead>
+              <TableHead>Categories</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sorted.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  No budgets yet. Create one to start planning.
+                </TableCell>
+              </TableRow>
+            )}
+            {sorted.map((b) => (
+              <TableRow key={b.referenceMonth} className="cursor-pointer" onClick={() => openEdit(b.referenceMonth)}>
+                <TableCell className="font-medium">{b.referenceMonth}</TableCell>
+                <TableCell className="text-right font-mono">
+                  {formatCurrency(b.plannedIncome)}
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {formatCurrency(b.plannedMealVoucher)}
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {Object.entries(b.categoryLimits).map(([cat, val]) => (
+                      <span key={cat} className="text-xs bg-muted px-1.5 py-0.5">
+                        {cat}: {formatCurrency(val)}
+                      </span>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex gap-1 justify-end">
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={(e) => { e.stopPropagation(); openEdit(b.referenceMonth) }}
+                    >
+                      <PencilSimpleIcon />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(b.referenceMonth) }}
+                    >
+                      <TrashIcon />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editingMonth ? `Edit Budget: ${editingMonth}` : 'New Budget'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Reference Month</Label>
+                <Input
+                  type="month"
+                  value={form.referenceMonth}
+                  onChange={(e) => setForm({ ...form, referenceMonth: e.target.value })}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button variant="outline" size="sm" onClick={handleClone}>
+                  <CopyIcon /> Clone from prev
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Planned Income (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.plannedIncome}
+                  onChange={(e) => setForm({ ...form, plannedIncome: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Meal Voucher (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.plannedMealVoucher}
+                  onChange={(e) => setForm({ ...form, plannedMealVoucher: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-xs font-medium">Category Limits</Label>
+                <Button variant="ghost" size="xs" onClick={() => setShowAddCategory(true)}>
+                  <PlusIcon className="size-3" /> Add Category
+                </Button>
+              </div>
+
+              {showAddCategory && (
+                <div className="flex gap-1 mb-2">
+                  <Input
+                    placeholder="Category name"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                    autoFocus
+                    className="flex-1"
+                  />
+                  <Button size="sm" onClick={handleAddCategory}>
+                    Add
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowAddCategory(false)
+                      setNewCategoryName('')
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                {Object.keys(form.categoryLimits).map((cat) => (
+                  <div key={cat} className="space-y-0.5 flex items-end gap-1">
+                    <div className="flex-1">
+                      <Label className="text-[10px] text-muted-foreground">{cat}</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0"
+                        value={form.categoryLimits[cat]}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            categoryLimits: { ...form.categoryLimits, [cat]: e.target.value },
+                          })
+                        }
+                      />
+                    </div>
+                    {!DEFAULT_CATEGORIES.includes(cat as never) && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => {
+                          const { [cat]: _, ...rest } = form.categoryLimits
+                          setForm({ ...form, categoryLimits: rest })
+                        }}
+                      >
+                        <TrashIcon className="size-3" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowForm(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave}>Save Budget</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+</file>
+
+<file path="src/ui/components/Common/CSVImportDialog.tsx">
+import { FileCsvIcon, FileTextIcon } from '@phosphor-icons/react'
+import { useRef, useState } from 'react'
+import { v4 as uuid } from 'uuid'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { importCSV, importJSON } from '@/data/exportImport'
+import type { Transaction } from '@/domain/entities'
+import { useFinance } from '@/ui/context'
+
+type PreviewData = {
+  type: 'json' | 'csv'
+  transactions: Transaction[]
+  filename: string
+}
+
+export default function CSVImportDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const { dispatch } = useFinance()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [preview, setPreview] = useState<PreviewData | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  function handleFile(file: File) {
+    setError(null)
+    setPreview(null)
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const content = reader.result as string
+        if (file.name.endsWith('.json')) {
+          const data = importJSON(content)
+          setPreview({ type: 'json', transactions: data.transactions, filename: file.name })
+        } else if (file.name.endsWith('.csv')) {
+          const txs = importCSV(content)
+          setPreview({ type: 'csv', transactions: txs, filename: file.name })
+        } else {
+          setError('Unsupported file format. Use .json or .csv')
+        }
+      } catch (err) {
+        setError((err as Error).message)
+      }
+    }
+    reader.readAsText(file)
+  }
+
+  function handleImport() {
+    if (!preview) return
+    dispatch({
+      type: 'ADD_TRANSACTIONS',
+      payload: preview.transactions.map((t) => ({ ...t, id: t.id || uuid() })),
+    })
+    setPreview(null)
+    onOpenChange(false)
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    const file = e.dataTransfer.files[0]
+    if (file) handleFile(file)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Import Transactions</DialogTitle>
+          <DialogDescription>Upload a .json or .csv file to import transactions.</DialogDescription>
+        </DialogHeader>
+
+        {!preview && !error && (
+          <div
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+            className="border-2 border-dashed border-border rounded-none p-8 text-center space-y-3 cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => fileRef.current?.click()}
+          >
+            <div className="flex justify-center gap-2 text-muted-foreground">
+              <FileCsvIcon size={24} />
+              <FileTextIcon size={24} />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Drop a .json or .csv file here, or click to browse
+            </p>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".json,.csv"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) handleFile(f)
+              }}
+              className="hidden"
+            />
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-destructive/10 text-destructive text-xs p-3 rounded-none">
+            {error}
+            <Button variant="ghost" size="xs" className="ml-2" onClick={() => setError(null)}>
+              Dismiss
+            </Button>
+          </div>
+        )}
+
+        {preview && (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              {preview.filename} — {preview.transactions.length} transaction
+              {preview.transactions.length !== 1 ? 's' : ''} found
+            </p>
+            <div className="max-h-60 overflow-y-auto border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Payment</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {preview.transactions.slice(0, 50).map((t, i) => (
+                    <TableRow key={i} className={t.type === 'INCOME' ? '' : ''}>
+                      <TableCell className="text-muted-foreground">{t.date}</TableCell>
+                      <TableCell>{t.type}</TableCell>
+                      <TableCell className="max-w-32 truncate">{t.description}</TableCell>
+                      <TableCell>{t.category}</TableCell>
+                      <TableCell className="text-right font-mono">
+                        R$ {t.amount.toFixed(2)}
+                      </TableCell>
+                      <TableCell>{t.paymentMethod}</TableCell>
+                    </TableRow>
+                  ))}
+                  {preview.transactions.length > 50 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        ...and {preview.transactions.length - 50} more
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPreview(null)
+                  setError(null)
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleImport}>
+                Import {preview.transactions.length} transaction
+                {preview.transactions.length !== 1 ? 's' : ''}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+</file>
+
+<file path="src/ui/components/Common/Tabs.tsx">
+interface TabsProps {
+  tabs: { key: string; label: string }[]
+  active: string
+  onChange: (key: string) => void
+}
+
+export default function Tabs({ tabs, active, onChange }: TabsProps) {
+  return (
+    <div className="flex gap-1 border-b border-gray-200 mb-6">
+      {tabs.map((tab) => (
+        <button
+          key={tab.key}
+          type="button"
+          onClick={() => onChange(tab.key)}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            active === tab.key
+              ? 'bg-white text-blue-600 border border-b-white border-gray-200 -mb-px'
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+</file>
+
+<file path="src/ui/context/index.ts">
+export type { FinanceAction, FinanceState } from './FinanceContext'
+export { FinanceProvider, useFinance } from './FinanceContext'
+</file>
+
+<file path=".gitignore">
+node_modules
+dist
+</file>
+
+<file path="biome.json">
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.2/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": false
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "correctness": {
+        "noUnusedVariables": "warn"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
+}
+</file>
+
+<file path="components.json">
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "base-lyra",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/index.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "phosphor",
+  "rtl": false,
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "menuColor": "default",
+  "menuAccent": "subtle",
+  "registries": {}
+}
+</file>
+
+<file path="index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finances</title>
+  </head>
+  <body class="bg-gray-50 text-gray-900 antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+</file>
+
+<file path="opencode.json">
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "shadcn": {
+      "type": "local",
+      "command": [
+        "npx",
+        "shadcn@latest",
+        "mcp"
+      ],
+      "enabled": true
+    }
+  }
+}
+</file>
+
+<file path="src/components/ui/badge.tsx">
+import { mergeProps } from '@base-ui/react/merge-props'
+import { useRender } from '@base-ui/react/use-render'
+import { cva, type VariantProps } from 'class-variance-authority'
+
+import { cn } from '@/lib/utils'
+
+const badgeVariants = cva(
+  'group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-none border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!',
+  {
+    variants: {
+      variant: {
+        default: 'bg-primary text-primary-foreground [a]:hover:bg-primary/80',
+        secondary: 'bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80',
+        destructive:
+          'bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20',
+        outline: 'border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground',
+        ghost: 'hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50',
+        link: 'text-primary underline-offset-4 hover:underline',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+    },
+  },
+)
+
+function Badge({
+  className,
+  variant = 'default',
+  render,
+  ...props
+}: useRender.ComponentProps<'span'> & VariantProps<typeof badgeVariants>) {
+  return useRender({
+    defaultTagName: 'span',
+    props: mergeProps<'span'>(
+      {
+        className: cn(badgeVariants({ variant }), className),
+      },
+      props,
+    ),
+    render,
+    state: {
+      slot: 'badge',
+      variant,
+    },
+  })
+}
+
+export { Badge, badgeVariants }
+</file>
+
+<file path="src/components/ui/button.tsx">
+import { Button as ButtonPrimitive } from '@base-ui/react/button'
+import { cva, type VariantProps } from 'class-variance-authority'
+
+import { cn } from '@/lib/utils'
+
+const buttonVariants = cva(
+  "group/button inline-flex shrink-0 items-center justify-center rounded-none border border-transparent bg-clip-padding text-xs font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  {
+    variants: {
+      variant: {
+        default: 'bg-primary text-primary-foreground hover:bg-primary/80',
+        outline:
+          'border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
+        secondary:
+          'bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
+        ghost:
+          'hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50',
+        destructive:
+          'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40',
+        link: 'text-primary underline-offset-4 hover:underline',
+      },
+      size: {
+        default:
+          'h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
+        xs: "h-6 gap-1 rounded-none px-2 text-xs has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-7 gap-1 rounded-none px-2.5 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        lg: 'h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
+        icon: 'size-8',
+        'icon-xs': "size-6 rounded-none [&_svg:not([class*='size-'])]:size-3",
+        'icon-sm': 'size-7 rounded-none',
+        'icon-lg': 'size-9',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+      size: 'default',
+    },
+  },
+)
+
+function Button({
+  className,
+  variant = 'default',
+  size = 'default',
+  ...props
+}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  return (
+    <ButtonPrimitive
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
+}
+
+export { Button, buttonVariants }
+</file>
+
+<file path="src/components/ui/card.tsx">
+import type * as React from 'react'
+
+import { cn } from '@/lib/utils'
+
+function Card({
+  className,
+  size = 'default',
+  ...props
+}: React.ComponentProps<'div'> & { size?: 'default' | 'sm' }) {
+  return (
+    <div
+      data-slot="card"
+      data-size={size}
+      className={cn(
+        'group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-none bg-card py-(--card-spacing) text-xs/relaxed text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-none *:[img:last-child]:rounded-none',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardHeader({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="card-header"
+      className={cn(
+        'group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-none px-(--card-spacing) has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-(--card-spacing)',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardTitle({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="card-title"
+      className={cn(
+        'font-heading text-sm font-medium group-data-[size=sm]/card:text-sm',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardDescription({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="card-description"
+      className={cn('text-xs/relaxed text-muted-foreground', className)}
+      {...props}
+    />
+  )
+}
+
+function CardAction({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="card-action"
+      className={cn('col-start-2 row-span-2 row-start-1 self-start justify-self-end', className)}
+      {...props}
+    />
+  )
+}
+
+function CardContent({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div data-slot="card-content" className={cn('px-(--card-spacing)', className)} {...props} />
+  )
+}
+
+function CardFooter({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="card-footer"
+      className={cn('flex items-center rounded-none border-t p-(--card-spacing)', className)}
+      {...props}
+    />
+  )
+}
+
+export { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
+</file>
+
+<file path="src/components/ui/dialog.tsx">
+'use client'
+
+import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
+import { XIcon } from '@phosphor-icons/react'
+import type * as React from 'react'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+
+function Dialog({ ...props }: DialogPrimitive.Root.Props) {
+  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+}
+
+function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
+  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+}
+
+function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
+  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+}
+
+function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
+  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
+}
+
+function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) {
+  return (
+    <DialogPrimitive.Backdrop
+      data-slot="dialog-overlay"
+      className={cn(
+        'fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+function DialogContent({
+  className,
+  children,
+  showCloseButton = true,
+  ...props
+}: DialogPrimitive.Popup.Props & {
+  showCloseButton?: boolean
+}) {
+  return (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPrimitive.Popup
+        data-slot="dialog-content"
+        className={cn(
+          'fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-none bg-popover p-4 text-xs/relaxed text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+          className,
+        )}
+        {...props}
+      >
+        {children}
+        {showCloseButton && (
+          <DialogPrimitive.Close
+            data-slot="dialog-close"
+            render={<Button variant="ghost" className="absolute top-2 right-2" size="icon-sm" />}
+          >
+            <XIcon />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        )}
+      </DialogPrimitive.Popup>
+    </DialogPortal>
+  )
+}
+
+function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="dialog-header"
+      className={cn('flex flex-col gap-1 text-left', className)}
+      {...props}
+    />
+  )
+}
+
+function DialogFooter({
+  className,
+  showCloseButton = false,
+  children,
+  ...props
+}: React.ComponentProps<'div'> & {
+  showCloseButton?: boolean
+}) {
+  return (
+    <div
+      data-slot="dialog-footer"
+      className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
+      {...props}
+    >
+      {children}
+      {showCloseButton && (
+        <DialogPrimitive.Close render={<Button variant="outline" />}>Close</DialogPrimitive.Close>
+      )}
+    </div>
+  )
+}
+
+function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
+  return (
+    <DialogPrimitive.Title
+      data-slot="dialog-title"
+      className={cn('font-heading text-sm font-medium', className)}
+      {...props}
+    />
+  )
+}
+
+function DialogDescription({ className, ...props }: DialogPrimitive.Description.Props) {
+  return (
+    <DialogPrimitive.Description
+      data-slot="dialog-description"
+      className={cn(
+        'text-xs/relaxed text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
+}
+</file>
+
+<file path="src/components/ui/select.tsx">
+import { Select as SelectPrimitive } from '@base-ui/react/select'
+import { CaretDownIcon, CaretUpIcon, CheckIcon } from '@phosphor-icons/react'
+import type * as React from 'react'
+import { cn } from '@/lib/utils'
+
+const Select = SelectPrimitive.Root
+
+function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
+  return (
+    <SelectPrimitive.Group
+      data-slot="select-group"
+      className={cn('scroll-my-1', className)}
+      {...props}
+    />
+  )
+}
+
+function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
+  return (
+    <SelectPrimitive.Value
+      data-slot="select-value"
+      className={cn('flex flex-1 text-left', className)}
+      {...props}
+    />
+  )
+}
+
+function SelectTrigger({
+  className,
+  size = 'default',
+  children,
+  ...props
+}: SelectPrimitive.Trigger.Props & {
+  size?: 'sm' | 'default'
+}) {
+  return (
+    <SelectPrimitive.Trigger
+      data-slot="select-trigger"
+      data-size={size}
+      className={cn(
+        "flex w-fit items-center justify-between gap-1.5 rounded-none border border-input bg-transparent py-2 pr-2 pl-2.5 text-xs whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-none *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+      <SelectPrimitive.Icon
+        render={<CaretDownIcon className="pointer-events-none size-4 text-muted-foreground" />}
+      />
+    </SelectPrimitive.Trigger>
+  )
+}
+
+function SelectContent({
+  className,
+  children,
+  side = 'bottom',
+  sideOffset = 4,
+  align = 'center',
+  alignOffset = 0,
+  alignItemWithTrigger = true,
+  ...props
+}: SelectPrimitive.Popup.Props &
+  Pick<
+    SelectPrimitive.Positioner.Props,
+    'align' | 'alignOffset' | 'side' | 'sideOffset' | 'alignItemWithTrigger'
+  >) {
+  return (
+    <SelectPrimitive.Portal>
+      <SelectPrimitive.Positioner
+        side={side}
+        sideOffset={sideOffset}
+        align={align}
+        alignOffset={alignOffset}
+        alignItemWithTrigger={alignItemWithTrigger}
+        className="isolate z-50"
+      >
+        <SelectPrimitive.Popup
+          data-slot="select-content"
+          data-align-trigger={alignItemWithTrigger}
+          className={cn(
+            'relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-none bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+            className,
+          )}
+          {...props}
+        >
+          <SelectScrollUpButton />
+          <SelectPrimitive.List>{children}</SelectPrimitive.List>
+          <SelectScrollDownButton />
+        </SelectPrimitive.Popup>
+      </SelectPrimitive.Positioner>
+    </SelectPrimitive.Portal>
+  )
+}
+
+function SelectLabel({ className, ...props }: SelectPrimitive.GroupLabel.Props) {
+  return (
+    <SelectPrimitive.GroupLabel
+      data-slot="select-label"
+      className={cn('px-2 py-2 text-xs text-muted-foreground', className)}
+      {...props}
+    />
+  )
+}
+
+function SelectItem({ className, children, ...props }: SelectPrimitive.Item.Props) {
+  return (
+    <SelectPrimitive.Item
+      data-slot="select-item"
+      className={cn(
+        "relative flex w-full cursor-default items-center gap-2 rounded-none py-2 pr-8 pl-2 text-xs outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        className,
+      )}
+      {...props}
+    >
+      <SelectPrimitive.ItemText className="flex flex-1 shrink-0 gap-2 whitespace-nowrap">
+        {children}
+      </SelectPrimitive.ItemText>
+      <SelectPrimitive.ItemIndicator
+        render={
+          <span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center" />
+        }
+      >
+        <CheckIcon className="pointer-events-none" />
+      </SelectPrimitive.ItemIndicator>
+    </SelectPrimitive.Item>
+  )
+}
+
+function SelectSeparator({ className, ...props }: SelectPrimitive.Separator.Props) {
+  return (
+    <SelectPrimitive.Separator
+      data-slot="select-separator"
+      className={cn('pointer-events-none -mx-1 h-px bg-border', className)}
+      {...props}
+    />
+  )
+}
+
+function SelectScrollUpButton({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.ScrollUpArrow>) {
+  return (
+    <SelectPrimitive.ScrollUpArrow
+      data-slot="select-scroll-up-button"
+      className={cn(
+        "top-0 z-10 flex w-full cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
+        className,
+      )}
+      {...props}
+    >
+      <CaretUpIcon />
+    </SelectPrimitive.ScrollUpArrow>
+  )
+}
+
+function SelectScrollDownButton({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.ScrollDownArrow>) {
+  return (
+    <SelectPrimitive.ScrollDownArrow
+      data-slot="select-scroll-down-button"
+      className={cn(
+        "bottom-0 z-10 flex w-full cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
+        className,
+      )}
+      {...props}
+    >
+      <CaretDownIcon />
+    </SelectPrimitive.ScrollDownArrow>
+  )
+}
+
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectScrollDownButton,
+  SelectScrollUpButton,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+}
+</file>
+
+<file path="src/components/ui/table.tsx">
+'use client'
+
+import type * as React from 'react'
+
+import { cn } from '@/lib/utils'
+
+function Table({ className, ...props }: React.ComponentProps<'table'>) {
+  return (
+    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+      <table
+        data-slot="table"
+        className={cn('w-full caption-bottom text-xs', className)}
+        {...props}
+      />
+    </div>
+  )
+}
+
+function TableHeader({ className, ...props }: React.ComponentProps<'thead'>) {
+  return <thead data-slot="table-header" className={cn('[&_tr]:border-b', className)} {...props} />
+}
+
+function TableBody({ className, ...props }: React.ComponentProps<'tbody'>) {
+  return (
+    <tbody
+      data-slot="table-body"
+      className={cn('[&_tr:last-child]:border-0', className)}
+      {...props}
+    />
+  )
+}
+
+function TableFooter({ className, ...props }: React.ComponentProps<'tfoot'>) {
+  return (
+    <tfoot
+      data-slot="table-footer"
+      className={cn('border-t bg-muted/50 font-medium [&>tr]:last:border-b-0', className)}
+      {...props}
+    />
+  )
+}
+
+function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
+  return (
+    <tr
+      data-slot="table-row"
+      className={cn(
+        'border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
+  return (
+    <th
+      data-slot="table-head"
+      className={cn(
+        'h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+function TableCell({ className, ...props }: React.ComponentProps<'td'>) {
+  return (
+    <td
+      data-slot="table-cell"
+      className={cn('p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0', className)}
+      {...props}
+    />
+  )
+}
+
+function TableCaption({ className, ...props }: React.ComponentProps<'caption'>) {
+  return (
+    <caption
+      data-slot="table-caption"
+      className={cn('mt-4 text-xs text-muted-foreground', className)}
+      {...props}
+    />
+  )
+}
+
+export { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow }
+</file>
+
+<file path="src/components/ui/tabs.tsx">
+import { Tabs as TabsPrimitive } from '@base-ui/react/tabs'
+import { cva, type VariantProps } from 'class-variance-authority'
+
+import { cn } from '@/lib/utils'
+
+function Tabs({ className, orientation = 'horizontal', ...props }: TabsPrimitive.Root.Props) {
+  return (
+    <TabsPrimitive.Root
+      data-slot="tabs"
+      data-orientation={orientation}
+      className={cn('group/tabs flex gap-2 data-horizontal:flex-col', className)}
+      {...props}
+    />
+  )
+}
+
+const tabsListVariants = cva(
+  'group/tabs-list inline-flex w-fit items-center justify-center rounded-none p-[3px] text-muted-foreground group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none',
+  {
+    variants: {
+      variant: {
+        default: 'bg-muted',
+        line: 'gap-1 bg-transparent',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+    },
+  },
+)
+
+function TabsList({
+  className,
+  variant = 'default',
+  ...props
+}: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
+  return (
+    <TabsPrimitive.List
+      data-slot="tabs-list"
+      data-variant={variant}
+      className={cn(tabsListVariants({ variant }), className)}
+      {...props}
+    />
+  )
+}
+
+function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
+  return (
+    <TabsPrimitive.Tab
+      data-slot="tabs-trigger"
+      className={cn(
+        "relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-none border border-transparent px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-foreground/60 transition-all group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start group-data-vertical/tabs:py-[calc(--spacing(1.25))] hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pr-1 has-data-[icon=inline-start]:pl-1 aria-disabled:pointer-events-none aria-disabled:opacity-50 dark:text-muted-foreground dark:hover:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        'group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent',
+        'data-active:bg-background data-active:text-foreground dark:data-active:border-input dark:data-active:bg-input/30 dark:data-active:text-foreground',
+        'after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:bottom-[-5px] group-data-horizontal/tabs:after:h-0.5 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
+  return (
+    <TabsPrimitive.Panel
+      data-slot="tabs-content"
+      className={cn('flex-1 text-xs/relaxed outline-none', className)}
+      {...props}
+    />
+  )
+}
+
+export { Tabs, TabsContent, TabsList, TabsTrigger, tabsListVariants }
+</file>
+
+<file path="src/data/repository.ts">
+import type { FinanceData } from '../domain/entities'
+
+const STORAGE_KEY = 'finances-data'
+
+export function loadData(): FinanceData | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? (JSON.parse(raw) as FinanceData) : null
+  } catch {
+    return null
+  }
+}
+
+export function saveData(data: FinanceData): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+}
+
+export function clearData(): void {
+  localStorage.removeItem(STORAGE_KEY)
+}
+</file>
+
+<file path="src/data/seed.ts">
+import { v4 as uuid } from 'uuid'
+import type { Budget, FinanceData, Transaction } from '../domain/entities'
+
+const now = new Date()
+const currentYear = now.getFullYear()
+const currentMonth = String(now.getMonth() + 1).padStart(2, '0')
+const nextMonth = String(now.getMonth() + 2 > 12 ? 1 : now.getMonth() + 2).padStart(2, '0')
+const nextYear = now.getMonth() + 2 > 12 ? currentYear + 1 : currentYear
+
+function tx(overrides: Partial<Transaction>): Transaction {
+  return {
+    id: uuid(),
+    type: 'EXPENSE',
+    date: `${currentYear}-${currentMonth}-01`,
+    referenceMonth: `${currentYear}-${currentMonth}`,
+    description: '',
+    amount: 0,
+    category: 'Other',
+    paymentMethod: 'DEBIT',
+    isDebt: false,
+    isSettled: false,
+    ...overrides,
+  }
+}
+
+export function generateSeed(): FinanceData {
+  const transactions: Transaction[] = [
+    // === INCOME ===
+    tx({
+      type: 'INCOME',
+      date: `${currentYear}-${currentMonth}-05`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Salary',
+      amount: 5000,
+      category: 'Salary',
+      paymentMethod: 'DEBIT',
+    }),
+    tx({
+      type: 'INCOME',
+      date: `${currentYear}-${currentMonth}-05`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Meal Voucher',
+      amount: 800,
+      category: 'Salary',
+      paymentMethod: 'MEAL_VOUCHER',
+    }),
+
+    // === EXPENSES - July ===
+    tx({
+      date: `${currentYear}-${currentMonth}-03`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Rent',
+      amount: 1200,
+      category: 'Rent',
+      paymentMethod: 'DEBIT',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-02`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Supermarket',
+      amount: 350,
+      category: 'Food',
+      paymentMethod: 'PIX',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-08`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Supermarket',
+      amount: 120,
+      category: 'Food',
+      paymentMethod: 'DEBIT',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-15`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Supermarket',
+      amount: 200,
+      category: 'Food',
+      paymentMethod: 'PIX',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-22`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Supermarket',
+      amount: 180,
+      category: 'Food',
+      paymentMethod: 'DEBIT',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-04`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Bus pass',
+      amount: 50,
+      category: 'Transport',
+      paymentMethod: 'PIX',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-10`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Gas',
+      amount: 35,
+      category: 'Transport',
+      paymentMethod: 'PIX',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-17`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Gas',
+      amount: 40,
+      category: 'Transport',
+      paymentMethod: 'DEBIT',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-23`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Uber',
+      amount: 25,
+      category: 'Transport',
+      paymentMethod: 'PIX',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-06`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Dinner out',
+      amount: 150,
+      category: 'Leisure',
+      paymentMethod: 'DEBIT',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-13`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Cinema',
+      amount: 80,
+      category: 'Leisure',
+      paymentMethod: 'PIX',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-20`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Restaurant',
+      amount: 200,
+      category: 'Leisure',
+      paymentMethod: 'CREDIT',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-10`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Electricity bill',
+      amount: 150,
+      category: 'Utilities',
+      paymentMethod: 'DEBIT',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-15`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Water bill',
+      amount: 80,
+      category: 'Utilities',
+      paymentMethod: 'PIX',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-12`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Pharmacy',
+      amount: 200,
+      category: 'Health',
+      paymentMethod: 'DEBIT',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-18`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Clothes',
+      amount: 350,
+      category: 'Shopping',
+      paymentMethod: 'CREDIT',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-25`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Online course',
+      amount: 180,
+      category: 'Education',
+      paymentMethod: 'DEBIT',
+    }),
+    tx({
+      date: `${currentYear}-${currentMonth}-28`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Internet',
+      amount: 120,
+      category: 'Utilities',
+      paymentMethod: 'DEBIT',
+    }),
+
+    // === DEBT ===
+    tx({
+      date: `${currentYear}-${currentMonth}-20`,
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      description: 'Loan to João',
+      amount: 200,
+      category: 'Other',
+      paymentMethod: 'PIX',
+      isDebt: true,
+      debtorName: 'João',
+      debtSplits: [{ debtorName: 'João', amount: 200 }],
+      isSettled: false,
+    }),
+
+    // === CREDIT INSTALLMENT: TV 12x R$300 ===
+    ...(() => {
+      const installmentGroupId = uuid()
+      const installments: Transaction[] = []
+      for (let i = 1; i <= 12; i++) {
+        const refMonthNum = now.getMonth() + 1 + i
+        const refY = currentYear + Math.floor((refMonthNum - 1) / 12)
+        const refM = String(((refMonthNum - 1) % 12) + 1).padStart(2, '0')
+        installments.push(
+          tx({
+            date: `${currentYear}-${currentMonth}-15`,
+            referenceMonth: `${refY}-${refM}`,
+            description: `TV - ${i}/${12}`,
+            amount: 300,
+            category: 'Shopping',
+            paymentMethod: 'CREDIT',
+            parentId: installmentGroupId,
+            groupId: installmentGroupId,
+            installment: { current: i, total: 12 },
+            isSettled: false,
+          }),
+        )
+      }
+      return installments
+    })(),
+  ]
+
+  const budgets: Budget[] = [
+    {
+      referenceMonth: `${currentYear}-${currentMonth}`,
+      plannedIncome: 5000,
+      plannedMealVoucher: 800,
+      categoryLimits: {
+        Food: 1000,
+        Transport: 400,
+        Rent: 1300,
+        Leisure: 500,
+        Utilities: 200,
+        Health: 300,
+        Shopping: 400,
+        Education: 200,
+      },
+    },
+    {
+      referenceMonth: `${nextYear}-${nextMonth}`,
+      plannedIncome: 5000,
+      plannedMealVoucher: 800,
+      categoryLimits: {
+        Food: 1000,
+        Transport: 400,
+        Rent: 1300,
+        Leisure: 500,
+        Utilities: 200,
+        Health: 300,
+        Shopping: 400,
+        Education: 200,
+      },
+    },
+  ]
+
+  return { transactions, budgets }
+}
+</file>
+
+<file path="src/domain/calculations.ts">
+import { DAYS_IN_MONTH, SES_ALPHA } from './constants'
+import type { Budget, Transaction } from './entities'
+
+export function addMonths(ym: string, n: number): string {
+  const [y, m] = ym.split('-').map(Number)
+  const total = y * 12 + m - 1 + n
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`
+}
+
+export function monthDiff(a: string, b: string): number {
+  const [ay, am] = a.split('-').map(Number)
+  const [by, bm] = b.split('-').map(Number)
+  return ay * 12 + am - (by * 12 + bm)
+}
+
+export function parseDate(d: string): number {
+  return new Date(`${d}T12:00:00`).getTime()
+}
+
+export function daysSince(date: string): number {
+  return Math.floor((Date.now() - parseDate(date)) / 86400000)
+}
+
+export function byMonth(tx: Transaction[], refMonth: string): Transaction[] {
+  return tx.filter(
+    (t) => t.referenceMonth === refMonth && !t.isSettled && t.type === 'EXPENSE' && !t.isDebt,
+  )
+}
+
+export function incomeByMonth(tx: Transaction[], refMonth: string): Transaction[] {
+  return tx.filter((t) => t.referenceMonth === refMonth && !t.isSettled && t.type === 'INCOME')
+}
+
+export function totalByMonth(tx: Transaction[], refMonth: string): number {
+  return incomeByMonth(tx, refMonth).reduce((s, t) => s + t.amount, 0)
+}
+
+export function expensesByMonth(tx: Transaction[], refMonth: string): number {
+  return byMonth(tx, refMonth).reduce((s, t) => s + t.amount, 0)
+}
+
+export function balance(tx: Transaction[], refMonth: string): number {
+  return totalByMonth(tx, refMonth) - expensesByMonth(tx, refMonth)
+}
+
+export function byCategory(tx: Transaction[], refMonth: string): Record<string, number> {
+  return byMonth(tx, refMonth).reduce<Record<string, number>>((acc, t) => {
+    acc[t.category] = (acc[t.category] || 0) + t.amount
+    return acc
+  }, {})
+}
+
+export function groupedByPaymentMethod(
+  tx: Transaction[],
+  refMonth: string,
+): Record<string, number> {
+  return byMonth(tx, refMonth).reduce<Record<string, number>>((acc, t) => {
+    acc[t.paymentMethod] = (acc[t.paymentMethod] || 0) + t.amount
+    return acc
+  }, {})
+}
+
+export function cashExpenses(tx: Transaction[], refMonth: string): number {
+  return byMonth(tx, refMonth)
+    .filter((t) => t.paymentMethod !== 'MEAL_VOUCHER' && t.paymentMethod !== 'CREDIT')
+    .reduce((s, t) => s + t.amount, 0)
+}
+
+export function mealVoucherIncome(tx: Transaction[], refMonth: string): number {
+  return incomeByMonth(tx, refMonth)
+    .filter((t) => t.paymentMethod === 'MEAL_VOUCHER')
+    .reduce((s, t) => s + t.amount, 0)
+}
+
+export function mealVoucherExpenses(tx: Transaction[], refMonth: string): number {
+  return byMonth(tx, refMonth)
+    .filter((t) => t.paymentMethod === 'MEAL_VOUCHER')
+    .reduce((s, t) => s + t.amount, 0)
+}
+
+export function mealVoucherBalance(tx: Transaction[], refMonth: string): number {
+  return mealVoucherIncome(tx, refMonth) - mealVoucherExpenses(tx, refMonth)
+}
+
+export function creditInvoice(tx: Transaction[], refMonth: string): number {
+  return byMonth(tx, refMonth)
+    .filter((t) => t.paymentMethod === 'CREDIT')
+    .reduce((s, t) => s + t.amount, 0)
+}
+
+export function activeDebts(tx: Transaction[]): Transaction[] {
+  return tx.filter((t) => t.isDebt && !t.isSettled)
+}
+
+export function outstandingDebt(tx: Transaction[]): number {
+  return activeDebts(tx).reduce((s, t) => s + t.amount, 0)
+}
+
+export function ses(expenses: number[]): number[] {
+  if (expenses.length === 0) return []
+  const result: number[] = [expenses[0]]
+  for (let i = 1; i < expenses.length; i++) {
+    result.push(SES_ALPHA * expenses[i] + (1 - SES_ALPHA) * result[i - 1])
+  }
+  return result
+}
+
+export interface SpendingPaceResult {
+  daily: {
+    day: number
+    reference: number
+    actual: number
+    sesProjection: number | null
+    suggestion: number | null
+  }[]
+  cumulative: {
+    day: number
+    reference: number
+    actual: number
+    sesProjection: number | null
+    suggestion: number | null
+  }[]
+  suggestionPerDay: number
+  limit: number
+  totalSalary: number
+}
+
+export function spendingPace(
+  tx: Transaction[],
+  budget: Budget | undefined,
+  currentDay: number,
+): SpendingPaceResult {
+  const totalSalary = (budget?.plannedIncome ?? 0) + (budget?.plannedMealVoucher ?? 0)
+  const limit = totalSalary * 0.8
+  const referencePerDay = totalSalary / DAYS_IN_MONTH
+
+  const dailyActual: number[] = []
+  for (let d = 1; d <= DAYS_IN_MONTH; d++) {
+    dailyActual.push(
+      byMonth(tx, budget?.referenceMonth ?? '')
+        .filter((t) => {
+          const day = parseInt(t.date.split('-')[2], 10)
+          return day === d
+        })
+        .reduce((s, t) => s + t.amount, 0),
+    )
+  }
+
+  const sesResult = ses(dailyActual.slice(0, currentDay))
+  const lastSes = sesResult.length > 0 ? sesResult[sesResult.length - 1] : 0
+
+  const accumulatedSpent = dailyActual.slice(0, currentDay).reduce((s, v) => s + v, 0)
+  const remainingDays = DAYS_IN_MONTH - currentDay
+  const suggestionPerDay =
+    remainingDays > 0 ? Math.max(0, (limit - accumulatedSpent) / remainingDays) : 0
+
+  const daily: SpendingPaceResult['daily'] = []
+  const cumulative: SpendingPaceResult['cumulative'] = []
+  let cumActual = 0
+  let cumProjection = accumulatedSpent
+  let cumSuggestion = accumulatedSpent
+
+  for (let d = 1; d <= DAYS_IN_MONTH; d++) {
+    const idx = d - 1
+    cumActual += dailyActual[idx]
+
+    let sesProj: number | null = null
+    let sugProj: number | null = null
+    if (d <= currentDay) {
+      sesProj = sesResult[idx] ?? null
+      sugProj = null
+    } else {
+      sesProj = lastSes
+      sugProj = suggestionPerDay
+      cumProjection += lastSes
+      cumSuggestion += suggestionPerDay
+    }
+
+    daily.push({
+      day: d,
+      reference: referencePerDay,
+      actual: dailyActual[idx],
+      sesProjection: sesProj,
+      suggestion: sugProj,
+    })
+
+    cumulative.push({
+      day: d,
+      reference: referencePerDay * d,
+      actual: cumActual,
+      sesProjection: d > currentDay ? cumProjection : null,
+      suggestion: d > currentDay ? cumSuggestion : null,
+    })
+  }
+
+  return { daily, cumulative, suggestionPerDay, limit, totalSalary }
+}
+
+export function budgetVsActual(
+  tx: Transaction[],
+  budget: Budget | undefined,
+): { category: string; budgeted: number; actual: number }[] {
+  const refMonth = budget?.referenceMonth
+  if (!refMonth || !budget) return []
+  const actuals = byCategory(tx, refMonth)
+  const categories = new Set([...Object.keys(budget.categoryLimits), ...Object.keys(actuals)])
+  return Array.from(categories)
+    .sort()
+    .map((category) => ({
+      category,
+      budgeted: budget.categoryLimits[category] ?? 0,
+      actual: actuals[category] ?? 0,
+    }))
+}
+
+export interface FutureCommitment {
+  referenceMonth: string
+  total: number
+  transactions: Transaction[]
+}
+
+export function futureCommitments(tx: Transaction[], months: number = 12): FutureCommitment[] {
+  const now = new Date()
+  const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+  const commitments: Record<string, FutureCommitment> = {}
+  for (let i = 0; i < months; i++) {
+    const ym = addMonths(currentYM, i)
+    commitments[ym] = { referenceMonth: ym, total: 0, transactions: [] }
+  }
+
+  const installmentChildren = tx.filter(
+    (t) => t.parentId && !t.isSettled && t.paymentMethod === 'CREDIT',
+  )
+
+  for (const t of installmentChildren) {
+    const diff = monthDiff(t.referenceMonth, currentYM)
+    if (diff >= 0 && diff < months) {
+      commitments[t.referenceMonth].total += t.amount
+      commitments[t.referenceMonth].transactions.push(t)
+    }
+  }
+
+  return Object.values(commitments).sort((a, b) => a.referenceMonth.localeCompare(b.referenceMonth))
+}
+
+export function categoryTimeSeries(
+  tx: Transaction[],
+  months: number = 6,
+): { month: string; [category: string]: number | string }[] {
+  const now = new Date()
+  const result: { month: string; [category: string]: number | string }[] = []
+
+  for (let i = months - 1; i >= 0; i--) {
+    const ym = addMonths(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, -i)
+    const cats = byCategory(tx, ym)
+    const top5 = Object.entries(cats)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .reduce<Record<string, number>>((acc, [k, v]) => {
+        acc[k] = v
+        return acc
+      }, {})
+
+    result.push({ month: ym, ...top5 } as { month: string; [category: string]: number | string })
+  }
+
+  return result
+}
+
+export function yearSummary(
+  tx: Transaction[],
+  year: number,
+): {
+  months: { referenceMonth: string; income: number; expenses: number; balance: number }[]
+  totalIncome: number
+  totalExpenses: number
+  totalBalance: number
+} {
+  const months: { referenceMonth: string; income: number; expenses: number; balance: number }[] = []
+  let totalIncome = 0,
+    totalExpenses = 0
+
+  for (let m = 1; m <= 12; m++) {
+    const refMonth = `${year}-${String(m).padStart(2, '0')}`
+    const inc = totalByMonth(tx, refMonth)
+    const exp = expensesByMonth(tx, refMonth)
+    totalIncome += inc
+    totalExpenses += exp
+    months.push({ referenceMonth: refMonth, income: inc, expenses: exp, balance: inc - exp })
+  }
+
+  return { months, totalIncome, totalExpenses, totalBalance: totalIncome - totalExpenses }
+}
+
+export function budgetVsActualYear(
+  tx: Transaction[],
+  budgets: Budget[],
+  year: number,
+): { category: string; budgeted: number; actual: number }[] {
+  const yearBudgets = budgets.filter((b) => b.referenceMonth.startsWith(`${year}-`))
+
+  const categoryTotals: Record<string, { budgeted: number; actual: number }> = {}
+  for (let m = 1; m <= 12; m++) {
+    const refMonth = `${year}-${String(m).padStart(2, '0')}`
+    const budget = yearBudgets.find((b) => b.referenceMonth === refMonth)
+    const actuals = byCategory(tx, refMonth)
+
+    if (budget) {
+      for (const [cat, val] of Object.entries(budget.categoryLimits)) {
+        if (!categoryTotals[cat]) categoryTotals[cat] = { budgeted: 0, actual: 0 }
+        categoryTotals[cat].budgeted += val
+      }
+    }
+
+    for (const [cat, val] of Object.entries(actuals)) {
+      if (!categoryTotals[cat]) categoryTotals[cat] = { budgeted: 0, actual: 0 }
+      categoryTotals[cat].actual += val
+    }
+  }
+
+  return Object.entries(categoryTotals)
+    .map(([category, v]) => ({ category, ...v }))
+    .sort((a, b) => b.actual - a.actual)
+}
+</file>
+
+<file path="src/domain/constants.ts">
+export const DAYS_IN_MONTH = 30
+export const SES_ALPHA = 0.3
+export const SAVINGS_RATE = 0.2
+
+export const DEFAULT_CATEGORIES = [
+  'Food',
+  'Transport',
+  'Rent',
+  'Leisure',
+  'Utilities',
+  'Health',
+  'Education',
+  'Shopping',
+  'Salary',
+  'Other',
+] as const
+
+export const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  CASH: 'Cash',
+  DEBIT: 'Debit',
+  CREDIT: 'Credit',
+  PIX: 'Pix',
+  MEAL_VOUCHER: 'Meal Voucher',
+}
+
+export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
+  INCOME: 'Income',
+  EXPENSE: 'Expense',
+}
+</file>
+
+<file path="src/lib/utils.ts">
+import { type ClassValue, clsx } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+</file>
+
+<file path="src/main.tsx">
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+</file>
+
+<file path="src/vite-env.d.ts">
+/// <reference types="vite/client" />
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}
+</file>
+
+<file path="tsconfig.tsbuildinfo">
+{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/application/useCases.ts","./src/components/ui/badge.tsx","./src/components/ui/button.tsx","./src/components/ui/calendar.tsx","./src/components/ui/card.tsx","./src/components/ui/checkbox.tsx","./src/components/ui/command.tsx","./src/components/ui/dialog.tsx","./src/components/ui/input-group.tsx","./src/components/ui/input.tsx","./src/components/ui/label.tsx","./src/components/ui/popover.tsx","./src/components/ui/scroll-area.tsx","./src/components/ui/select.tsx","./src/components/ui/separator.tsx","./src/components/ui/table.tsx","./src/components/ui/tabs.tsx","./src/components/ui/textarea.tsx","./src/data/exportImport.ts","./src/data/repository.ts","./src/data/seed.ts","./src/domain/calculations.ts","./src/domain/constants.ts","./src/domain/entities.ts","./src/lib/utils.ts","./src/ui/components/Budget/BudgetPage.tsx","./src/ui/components/Common/AuditLogPanel.tsx","./src/ui/components/Common/CSVImportDialog.tsx","./src/ui/components/Common/ExportImport.tsx","./src/ui/components/Common/Tabs.tsx","./src/ui/components/Debts/DebtPage.tsx","./src/ui/components/Transactions/DebtConfigModal.tsx","./src/ui/components/Transactions/QuickAddRow.tsx","./src/ui/components/Transactions/TransactionForm.tsx","./src/ui/components/Transactions/TransactionTable.tsx","./src/ui/context/FinanceContext.tsx","./src/ui/context/index.ts"],"errors":true,"version":"5.7.3"}
+</file>
+
+<file path="vite.config.ts">
+import path from 'path'
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+})
+</file>
+
+<file path="src/data/exportImport.ts">
+import { v4 as uuid } from 'uuid'
+import type { FinanceData, Transaction } from '../domain/entities'
+
+export function exportJSON(data: FinanceData): void {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  downloadBlob(blob, `finances-${new Date().toISOString().slice(0, 10)}.json`)
+}
+
+export function importJSON(json: string): FinanceData {
+  const data = JSON.parse(json) as FinanceData
+  if (!Array.isArray(data.transactions) || !Array.isArray(data.budgets)) {
+    throw new Error('Invalid format: expected { transactions: [], budgets: [] }')
+  }
+  return data
+}
+
+export function exportCSV(transactions: Transaction[]): void {
+  const headers = [
+    'date',
+    'type',
+    'amount',
+    'category',
+    'paymentMethod',
+    'description',
+    'referenceMonth',
+    'isDebt',
+    'debtorName',
+    'debtUserShare',
+    'debtNames',
+    'debtAmounts',
+    'isSettled',
+    'installmentTotal',
+    'installmentCurrent',
+    'parentId',
+    'groupId',
+  ]
+  const rows = transactions.map((t) => {
+    const debtNames = t.debtSplits?.map((d) => d.debtorName).join('/') ?? ''
+    const debtorAmounts = t.debtSplits?.map((d) => d.amount).join('/') ?? ''
+    const debtAmounts = t.debtSplits?.length ? debtorAmounts : ''
+
+    return [
+      t.date,
+      t.type,
+      String(t.amount),
+      t.category,
+      t.paymentMethod,
+      t.description,
+      t.referenceMonth,
+      String(t.isDebt),
+      t.debtorName ?? '',
+      String(t.debtUserShare ?? 0),
+      debtNames,
+      debtAmounts,
+      String(t.isSettled),
+      t.installment?.total?.toString() ?? '',
+      t.installment?.current?.toString() ?? '',
+      t.parentId ?? '',
+      t.groupId ?? '',
+    ]
+  })
+  const csv = [
+    headers.join(','),
+    ...rows.map((r) => r.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')),
+  ].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  downloadBlob(blob, `finances-${new Date().toISOString().slice(0, 10)}.csv`)
+}
+
+export function importCSV(csv: string): Transaction[] {
+  const lines = csv.trim().split('\n')
+  if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row')
+
+  const headers = parseCSVLine(lines[0])
+  const requiredFields = ['date', 'type', 'amount', 'category', 'paymentMethod']
+  for (const field of requiredFields) {
+    if (!headers.includes(field)) throw new Error(`Missing required column: ${field}`)
+  }
+
+  const transactions: Transaction[] = []
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) continue
+    const values = parseCSVLine(line)
+    if (values.length !== headers.length) continue
+
+    const row = Object.fromEntries(headers.map((h, idx) => [h, values[idx]]))
+
+    const date = row.date
+    const referenceMonth = row.referenceMonth || date.slice(0, 7)
+
+    const t: Transaction = {
+      id: uuid(),
+      type: row.type as 'INCOME' | 'EXPENSE',
+      date,
+      referenceMonth,
+      description: row.description || '',
+      amount: parseFloat(row.amount) || 0,
+      category: row.category || 'Other',
+      paymentMethod: row.paymentMethod as Transaction['paymentMethod'],
+      installment: row.installmentTotal
+        ? {
+            current: parseInt(row.installmentCurrent, 10) || 1,
+            total: parseInt(row.installmentTotal, 10) || 1,
+          }
+        : undefined,
+      parentId: row.parentId || undefined,
+      groupId: row.groupId || undefined,
+      isDebt: row.isDebt === 'true',
+      debtorName: row.debtorName || undefined,
+      isSettled: row.isSettled === 'true',
+    }
+
+    if (row.debtNames && row.debtAmounts) {
+      const names = row.debtNames.split('/').filter(Boolean)
+      const amounts = row.debtAmounts.split('/').filter(Boolean)
+      if (names.length === amounts.length && names.length > 0) {
+        t.debtSplits = names.map((name, i) => ({
+          debtorName: name,
+          amount: parseFloat(amounts[i]) || 0,
+        }))
+        t.debtUserShare = parseFloat(row.debtUserShare) || 0
+      }
+    }
+
+    transactions.push(t)
+  }
+
+  return transactions
+}
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"'
+        i++
+      } else {
+        inQuotes = !inQuotes
+      }
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current)
+      current = ''
+    } else {
+      current += ch
+    }
+  }
+  result.push(current)
+  return result
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+</file>
+
+<file path="src/ui/components/Transactions/TransactionTable.tsx">
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, TrashIcon } from '@phosphor-icons/react'
+import { useMemo, useState } from 'react'
+import { v4 as uuid } from 'uuid'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { addMonths } from '@/domain/calculations'
+import { PAYMENT_METHOD_LABELS } from '@/domain/constants'
+import type { Transaction } from '@/domain/entities'
+import { useFinance } from '@/ui/context'
+import AuditLogPanel from '../Common/AuditLogPanel'
+import DebtConfigModal from './DebtConfigModal'
+import QuickAddRow from './QuickAddRow'
+import TransactionForm from './TransactionForm'
+
+interface DebtConfig {
+  userShare: number
+  splits: Array<{ id: string; name: string; amount: number }>
+}
+
+function formatCurrency(n: number): string {
+  return `R$ ${n.toFixed(2)}`
+}
+
+function PaymentBadge({ method }: { method: string }) {
+  const colors: Record<string, string> = {
+    CREDIT: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+    DEBIT: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    PIX: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    CASH: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+    MEAL_VOUCHER: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400',
+  }
+  return (
+    <Badge variant="outline" className={colors[method] ?? ''}>
+      {PAYMENT_METHOD_LABELS[method] ?? method}
+    </Badge>
+  )
+}
+
+function getAvailableMonths(tx: Transaction[]): string[] {
+  const months = new Set(tx.map((t) => t.referenceMonth))
+  return Array.from(months).sort().reverse()
+}
+
+export default function TransactionTable() {
+  const { state, dispatch } = useFinance()
+  const [showAudit, setShowAudit] = useState(false)
+  const [filterMonth, setFilterMonth] = useState<string>('all')
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null)
+  const [showEditForm, setShowEditForm] = useState(false)
+  const [showDebtModal, setShowDebtModal] = useState(false)
+  const [debtModalCallback, setDebtModalCallback] = useState<((config: DebtConfig) => void) | null>(
+    null,
+  )
+  const [debtModalAmount, setDebtModalAmount] = useState(0)
+  const [tempDebtConfig, setTempDebtConfig] = useState<DebtConfig>({ userShare: 0, splits: [] })
+
+  const months = useMemo(() => getAvailableMonths(state.transactions), [state.transactions])
+
+  const filtered = useMemo(() => {
+    let txs = state.transactions
+    if (filterMonth !== 'all') {
+      txs = txs.filter((t) => t.referenceMonth === filterMonth)
+    }
+    return txs.sort((a, b) => b.date.localeCompare(a.date))
+  }, [state.transactions, filterMonth])
+
+  const displayRefMonth =
+    filterMonth !== 'all'
+      ? filterMonth
+      : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+
+  // Get the most recently used payment method for quick-add default
+  const lastPaymentMethod = filtered.length > 0 ? filtered[0].paymentMethod : undefined
+
+  function handleQuickAdd(rowData: any, refMonth: string, debtConfig?: DebtConfig) {
+    const amount = parseFloat(rowData.amount) || 0
+    if (amount <= 0) return
+
+    const tx: Omit<Transaction, 'id'> = {
+      type: 'EXPENSE',
+      date: rowData.date,
+      referenceMonth: refMonth,
+      description: rowData.description,
+      amount,
+      category: rowData.category,
+      paymentMethod: rowData.paymentMethod,
+      isDebt: !!debtConfig && debtConfig.splits.length > 0,
+      debtUserShare: debtConfig ? debtConfig.userShare : undefined,
+      debtSplits:
+        debtConfig && debtConfig.splits.length > 0
+          ? debtConfig.splits.map((s) => ({ debtorName: s.name, amount: s.amount }))
+          : undefined,
+      isSettled: false,
+    }
+
+    if (rowData.paymentMethod === 'CREDIT' && rowData.installmentTotal > 1) {
+      const txs = generateInstallments(tx, rowData)
+      dispatch({ type: 'ADD_TRANSACTIONS', payload: txs.map((t) => ({ ...t, id: uuid() })) })
+    } else {
+      dispatch({ type: 'ADD_TRANSACTIONS', payload: [{ ...tx, id: uuid() }] })
+    }
+  }
+
+  function handleOpenDebtModal(callback: (config: DebtConfig) => void, totalAmount: number) {
+    setDebtModalCallback(() => callback)
+    setDebtModalAmount(totalAmount)
+    setTempDebtConfig({ userShare: 0, splits: [] })
+    setShowDebtModal(true)
+  }
+
+  function handleDebtModalSave(config: DebtConfig) {
+    if (debtModalCallback) {
+      debtModalCallback(config)
+    }
+    setShowDebtModal(false)
+  }
+
+  function handleDelete(id: string) {
+    dispatch({ type: 'DELETE_TRANSACTION', payload: id })
+  }
+
+  function handleSettle(id: string, currently: boolean) {
+    dispatch({ type: 'SETTLE_TRANSACTION', payload: id, settled: !currently })
+  }
+
+  function handleEdit(tx: Transaction) {
+    setEditingTx(tx)
+    setShowEditForm(true)
+  }
+
+  function handleFormClose(open: boolean) {
+    setShowEditForm(open)
+    if (!open) setEditingTx(null)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-semibold">Transactions</h2>
+          <Select value={filterMonth} onValueChange={(v) => setFilterMonth(v ?? 'all')}>
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All months</SelectItem>
+              {months.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {m}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="ghost" size="xs" onClick={() => setShowAudit(!showAudit)}>
+            <ArrowCounterClockwiseIcon />{' '}
+            {state.auditLog.length > 0 ? `Undo (${state.auditLog.length})` : 'History'}
+          </Button>
+        </div>
+      </div>
+
+      {showAudit && <AuditLogPanel onClose={() => setShowAudit(false)} />}
+
+      <div className="border border-border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-20">Ref Month</TableHead>
+              <TableHead className="w-20">Date</TableHead>
+              <TableHead className="flex-1">Description</TableHead>
+              <TableHead className="w-20">Category</TableHead>
+              <TableHead className="text-right w-24">Amount</TableHead>
+              <TableHead className="w-20">Payment</TableHead>
+              <TableHead className="w-16 text-center">Install</TableHead>
+              <TableHead className="w-32">Details</TableHead>
+              <TableHead className="text-right w-20">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {/* Quick-add row */}
+            <QuickAddRow
+              refMonth={displayRefMonth}
+              onAdd={handleQuickAdd}
+              defaultPaymentMethod={lastPaymentMethod}
+              isFilteredMonth={filterMonth !== 'all'}
+              onOpenDebtModal={handleOpenDebtModal}
+            />
+
+            {filtered.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-12">
+                  No transactions yet.
+                </TableCell>
+              </TableRow>
+            )}
+
+            {filtered.map((tx) => (
+              <TableRow
+                key={tx.id}
+                className={`cursor-pointer ${tx.isSettled ? 'opacity-50' : ''}`}
+                onClick={() => !tx.parentId && handleEdit(tx)}
+              >
+                <TableCell className="text-xs text-muted-foreground">{tx.referenceMonth}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{tx.date}</TableCell>
+                <TableCell>
+                  <div className="max-w-48 truncate">
+                    {tx.description}
+                    {tx.parentId && (
+                      <span className="text-muted-foreground ml-1 text-[10px]">(installment)</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="text-xs">{tx.category}</TableCell>
+                <TableCell
+                  className={`text-right font-mono text-xs ${tx.type === 'INCOME' ? 'text-green-600' : ''}`}
+                >
+                  {formatCurrency(tx.amount)}
+                </TableCell>
+                <TableCell>
+                  <PaymentBadge method={tx.paymentMethod} />
+                </TableCell>
+                <TableCell className="text-center text-xs">
+                  {tx.installment ? (
+                    <Badge variant="outline" className="text-xs">
+                      {tx.installment.current}/{tx.installment.total}
+                    </Badge>
+                  ) : null}
+                </TableCell>
+                <TableCell>
+                  {tx.isDebt ? (
+                    <div className="text-xs space-y-0.5">
+                      {tx.debtUserShare! > 0 && (
+                        <div className="text-muted-foreground">
+                          Me: {formatCurrency(tx.debtUserShare!)}
+                        </div>
+                      )}
+                      {tx.debtSplits?.map((s, i) => (
+                        <div key={i} className="text-muted-foreground">
+                          {s.debtorName}: {formatCurrency(s.amount)}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+                    {tx.isDebt && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => handleSettle(tx.id, tx.isSettled)}
+                        title={tx.isSettled ? 'Unsettle' : 'Settle debt'}
+                      >
+                        <CheckCircleIcon />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon-xs" onClick={() => handleDelete(tx.id)}>
+                      <TrashIcon />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <TransactionForm
+        open={showEditForm}
+        onOpenChange={handleFormClose}
+        editTransaction={editingTx}
+      />
+
+      <DebtConfigModal
+        open={showDebtModal}
+        onOpenChange={setShowDebtModal}
+        config={tempDebtConfig}
+        onConfigChange={handleDebtModalSave}
+        totalAmount={debtModalAmount}
+      />
+    </div>
+  )
+}
+
+function generateInstallments(
+  tx: Omit<Transaction, 'id'>,
+  rowData: any,
+): Array<Omit<Transaction, 'id'>> {
+  const total = rowData.installmentTotal || 1
+  const perInstallment = Math.round(((tx.amount || 0) / total) * 100) / 100
+  const groupId = uuid()
+  const result: Array<Omit<Transaction, 'id'>> = []
+
+  for (let i = 1; i <= total; i++) {
+    result.push({
+      ...tx,
+      referenceMonth: i === 1 ? tx.referenceMonth : addMonths(tx.referenceMonth, i - 1),
+      description: `${tx.description} - ${i}/${total}`,
+      amount: i === total ? (tx.amount || 0) - perInstallment * (total - 1) : perInstallment,
+      type: 'EXPENSE',
+      installment: { current: i, total },
+      groupId,
+      parentId: groupId,
+      isDebt: false,
+      isSettled: false,
+    })
+  }
+
+  return result
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "finances",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "format": "biome check --write src/",
+    "lint": "biome check src/",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.6.0",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@phosphor-icons/react": "^2.1.10",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.4.0",
+    "react": "^18.3.1",
+    "react-day-picker": "^10.0.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.0",
+    "tailwind-merge": "^3.6.0",
+    "tw-animate-css": "^1.4.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.2",
+    "@tailwindcss/vite": "^4.1.4",
+    "@types/node": "^26.1.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "shadcn": "^4.13.0",
+    "tailwindcss": "^4.1.4",
+    "typescript": "~5.7.2",
+    "vite": "^6.2.0"
+  }
+}
+</file>
+
+<file path="src/domain/entities.ts">
+export type TransactionType = 'INCOME' | 'EXPENSE'
+export type PaymentMethod = 'CASH' | 'DEBIT' | 'CREDIT' | 'PIX' | 'MEAL_VOUCHER'
+
+export interface InstallmentConfig {
+  current: number
+  total: number
+}
+
+export interface DebtSplit {
+  debtorName: string
+  amount: number
+}
+
+export interface Transaction {
+  id: string
+  type: TransactionType
+  date: string
+  referenceMonth: string
+  description: string
+  amount: number
+  category: string
+  paymentMethod: PaymentMethod
+  installment?: InstallmentConfig
+  parentId?: string
+  groupId?: string
+  isDebt: boolean
+  debtorName?: string
+  debtSplits?: DebtSplit[]
+  debtUserShare?: number
+  isSettled: boolean
+}
+
+export interface Budget {
+  referenceMonth: string
+  plannedIncome: number
+  plannedMealVoucher: number
+  categoryLimits: Record<string, number>
+}
+
+export interface FinanceData {
+  transactions: Transaction[]
+  budgets: Budget[]
+}
+
+export interface AuditEntry {
+  id: string
+  timestamp: number
+  description: string
+  snapshot: { transactions: Transaction[]; budgets: Budget[] }
+  actionType: string
+}
+</file>
+
+<file path="src/ui/components/Common/ExportImport.tsx">
+import { FileArrowDownIcon } from '@phosphor-icons/react'
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { exportCSV, exportJSON } from '@/data/exportImport'
+import { useFinance } from '@/ui/context'
+import CSVImportDialog from './CSVImportDialog'
+
+export default function ExportImport() {
+  const { state } = useFinance()
+  const [showImport, setShowImport] = useState(false)
+
+  return (
+    <>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => exportJSON({ transactions: state.transactions, budgets: state.budgets })}
+        >
+          Export JSON
+        </Button>
+        <Button variant="outline" size="xs" onClick={() => exportCSV(state.transactions)}>
+          Export CSV
+        </Button>
+        <Button variant="outline" size="xs" onClick={() => setShowImport(true)}>
+          <FileArrowDownIcon /> Import
+        </Button>
+      </div>
+      <CSVImportDialog open={showImport} onOpenChange={setShowImport} />
+    </>
+  )
+}
+</file>
+
+<file path="src/ui/context/FinanceContext.tsx">
+import {
+  createContext,
+  type Dispatch,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useReducer,
+} from 'react'
+import { v4 as uuid } from 'uuid'
+import { loadData, saveData } from '../../data/repository'
+import { generateSeed } from '../../data/seed'
+import type { AuditEntry, Budget, FinanceData, Transaction } from '../../domain/entities'
+
+export interface FinanceState {
+  transactions: Transaction[]
+  budgets: Budget[]
+  auditLog: AuditEntry[]
+  loaded: boolean
+}
+
+export type FinanceAction =
+  | { type: 'LOAD'; payload: FinanceData }
+  | { type: 'ADD_TRANSACTIONS'; payload: Transaction[]; description?: string }
+  | { type: 'UPDATE_TRANSACTION'; payload: Transaction; description?: string }
+  | { type: 'DELETE_TRANSACTION'; payload: string; description?: string }
+  | { type: 'SETTLE_TRANSACTION'; payload: string; settled?: boolean; description?: string }
+  | { type: 'UPSERT_BUDGET'; payload: Budget; description?: string }
+  | { type: 'DELETE_BUDGET'; payload: string; description?: string }
+  | { type: 'SEED' }
+  | { type: 'IMPORT'; payload: FinanceData; description?: string }
+  | { type: 'UNDO'; payload: string }
+  | { type: 'CLEAR_AUDIT' }
+
+function snapshot(state: FinanceState): { transactions: Transaction[]; budgets: Budget[] } {
+  return { transactions: [...state.transactions], budgets: [...state.budgets] }
+}
+
+function describeAction(action: FinanceAction): string {
+  switch (action.type) {
+    case 'ADD_TRANSACTIONS':
+      return action.description ?? `Added ${action.payload.length} transaction(s)`
+    case 'UPDATE_TRANSACTION':
+      return action.description ?? `Updated transaction "${action.payload.description}"`
+    case 'DELETE_TRANSACTION':
+      return action.description ?? `Deleted transaction`
+    case 'SETTLE_TRANSACTION':
+      return (
+        action.description ??
+        (action.settled === false ? 'Unsettled transaction' : 'Settled transaction')
+      )
+    case 'UPSERT_BUDGET':
+      return action.description ?? `Saved budget for ${action.payload.referenceMonth}`
+    case 'DELETE_BUDGET':
+      return action.description ?? `Deleted budget for ${action.payload}`
+    case 'IMPORT':
+      return action.description ?? `Imported ${action.payload.transactions.length} transaction(s)`
+    case 'SEED':
+      return 'Loaded seed data'
+    case 'UNDO':
+      return 'Undo'
+    default:
+      return 'Unknown action'
+  }
+}
+
+function withAudit(
+  state: FinanceState,
+  action: FinanceAction & { description?: string },
+): FinanceState {
+  const before = snapshot(state)
+  let next: FinanceState
+
+  switch (action.type) {
+    case 'ADD_TRANSACTIONS':
+      next = { ...state, transactions: [...state.transactions, ...action.payload] }
+      break
+
+    case 'UPDATE_TRANSACTION': {
+      const updated = action.payload
+      next = {
+        ...state,
+        transactions: state.transactions.map((t) => (t.id === updated.id ? updated : t)),
+      }
+      break
+    }
+
+    case 'DELETE_TRANSACTION': {
+      const target = state.transactions.find((t) => t.id === action.payload)
+      const idsToDelete = new Set<string>()
+      if (target) {
+        idsToDelete.add(target.id)
+        if (target.groupId) {
+          state.transactions
+            .filter((t) => t.groupId === target.groupId)
+            .forEach((t) => idsToDelete.add(t.id))
+        }
+      }
+      next = {
+        ...state,
+        transactions: state.transactions.filter((t) => !idsToDelete.has(t.id)),
+      }
+      break
+    }
+
+    case 'SETTLE_TRANSACTION': {
+      const settled = action.settled ?? true
+      next = {
+        ...state,
+        transactions: state.transactions.map((t) =>
+          t.parentId === action.payload || t.id === action.payload
+            ? { ...t, isSettled: settled }
+            : t,
+        ),
+      }
+      break
+    }
+
+    case 'UPSERT_BUDGET': {
+      const budget = action.payload
+      const idx = state.budgets.findIndex((b) => b.referenceMonth === budget.referenceMonth)
+      if (idx >= 0) {
+        const nextBudgets = [...state.budgets]
+        nextBudgets[idx] = budget
+        next = { ...state, budgets: nextBudgets }
+      } else {
+        next = { ...state, budgets: [...state.budgets, budget] }
+      }
+      break
+    }
+
+    case 'DELETE_BUDGET':
+      next = { ...state, budgets: state.budgets.filter((b) => b.referenceMonth !== action.payload) }
+      break
+
+    case 'IMPORT':
+      next = {
+        ...state,
+        transactions: action.payload.transactions,
+        budgets: action.payload.budgets,
+      }
+      break
+
+    case 'SEED':
+      next = { ...state, ...generateSeed(), loaded: true }
+      break
+
+    default:
+      return state
+  }
+
+  const entry: AuditEntry = {
+    id: uuid(),
+    timestamp: Date.now(),
+    description: describeAction(action),
+    snapshot: before,
+    actionType: action.type,
+  }
+
+  return { ...next, auditLog: [entry, ...state.auditLog].slice(0, 200) }
+}
+
+function reducer(state: FinanceState, action: FinanceAction): FinanceState {
+  switch (action.type) {
+    case 'LOAD':
+      return {
+        ...state,
+        transactions: action.payload.transactions,
+        budgets: action.payload.budgets,
+        loaded: true,
+      }
+
+    case 'UNDO': {
+      const entry = state.auditLog.find((e) => e.id === action.payload)
+      if (!entry) return state
+      return {
+        ...state,
+        transactions: entry.snapshot.transactions,
+        budgets: entry.snapshot.budgets,
+        auditLog: state.auditLog.filter((e) => e.id !== action.payload),
+      }
+    }
+
+    case 'CLEAR_AUDIT':
+      return { ...state, auditLog: [] }
+
+    case 'ADD_TRANSACTIONS':
+    case 'UPDATE_TRANSACTION':
+    case 'DELETE_TRANSACTION':
+    case 'SETTLE_TRANSACTION':
+    case 'UPSERT_BUDGET':
+    case 'DELETE_BUDGET':
+    case 'IMPORT':
+    case 'SEED':
+      return withAudit(state, action)
+
+    default:
+      return state
+  }
+}
+
+const FinanceContext = createContext<{
+  state: FinanceState
+  dispatch: Dispatch<FinanceAction>
+} | null>(null)
+
+export function FinanceProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(reducer, {
+    transactions: [],
+    budgets: [],
+    auditLog: [],
+    loaded: false,
+  })
+
+  useEffect(() => {
+    const saved = loadData()
+    if (saved) {
+      dispatch({ type: 'LOAD', payload: saved })
+    } else {
+      dispatch({ type: 'SEED' })
+    }
+  }, [])
+
+  useEffect(() => {
+    if (state.loaded) {
+      saveData({ transactions: state.transactions, budgets: state.budgets })
+    }
+  }, [state.transactions, state.budgets, state.loaded])
+
+  return <FinanceContext.Provider value={{ state, dispatch }}>{children}</FinanceContext.Provider>
+}
+
+export function useFinance() {
+  const ctx = useContext(FinanceContext)
+  if (!ctx) throw new Error('useFinance must be used within FinanceProvider')
+  return ctx
+}
+</file>
+
+<file path="src/index.css">
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-mono);
+    --font-mono: 'JetBrains Mono Variable', monospace;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-mono;
+  }
+}
+</file>
+
+<file path="src/App.tsx">
+import { useState } from 'react'
+import BudgetPage from './ui/components/Budget/BudgetPage'
+import DebtPage from './ui/components/Debts/DebtPage'
+import ExportImport from './ui/components/Common/ExportImport'
+import Tabs from './ui/components/Common/Tabs'
+import TransactionTable from './ui/components/Transactions/TransactionTable'
+import { FinanceProvider } from './ui/context'
+
+const tabs = [
+  { key: 'transactions', label: 'Transactions' },
+  { key: 'budgets', label: 'Budgets' },
+  { key: 'debts', label: 'Debts' },
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'yearly', label: 'Yearly' },
+]
+
+function PagePlaceholder({ name }: { name: string }) {
+  return (
+    <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+      {name} — coming soon
+    </div>
+  )
+}
+
+function AppShell() {
+  const [activeTab, setActiveTab] = useState('transactions')
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="bg-card border-b border-border sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          <h1 className="text-base font-heading font-bold">Finances</h1>
+          <ExportImport />
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
+
+        {activeTab === 'transactions' && <TransactionTable />}
+        {activeTab === 'budgets' && <BudgetPage />}
+        {activeTab === 'debts' && <DebtPage />}
+        {activeTab === 'dashboard' && <PagePlaceholder name="Dashboard" />}
+        {activeTab === 'yearly' && <PagePlaceholder name="Yearly Overview" />}
+      </main>
+    </div>
+  )
+}
+
+export default function App() {
+  return (
+    <FinanceProvider>
+      <AppShell />
+    </FinanceProvider>
+  )
+}
+</file>
+
+<file path="src/ui/components/Transactions/TransactionForm.tsx">
+import { useEffect, useState } from 'react'
+import { v4 as uuid } from 'uuid'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { DEFAULT_CATEGORIES, PAYMENT_METHOD_LABELS } from '@/domain/constants'
+import type { PaymentMethod, Transaction } from '@/domain/entities'
+import { useFinance } from '@/ui/context'
+import DebtConfigModal from './DebtConfigModal'
+
+const PAYMENT_METHODS: PaymentMethod[] = ['CASH', 'DEBIT', 'CREDIT', 'PIX', 'MEAL_VOUCHER']
+
+interface EditFormState {
+  date: string
+  amount: string
+  description: string
+  category: string
+  paymentMethod: PaymentMethod
+  referenceMonth: string
+  installmentTotal: number
+}
+
+interface DebtConfig {
+  userShare: number
+  splits: Array<{ id: string; name: string; amount: number }>
+}
+
+interface TransactionFormProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  editTransaction?: Transaction | null
+}
+
+export default function TransactionForm({
+  open,
+  onOpenChange,
+  editTransaction,
+}: TransactionFormProps) {
+  const { dispatch } = useFinance()
+
+  const [form, setForm] = useState<EditFormState>({
+    date: '',
+    amount: '',
+    description: '',
+    category: 'Other',
+    paymentMethod: 'DEBIT',
+    referenceMonth: '',
+    installmentTotal: 1,
+  })
+
+  const [debtConfig, setDebtConfig] = useState<DebtConfig>({ userShare: 0, splits: [] })
+  const [showDebtConfig, setShowDebtConfig] = useState(false)
+
+  useEffect(() => {
+    if (editTransaction) {
+      setForm({
+        date: editTransaction.date,
+        amount: String(editTransaction.amount),
+        description: editTransaction.description,
+        category: editTransaction.category,
+        paymentMethod: editTransaction.paymentMethod,
+        referenceMonth: editTransaction.referenceMonth,
+        installmentTotal: editTransaction.installment?.total ?? 1,
+      })
+
+      if (editTransaction.isDebt && editTransaction.debtSplits) {
+        setDebtConfig({
+          userShare: editTransaction.debtUserShare ?? 0,
+          splits: editTransaction.debtSplits.map((s) => ({
+            id: uuid(),
+            name: s.debtorName,
+            amount: s.amount,
+          })),
+        })
+      } else {
+        setDebtConfig({ userShare: 0, splits: [] })
+      }
+    }
+  }, [editTransaction, open])
+
+  function handleSave() {
+    const amount = parseFloat(form.amount) || 0
+    if (amount <= 0) {
+      alert('Amount must be greater than 0')
+      return
+    }
+    if (!form.description.trim()) {
+      alert('Description is required')
+      return
+    }
+
+    if (!editTransaction) return
+
+    const updated: Transaction = {
+      ...editTransaction,
+      date: form.date,
+      amount,
+      description: form.description,
+      category: form.category,
+      paymentMethod: form.paymentMethod,
+      referenceMonth: form.referenceMonth,
+      installment: form.installmentTotal > 1 ? { current: editTransaction.installment?.current ?? 1, total: form.installmentTotal } : undefined,
+      isDebt: debtConfig.splits.length > 0,
+      debtUserShare: debtConfig.splits.length > 0 ? debtConfig.userShare : undefined,
+      debtSplits: debtConfig.splits.length > 0 ? debtConfig.splits.map((s) => ({ debtorName: s.name, amount: s.amount })) : undefined,
+    }
+
+    dispatch({ type: 'UPDATE_TRANSACTION', payload: updated })
+    onOpenChange(false)
+  }
+
+  const amount = parseFloat(form.amount) || 0
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Transaction</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {/* Date, Amount, Description - top priority */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Date</Label>
+                <Input
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Amount (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.amount}
+                  onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Description</Label>
+              <Input
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+
+            {/* Category, Payment, RefMonth */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Category</Label>
+                <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v ?? 'Other' }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DEFAULT_CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Payment Method</Label>
+                <Select value={form.paymentMethod} onValueChange={(v) => setForm((f) => ({ ...f, paymentMethod: (v ?? 'DEBIT') as PaymentMethod }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_METHODS.map((pm) => (
+                      <SelectItem key={pm} value={pm}>
+                        {PAYMENT_METHOD_LABELS[pm] ?? pm}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Reference Month</Label>
+              <Input
+                type="month"
+                value={form.referenceMonth}
+                onChange={(e) => setForm((f) => ({ ...f, referenceMonth: e.target.value }))}
+              />
+            </div>
+
+            {/* Installments (if CREDIT) */}
+            {form.paymentMethod === 'CREDIT' && (
+              <div className="space-y-1">
+                <Label className="text-xs">Installments</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="48"
+                  value={form.installmentTotal}
+                  onChange={(e) => setForm((f) => ({ ...f, installmentTotal: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
+                />
+              </div>
+            )}
+
+            {/* Debt configuration */}
+            <div className="border-t pt-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium">Debt Configuration</Label>
+                {debtConfig.splits.length > 0 && (
+                  <Button variant="ghost" size="xs" onClick={() => setShowDebtConfig(true)}>
+                    {debtConfig.splits.length} debtor{debtConfig.splits.length !== 1 ? 's' : ''}
+                  </Button>
+                )}
+              </div>
+
+              {debtConfig.splits.length === 0 ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setShowDebtConfig(true)}
+                >
+                  Configure debt splits
+                </Button>
+              ) : (
+                <div className="text-xs space-y-1 bg-muted/50 p-2 rounded">
+                  {debtConfig.userShare > 0 && (
+                    <div>
+                      Me: <span className="font-mono">R$ {debtConfig.userShare.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {debtConfig.splits.map((s) => (
+                    <div key={s.id}>
+                      {s.name}: <span className="font-mono">R$ {s.amount.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex gap-2 justify-end pt-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave}>Update</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <DebtConfigModal
+        open={showDebtConfig}
+        onOpenChange={setShowDebtConfig}
+        config={debtConfig}
+        onConfigChange={setDebtConfig}
+        totalAmount={amount}
+      />
+    </>
+  )
+}
+</file>
+
+</files>

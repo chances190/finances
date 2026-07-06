@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import BudgetPage from './ui/components/Budget/BudgetPage'
-import DebtPage from './ui/components/Debts/DebtPage'
 import ExportImport from './ui/components/Common/ExportImport'
 import Tabs from './ui/components/Common/Tabs'
+import DebtPage from './ui/components/Debts/DebtPage'
 import TransactionTable from './ui/components/Transactions/TransactionTable'
 import { FinanceProvider } from './ui/context'
 

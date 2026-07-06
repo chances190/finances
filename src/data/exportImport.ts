@@ -25,6 +25,7 @@ export function exportCSV(transactions: Transaction[]): void {
     'referenceMonth',
     'isDebt',
     'debtorName',
+    'debtUserShare',
     'debtNames',
     'debtAmounts',
     'isSettled',
@@ -35,9 +36,8 @@ export function exportCSV(transactions: Transaction[]): void {
   ]
   const rows = transactions.map((t) => {
     const debtNames = t.debtSplits?.map((d) => d.debtorName).join('/') ?? ''
-    const userAmount = t.debtSplits ? t.amount - t.debtSplits.reduce((s, d) => s + d.amount, 0) : 0
     const debtorAmounts = t.debtSplits?.map((d) => d.amount).join('/') ?? ''
-    const debtAmounts = t.debtSplits?.length ? `${userAmount}//${debtorAmounts}` : ''
+    const debtAmounts = t.debtSplits?.length ? debtorAmounts : ''
 
     return [
       t.date,
@@ -49,6 +49,7 @@ export function exportCSV(transactions: Transaction[]): void {
       t.referenceMonth,
       String(t.isDebt),
       t.debtorName ?? '',
+      String(t.debtUserShare ?? 0),
       debtNames,
       debtAmounts,
       String(t.isSettled),
@@ -112,13 +113,13 @@ export function importCSV(csv: string): Transaction[] {
 
     if (row.debtNames && row.debtAmounts) {
       const names = row.debtNames.split('/').filter(Boolean)
-      const amounts = row.debtAmounts.split('//')
-      const debtorAmounts = amounts[1]?.split('/').filter(Boolean) ?? []
-      if (names.length === debtorAmounts.length && names.length > 0) {
+      const amounts = row.debtAmounts.split('/').filter(Boolean)
+      if (names.length === amounts.length && names.length > 0) {
         t.debtSplits = names.map((name, i) => ({
           debtorName: name,
-          amount: parseFloat(debtorAmounts[i]) || 0,
+          amount: parseFloat(amounts[i]) || 0,
         }))
+        t.debtUserShare = parseFloat(row.debtUserShare) || 0
       }
     }
 

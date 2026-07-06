@@ -1,13 +1,14 @@
-import { useState, useRef } from 'react'
+import { FileCsvIcon, FileTextIcon } from '@phosphor-icons/react'
+import { useRef, useState } from 'react'
 import { v4 as uuid } from 'uuid'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import {
   Table,
   TableBody,
@@ -16,10 +17,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useFinance } from '@/ui/context'
 import { importCSV, importJSON } from '@/data/exportImport'
 import type { Transaction } from '@/domain/entities'
-import { FileCsvIcon, FileTextIcon } from '@phosphor-icons/react'
+import { useFinance } from '@/ui/context'
 
 type PreviewData = {
   type: 'json' | 'csv'
@@ -27,7 +27,13 @@ type PreviewData = {
   filename: string
 }
 
-export default function CSVImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export default function CSVImportDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const { dispatch } = useFinance()
   const fileRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<PreviewData | null>(null)
@@ -58,7 +64,10 @@ export default function CSVImportDialog({ open, onOpenChange }: { open: boolean;
 
   function handleImport() {
     if (!preview) return
-    dispatch({ type: 'ADD_TRANSACTIONS', payload: preview.transactions.map((t) => ({ ...t, id: t.id || uuid() })) })
+    dispatch({
+      type: 'ADD_TRANSACTIONS',
+      payload: preview.transactions.map((t) => ({ ...t, id: t.id || uuid() })),
+    })
     setPreview(null)
     onOpenChange(false)
   }
@@ -91,21 +100,33 @@ export default function CSVImportDialog({ open, onOpenChange }: { open: boolean;
             <p className="text-sm text-muted-foreground">
               Drop a .json or .csv file here, or click to browse
             </p>
-            <input ref={fileRef} type="file" accept=".json,.csv" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }} className="hidden" />
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".json,.csv"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) handleFile(f)
+              }}
+              className="hidden"
+            />
           </div>
         )}
 
         {error && (
           <div className="bg-destructive/10 text-destructive text-xs p-3 rounded-none">
             {error}
-            <Button variant="ghost" size="xs" className="ml-2" onClick={() => setError(null)}>Dismiss</Button>
+            <Button variant="ghost" size="xs" className="ml-2" onClick={() => setError(null)}>
+              Dismiss
+            </Button>
           </div>
         )}
 
         {preview && (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              {preview.filename} — {preview.transactions.length} transaction{preview.transactions.length !== 1 ? 's' : ''} found
+              {preview.filename} — {preview.transactions.length} transaction
+              {preview.transactions.length !== 1 ? 's' : ''} found
             </p>
             <div className="max-h-60 overflow-y-auto border border-border">
               <Table>
@@ -126,7 +147,9 @@ export default function CSVImportDialog({ open, onOpenChange }: { open: boolean;
                       <TableCell>{t.type}</TableCell>
                       <TableCell className="max-w-32 truncate">{t.description}</TableCell>
                       <TableCell>{t.category}</TableCell>
-                      <TableCell className="text-right font-mono">R$ {t.amount.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-mono">
+                        R$ {t.amount.toFixed(2)}
+                      </TableCell>
                       <TableCell>{t.paymentMethod}</TableCell>
                     </TableRow>
                   ))}
@@ -141,8 +164,19 @@ export default function CSVImportDialog({ open, onOpenChange }: { open: boolean;
               </Table>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => { setPreview(null); setError(null) }}>Cancel</Button>
-              <Button onClick={handleImport}>Import {preview.transactions.length} transaction{preview.transactions.length !== 1 ? 's' : ''}</Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPreview(null)
+                  setError(null)
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleImport}>
+                Import {preview.transactions.length} transaction
+                {preview.transactions.length !== 1 ? 's' : ''}
+              </Button>
             </div>
           </div>
         )}

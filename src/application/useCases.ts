@@ -1,22 +1,22 @@
-import type { Transaction, Budget } from '../domain/entities'
 import {
-  totalByMonth,
-  expensesByMonth,
+  activeDebts,
   balance,
+  budgetVsActual,
+  budgetVsActualYear,
   byCategory,
   cashExpenses,
-  mealVoucherBalance,
-  creditInvoice,
-  outstandingDebt,
-  activeDebts,
-  spendingPace,
-  budgetVsActual,
-  futureCommitments,
   categoryTimeSeries,
-  yearSummary,
-  budgetVsActualYear,
+  creditInvoice,
+  expensesByMonth,
+  futureCommitments,
+  mealVoucherBalance,
+  outstandingDebt,
   type SpendingPaceResult,
+  spendingPace,
+  totalByMonth,
+  yearSummary,
 } from '../domain/calculations'
+import type { Budget, Transaction } from '../domain/entities'
 
 export function useMonthSummary(transactions: Transaction[], refMonth: string) {
   return {
@@ -61,6 +61,10 @@ export function useYearSummary(transactions: Transaction[], year: number) {
   return yearSummary(transactions, year)
 }
 
-export function useYearBudgetVsActual(transactions: Transaction[], budgets: Budget[], year: number) {
+export function useYearBudgetVsActual(
+  transactions: Transaction[],
+  budgets: Budget[],
+  year: number,
+) {
   return budgetVsActualYear(transactions, budgets, year)
 }

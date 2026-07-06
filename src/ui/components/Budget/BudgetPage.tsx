@@ -15,6 +15,7 @@ import {
 import { addMonths } from '@/domain/calculations'
 import { DEFAULT_CATEGORIES } from '@/domain/constants'
 import type { Budget as BudgetType } from '@/domain/entities'
+import { formatCurrency } from '@/lib/format'
 import { useFinance } from '@/ui/context'
 
 interface BudgetFormData {
@@ -47,14 +48,12 @@ function toBudget(data: BudgetFormData): BudgetType {
   }
 }
 
-function formatCurrency(n: number): string {
-  return `R$ ${n.toFixed(2)}`
-}
-
 export default function BudgetPage() {
   const { state, dispatch } = useFinance()
   const [showForm, setShowForm] = useState(false)
   const [editingMonth, setEditingMonth] = useState<string | null>(null)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [showAddCategory, setShowAddCategory] = useState(false)
 
   const sorted = useMemo(
     () => [...state.budgets].sort((a, b) => b.referenceMonth.localeCompare(a.referenceMonth)),
@@ -139,6 +138,23 @@ export default function BudgetPage() {
     }
   }
 
+  function handleAddCategory() {
+    if (!newCategoryName.trim()) return
+    if (form.categoryLimits[newCategoryName]) {
+      alert('Category already exists')
+      return
+    }
+    setForm({
+      ...form,
+      categoryLimits: {
+        ...form.categoryLimits,
+        [newCategoryName]: '',
+      },
+    })
+    setNewCategoryName('')
+    setShowAddCategory(false)
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -168,7 +184,11 @@ export default function BudgetPage() {
               </TableRow>
             )}
             {sorted.map((b) => (
-              <TableRow key={b.referenceMonth} className="cursor-pointer" onClick={() => openEdit(b.referenceMonth)}>
+              <TableRow
+                key={b.referenceMonth}
+                className="cursor-pointer"
+                onClick={() => openEdit(b.referenceMonth)}
+              >
                 <TableCell className="font-medium">{b.referenceMonth}</TableCell>
                 <TableCell className="text-right font-mono">
                   {formatCurrency(b.plannedIncome)}
@@ -190,14 +210,20 @@ export default function BudgetPage() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      onClick={(e) => { e.stopPropagation(); openEdit(b.referenceMonth) }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openEdit(b.referenceMonth)
+                      }}
                     >
                       <PencilSimpleIcon />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      onClick={(e) => { e.stopPropagation(); handleDelete(b.referenceMonth) }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDelete(b.referenceMonth)
+                      }}
                     >
                       <TrashIcon />
                     </Button>
@@ -256,24 +282,70 @@ export default function BudgetPage() {
             </div>
 
             <div>
-              <Label className="text-xs mb-1 block">Category Limits</Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-xs font-medium">Category Limits</Label>
+                <Button variant="ghost" size="xs" onClick={() => setShowAddCategory(true)}>
+                  <PlusIcon className="size-3" /> Add Category
+                </Button>
+              </div>
+
+              {showAddCategory && (
+                <div className="flex gap-1 mb-2">
+                  <Input
+                    placeholder="Category name"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                    autoFocus
+                    className="flex-1"
+                  />
+                  <Button size="sm" onClick={handleAddCategory}>
+                    Add
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowAddCategory(false)
+                      setNewCategoryName('')
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                 {Object.keys(form.categoryLimits).map((cat) => (
-                  <div key={cat} className="space-y-0.5">
-                    <Label className="text-[10px] text-muted-foreground">{cat}</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0"
-                      value={form.categoryLimits[cat]}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          categoryLimits: { ...form.categoryLimits, [cat]: e.target.value },
-                        })
-                      }
-                    />
+                  <div key={cat} className="space-y-0.5 flex items-end gap-1">
+                    <div className="flex-1">
+                      <Label className="text-[10px] text-muted-foreground">{cat}</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0"
+                        value={form.categoryLimits[cat]}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            categoryLimits: { ...form.categoryLimits, [cat]: e.target.value },
+                          })
+                        }
+                      />
+                    </div>
+                    {!(DEFAULT_CATEGORIES as readonly string[]).includes(cat) && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => {
+                          const { [cat]: _, ...rest } = form.categoryLimits
+                          setForm({ ...form, categoryLimits: rest })
+                        }}
+                      >
+                        <TrashIcon className="size-3" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>

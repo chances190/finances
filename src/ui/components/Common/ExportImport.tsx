@@ -1,9 +1,9 @@
+import { FileArrowDownIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { exportCSV, exportJSON } from '@/data/exportImport'
 import { useFinance } from '@/ui/context'
 import CSVImportDialog from './CSVImportDialog'
-import { FileArrowDownIcon } from '@phosphor-icons/react'
 
 export default function ExportImport() {
   const { state } = useFinance()
@@ -12,7 +12,11 @@ export default function ExportImport() {
   return (
     <>
       <div className="flex gap-2">
-        <Button variant="outline" size="xs" onClick={() => exportJSON({ transactions: state.transactions, budgets: state.budgets })}>
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => exportJSON({ transactions: state.transactions, budgets: state.budgets })}
+        >
           Export JSON
         </Button>
         <Button variant="outline" size="xs" onClick={() => exportCSV(state.transactions)}>
