@@ -254,29 +254,22 @@ export default function TransactionForm({
                   >
                     Is Debt
                   </button>
-                  {isDebt && (
-                    <>
-                      {debtConfig.splits.length === 0 ? (
-                        <Button
-                          variant="outline"
-                          size="xs"
-                          onClick={() => setShowDebtConfig(true)}
-                        >
-                          Add splits
+                  {isDebt &&
+                    (debtConfig.splits.length === 0 ? (
+                      <Button variant="outline" size="xs" onClick={() => setShowDebtConfig(true)}>
+                        Add splits
+                      </Button>
+                    ) : (
+                      <>
+                        <Button variant="ghost" size="xs" onClick={() => setShowDebtConfig(true)}>
+                          {debtConfig.splits.length} debtor
+                          {debtConfig.splits.length !== 1 ? 's' : ''}
                         </Button>
-                      ) : (
-                        <>
-                          <Button variant="ghost" size="xs" onClick={() => setShowDebtConfig(true)}>
-                            {debtConfig.splits.length} debtor
-                            {debtConfig.splits.length !== 1 ? 's' : ''}
-                          </Button>
-                          <span className="text-xs text-muted-foreground">
-                            (My share: R$ {debtConfig.userShare.toFixed(2)})
-                          </span>
-                        </>
-                      )}
-                    </>
-                  )}
+                        <span className="text-xs text-muted-foreground">
+                          (My share: R$ {debtConfig.userShare.toFixed(2)})
+                        </span>
+                      </>
+                    ))}
                 </div>
               </div>
             )}

@@ -239,16 +239,15 @@ export default function QuickAddRow({
                   onOpenDebtModal((config) => {
                     setDebtConfig(config)
                     if (amount === 0) {
-                      const total = config.userShare + config.splits.reduce((s, d) => s + d.amount, 0)
+                      const total =
+                        config.userShare + config.splits.reduce((s, d) => s + d.amount, 0)
                       setRow((r) => ({ ...r, amount: String(total) }))
                     }
                   }, amount)
                 }
               }}
               title={
-                debtConfig.splits.length > 0
-                  ? `${debtConfig.splits.length} debtors`
-                  : 'Split debt'
+                debtConfig.splits.length > 0 ? `${debtConfig.splits.length} debtors` : 'Split debt'
               }
             >
               <UsersIcon className="size-3" />

@@ -43,7 +43,13 @@ export default function BudgetPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">Budgets</h2>
-        <Button size="sm" onClick={() => { setEditingMonth(null); setShowForm(true) }}>
+        <Button
+          size="sm"
+          onClick={() => {
+            setEditingMonth(null)
+            setShowForm(true)
+          }}
+        >
           <PlusIcon /> New Budget
         </Button>
       </div>
@@ -71,7 +77,10 @@ export default function BudgetPage() {
               <TableRow
                 key={b.referenceMonth}
                 className="cursor-pointer"
-                onClick={() => { setEditingMonth(b.referenceMonth); setShowForm(true) }}
+                onClick={() => {
+                  setEditingMonth(b.referenceMonth)
+                  setShowForm(true)
+                }}
               >
                 <TableCell className="font-medium">{b.referenceMonth}</TableCell>
                 <TableCell className="text-right font-mono">
@@ -122,7 +131,10 @@ export default function BudgetPage() {
 
       <BudgetFormDialog
         open={showForm}
-        onOpenChange={(o) => { setShowForm(o); if (!o) setEditingMonth(null) }}
+        onOpenChange={(o) => {
+          setShowForm(o)
+          if (!o) setEditingMonth(null)
+        }}
         editingMonth={editingMonth}
         existingBudget={existingBudget}
         nextMonth={nextMonth}
@@ -130,7 +142,9 @@ export default function BudgetPage() {
 
       <ConfirmDialog
         open={confirmDeleteMonth !== null}
-        onOpenChange={(o) => { if (!o) setConfirmDeleteMonth(null) }}
+        onOpenChange={(o) => {
+          if (!o) setConfirmDeleteMonth(null)
+        }}
         title="Delete Budget"
         message={confirmDeleteMonth ? `Delete budget for ${confirmDeleteMonth}?` : ''}
         confirmLabel="Delete"

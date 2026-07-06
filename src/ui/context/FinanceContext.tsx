@@ -90,9 +90,9 @@ function withAudit(
       if (target) {
         idsToDelete.add(target.id)
         if (target.groupId) {
-          state.transactions
-            .filter((t) => t.groupId === target.groupId)
-            .forEach((t) => idsToDelete.add(t.id))
+          for (const t of state.transactions) {
+            if (t.groupId === target.groupId) idsToDelete.add(t.id)
+          }
         }
       }
       next = {

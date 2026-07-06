@@ -246,21 +246,21 @@ export default function TransactionTable() {
                 <TableCell>
                   {tx.isDebt ? (
                     <div className="text-xs space-y-0.5">
-                      {tx.debtUserShare! > 0 && (
+                      {tx.debtUserShare != null && tx.debtUserShare > 0 && (
                         <div className="text-muted-foreground">
-                          Me: {formatCurrency(tx.debtUserShare!)}
+                          Me: {formatCurrency(tx.debtUserShare)}
                         </div>
                       )}
-                      {tx.debtSplits?.map((s, i) => (
-                        <div key={i} className="text-muted-foreground">
+                      {tx.debtSplits?.map((s) => (
+                        <div key={s.debtorName} className="text-muted-foreground">
                           {s.debtorName}: {formatCurrency(s.amount)}
                         </div>
                       ))}
                     </div>
                   ) : null}
                 </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                  <span className="flex gap-1 justify-end">
                     {tx.isDebt && (
                       <Button
                         variant="ghost"
@@ -274,7 +274,7 @@ export default function TransactionTable() {
                     <Button variant="ghost" size="icon-xs" onClick={() => handleDelete(tx.id)}>
                       <TrashIcon />
                     </Button>
-                  </div>
+                  </span>
                 </TableCell>
               </TableRow>
             ))}
@@ -298,5 +298,3 @@ export default function TransactionTable() {
     </div>
   )
 }
-
-

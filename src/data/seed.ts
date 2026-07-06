@@ -1,11 +1,7 @@
 import { v4 as uuid } from 'uuid'
 import type { Budget, FinanceData, Transaction } from '../domain/entities'
 
-function tx(
-  refYear: number,
-  refMonth: string,
-  overrides: Partial<Transaction>,
-): Transaction {
+function tx(refYear: number, refMonth: string, overrides: Partial<Transaction>): Transaction {
   return {
     id: uuid(),
     type: 'EXPENSE',

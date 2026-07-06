@@ -82,8 +82,8 @@ export default function DebtPage() {
                     <TableCell>
                       {splits.length > 1 ? (
                         <div className="text-xs space-y-0.5">
-                          {splits.map((s, i) => (
-                            <div key={i} className="text-muted-foreground">
+                          {splits.map((s) => (
+                            <div key={s.debtorName} className="text-muted-foreground">
                               {s.debtorName}: {formatCurrency(s.amount)}
                             </div>
                           ))}

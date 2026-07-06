@@ -96,10 +96,11 @@ export default function CSVImportDialog({
         </DialogHeader>
 
         {!preview && !error && (
-          <div
+          <button
+            type="button"
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
-            className="border-2 border-dashed border-border rounded-none p-8 text-center space-y-3 cursor-pointer hover:bg-muted/50 transition-colors"
+            className="border-2 border-dashed border-border rounded-none p-8 text-center space-y-3 cursor-pointer hover:bg-muted/50 transition-colors w-full"
             onClick={() => fileRef.current?.click()}
           >
             <div className="flex justify-center gap-2 text-muted-foreground">
@@ -119,7 +120,7 @@ export default function CSVImportDialog({
               }}
               className="hidden"
             />
-          </div>
+          </button>
         )}
 
         {error && (
@@ -150,8 +151,8 @@ export default function CSVImportDialog({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {preview.transactions.slice(0, 50).map((t, i) => (
-                    <TableRow key={i}>
+                  {preview.transactions.slice(0, 50).map((t) => (
+                    <TableRow key={t.id}>
                       <TableCell className="text-muted-foreground">{t.date}</TableCell>
                       <TableCell>{t.type}</TableCell>
                       <TableCell className="max-w-32 truncate">{t.description}</TableCell>

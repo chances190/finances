@@ -111,9 +111,7 @@ export default function BudgetFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>
-            {editingMonth ? `Edit Budget: ${editingMonth}` : 'New Budget'}
-          </DialogTitle>
+          <DialogTitle>{editingMonth ? `Edit Budget: ${editingMonth}` : 'New Budget'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
