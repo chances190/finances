@@ -28,10 +28,10 @@
   - Add ErrorBoundary wrapper
   - Replace all 10 alert()/confirm() calls with toast/dialog alternatives
 
-- [ ] **Commit 5 — Extract domain utilities & fix seed data**
+- [x] **Commit 5 — Extract domain utilities & fix seed data**
   - Move generateInstallments() from TransactionTable.tsx to domain/calculations.ts
-  - Make seed data deterministic by computing dates from a fixed offset
-  - Fix parseDate to use UTC explicitly
+  - Make seed data deterministic (accepts optional Date param, defaults to 2026-07-01)
+  - Fix parseDate to use UTC explicitly (Z suffix)
 
 - [ ] **Commit 6 — UI consistency & dark mode**
   - Rewrite Tabs.tsx to use CSS variable tokens (bg-background, etc.)

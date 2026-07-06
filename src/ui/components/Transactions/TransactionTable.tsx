@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { addMonths } from '@/domain/calculations'
+import { generateInstallments } from '@/domain/calculations'
 import { PAYMENT_METHOD_LABELS } from '@/domain/constants'
 import type { DebtConfig, PaymentMethod, Transaction } from '@/domain/entities'
 import { formatCurrency } from '@/lib/format'
@@ -109,7 +109,8 @@ export default function TransactionTable() {
     }
 
     if (rowData.paymentMethod === 'CREDIT' && rowData.installmentTotal > 1) {
-      const txs = generateInstallments(tx, rowData.installmentTotal)
+      const groupId = uuid()
+      const txs = generateInstallments(tx, rowData.installmentTotal, groupId)
       dispatch({ type: 'ADD_TRANSACTIONS', payload: txs.map((t) => ({ ...t, id: uuid() })) })
     } else {
       dispatch({ type: 'ADD_TRANSACTIONS', payload: [{ ...tx, id: uuid() }] })
@@ -295,28 +296,4 @@ export default function TransactionTable() {
   )
 }
 
-function generateInstallments(
-  tx: Omit<Transaction, 'id'>,
-  total: number,
-): Array<Omit<Transaction, 'id'>> {
-  const perInstallment = Math.round(((tx.amount || 0) / total) * 100) / 100
-  const groupId = uuid()
-  const result: Array<Omit<Transaction, 'id'>> = []
 
-  for (let i = 1; i <= total; i++) {
-    result.push({
-      ...tx,
-      referenceMonth: i === 1 ? tx.referenceMonth : addMonths(tx.referenceMonth, i - 1),
-      description: `${tx.description} - ${i}/${total}`,
-      amount: i === total ? (tx.amount || 0) - perInstallment * (total - 1) : perInstallment,
-      type: 'EXPENSE',
-      installment: { current: i, total },
-      groupId,
-      parentId: groupId,
-      isDebt: false,
-      isSettled: false,
-    })
-  }
-
-  return result
-}

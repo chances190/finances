@@ -1,6 +1,32 @@
 import { DAYS_IN_MONTH, SES_ALPHA } from './constants'
 import type { Budget, Transaction } from './entities'
 
+export function generateInstallments(
+  tx: Omit<Transaction, 'id'>,
+  total: number,
+  groupId: string,
+): Array<Omit<Transaction, 'id'>> {
+  const perInstallment = Math.round(((tx.amount || 0) / total) * 100) / 100
+  const result: Array<Omit<Transaction, 'id'>> = []
+
+  for (let i = 1; i <= total; i++) {
+    result.push({
+      ...tx,
+      referenceMonth: i === 1 ? tx.referenceMonth : addMonths(tx.referenceMonth, i - 1),
+      description: `${tx.description} - ${i}/${total}`,
+      amount: i === total ? (tx.amount || 0) - perInstallment * (total - 1) : perInstallment,
+      type: 'EXPENSE',
+      installment: { current: i, total },
+      groupId,
+      parentId: groupId,
+      isDebt: false,
+      isSettled: false,
+    })
+  }
+
+  return result
+}
+
 export function addMonths(ym: string, n: number): string {
   const [y, m] = ym.split('-').map(Number)
   const total = y * 12 + m - 1 + n
@@ -14,7 +40,7 @@ export function monthDiff(a: string, b: string): number {
 }
 
 export function parseDate(d: string): number {
-  return new Date(`${d}T12:00:00`).getTime()
+  return new Date(`${d}T12:00:00Z`).getTime()
 }
 
 export function daysSince(date: string): number {
