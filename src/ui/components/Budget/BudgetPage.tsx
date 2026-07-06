@@ -250,7 +250,7 @@ export default function BudgetPage() {
                 <Input
                   type="month"
                   value={form.referenceMonth}
-                  onChange={(e) => setForm({ ...form, referenceMonth: e.target.value })}
+                  onChange={(e) => setForm((f) => ({ ...f, referenceMonth: e.target.value }))}
                 />
               </div>
               <div className="flex items-end">
@@ -267,7 +267,7 @@ export default function BudgetPage() {
                   type="number"
                   step="0.01"
                   value={form.plannedIncome}
-                  onChange={(e) => setForm({ ...form, plannedIncome: e.target.value })}
+                  onChange={(e) => setForm((f) => ({ ...f, plannedIncome: e.target.value }))}
                 />
               </div>
               <div className="space-y-1">
@@ -276,7 +276,7 @@ export default function BudgetPage() {
                   type="number"
                   step="0.01"
                   value={form.plannedMealVoucher}
-                  onChange={(e) => setForm({ ...form, plannedMealVoucher: e.target.value })}
+                  onChange={(e) => setForm((f) => ({ ...f, plannedMealVoucher: e.target.value }))}
                 />
               </div>
             </div>
@@ -327,10 +327,10 @@ export default function BudgetPage() {
                         placeholder="0"
                         value={form.categoryLimits[cat]}
                         onChange={(e) =>
-                          setForm({
-                            ...form,
-                            categoryLimits: { ...form.categoryLimits, [cat]: e.target.value },
-                          })
+                          setForm((f) => ({
+                            ...f,
+                            categoryLimits: { ...f.categoryLimits, [cat]: e.target.value },
+                          }))
                         }
                       />
                     </div>

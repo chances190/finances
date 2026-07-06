@@ -17,7 +17,7 @@
   - Add runtime validator for FinanceData (JSON.parse safety)
   - Fix unsafe `as Transaction['paymentMethod']` in CSV import
 
-- [ ] **Commit 3 — State management fixes**
+- [x] **Commit 3 — State management fixes**
   - Remove `open` from useEffect dependency in TransactionForm.tsx
   - Fix BudgetPage stale closure — use setForm(f => ...) consistently
   - Add useRef cleanup for FileReader in CSVImportDialog

@@ -78,7 +78,7 @@ export default function TransactionForm({
         setDebtConfig({ userShare: 0, splits: [] })
       }
     }
-  }, [editTransaction, open])
+  }, [editTransaction])
 
   function handleSave() {
     const amount = parseFloat(form.amount) || 0

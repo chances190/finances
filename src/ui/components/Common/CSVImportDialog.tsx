@@ -1,5 +1,5 @@
 import { FileCsvIcon, FileTextIcon } from '@phosphor-icons/react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { Button } from '@/components/ui/button'
 import {
@@ -36,13 +36,21 @@ export default function CSVImportDialog({
 }) {
   const { dispatch } = useFinance()
   const fileRef = useRef<HTMLInputElement>(null)
+  const readerRef = useRef<FileReader | null>(null)
   const [preview, setPreview] = useState<PreviewData | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    return () => {
+      readerRef.current?.abort()
+    }
+  }, [])
 
   function handleFile(file: File) {
     setError(null)
     setPreview(null)
     const reader = new FileReader()
+    readerRef.current = reader
     reader.onload = () => {
       try {
         const content = reader.result as string
