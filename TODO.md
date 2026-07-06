@@ -33,11 +33,11 @@
   - Make seed data deterministic (accepts optional Date param, defaults to 2026-07-01)
   - Fix parseDate to use UTC explicitly (Z suffix)
 
-- [ ] **Commit 6 — UI consistency & dark mode**
-  - Rewrite Tabs.tsx to use CSS variable tokens (bg-background, etc.)
+- [x] **Commit 6 — UI consistency & dark mode**
+  - Rewrite Tabs.tsx to use CSS variable tokens (bg-card, border-border, etc.)
   - Replace inline R$ formatting in CSVImportDialog with formatCurrency()
   - Remove noop ternary in CSVImportDialog.tsx
-  - Unify export patterns (pick one convention)
+  - Export patterns already unified (all use inline `export default function`)
 
 - [ ] **Commit 7 — Fix original TODO.md bugs**
   - Fix "Is Debt" button wiring in the add dialog

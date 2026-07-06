@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/table'
 import { importCSV, importJSON } from '@/data/exportImport'
 import type { Transaction } from '@/domain/entities'
+import { formatCurrency } from '@/lib/format'
 import { useFinance } from '@/ui/context'
 
 type PreviewData = {
@@ -150,13 +151,13 @@ export default function CSVImportDialog({
                 </TableHeader>
                 <TableBody>
                   {preview.transactions.slice(0, 50).map((t, i) => (
-                    <TableRow key={i} className={t.type === 'INCOME' ? '' : ''}>
+                    <TableRow key={i}>
                       <TableCell className="text-muted-foreground">{t.date}</TableCell>
                       <TableCell>{t.type}</TableCell>
                       <TableCell className="max-w-32 truncate">{t.description}</TableCell>
                       <TableCell>{t.category}</TableCell>
                       <TableCell className="text-right font-mono">
-                        R$ {t.amount.toFixed(2)}
+                        {formatCurrency(t.amount)}
                       </TableCell>
                       <TableCell>{t.paymentMethod}</TableCell>
                     </TableRow>
