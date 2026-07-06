@@ -58,5 +58,6 @@ export interface AuditEntry {
   timestamp: number
   description: string
   snapshot: { transactions: Transaction[]; budgets: Budget[] }
+  forwardSnapshot?: { transactions: Transaction[]; budgets: Budget[] }
   actionType: string
 }

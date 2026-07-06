@@ -14,6 +14,7 @@ import {
 import { DEFAULT_CATEGORIES, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/domain/constants'
 
 import type { DebtConfig, PaymentMethod, Transaction } from '@/domain/entities'
+import { formatCurrency, parseCurrency } from '@/lib/format'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
 import DebtConfigModal from './DebtConfigModal'
@@ -60,7 +61,7 @@ export default function TransactionForm({
     if (editTransaction) {
       setForm({
         date: editTransaction.date,
-        amount: String(editTransaction.amount),
+        amount: String(editTransaction.amount / 100),
         description: editTransaction.description,
         category: editTransaction.category,
         paymentMethod: editTransaction.paymentMethod,
@@ -85,7 +86,7 @@ export default function TransactionForm({
   }, [editTransaction])
 
   function handleSave() {
-    const amount = parseFloat(form.amount) || 0
+    const amount = parseCurrency(form.amount)
     if (amount <= 0) {
       toast('Amount must be greater than 0', 'error')
       return
@@ -121,7 +122,7 @@ export default function TransactionForm({
     onOpenChange(false)
   }
 
-  const amount = parseFloat(form.amount) || 0
+  const amount = parseCurrency(form.amount)
 
   return (
     <>
@@ -236,40 +237,25 @@ export default function TransactionForm({
             {form.paymentMethod !== 'MEAL_VOUCHER' && (
               <div className="border-t pt-3 space-y-2">
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
+                  <Button
+                    size="xs"
+                    variant={isDebt ? 'default' : 'outline'}
+                    disabled={!isDebt && !(parseFloat(form.amount) > 0)}
+                    onClick={() => {
                       setIsDebt((v) => {
-                        if (v) {
+                        if (!v) {
+                          setShowDebtConfig(true)
+                        } else {
                           setDebtConfig({ userShare: 0, splits: [] })
                         }
                         return !v
                       })
-                    }
-                    className={`text-xs px-2 py-1 border ${
-                      isDebt
-                        ? 'bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-400'
-                        : 'border-border text-muted-foreground'
-                    }`}
+                    }}
                   >
-                    Is Debt
-                  </button>
-                  {isDebt &&
-                    (debtConfig.splits.length === 0 ? (
-                      <Button variant="outline" size="xs" onClick={() => setShowDebtConfig(true)}>
-                        Add splits
-                      </Button>
-                    ) : (
-                      <>
-                        <Button variant="ghost" size="xs" onClick={() => setShowDebtConfig(true)}>
-                          {debtConfig.splits.length} debtor
-                          {debtConfig.splits.length !== 1 ? 's' : ''}
-                        </Button>
-                        <span className="text-xs text-muted-foreground">
-                          (My share: R$ {debtConfig.userShare.toFixed(2)})
-                        </span>
-                      </>
-                    ))}
+                    {isDebt
+                      ? `Debt (${debtConfig.splits.length} debtor${debtConfig.splits.length !== 1 ? 's' : ''}, Me: ${formatCurrency(debtConfig.userShare)})`
+                      : 'Debt'}
+                  </Button>
                 </div>
               </div>
             )}

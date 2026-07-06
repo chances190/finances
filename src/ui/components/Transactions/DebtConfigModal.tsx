@@ -1,4 +1,5 @@
 import { LightningAIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
+import c from 'currency.js'
 import { useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { Button } from '@/components/ui/button'
@@ -6,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { DebtConfig, DebtSplitUI } from '@/domain/entities'
+import { formatCurrency, parseCurrency } from '@/lib/format'
 import { useToast } from '@/ui/context/ToastContext'
 
 interface DebtConfigModalProps {
@@ -29,7 +31,7 @@ export default function DebtConfigModal({
   const assignedDebtors = tempConfig.splits.reduce((s, d) => s + d.amount, 0)
   const assignedTotal = tempConfig.userShare + assignedDebtors
   const remaining = Math.max(0, totalAmount - assignedTotal)
-  const isBalanced = Math.abs(remaining) < 0.01
+  const isBalanced = remaining < 0.01
 
   function handleAddPerson() {
     setTempConfig((c) => ({
@@ -60,16 +62,16 @@ export default function DebtConfigModal({
   }
 
   function handleSplitEvenly() {
-    const count = tempConfig.splits.length
-    if (count === 0) return
-    const perPerson = Math.round((totalAmount / count) * 100) / 100
+    const count = tempConfig.splits.length + 1
+    if (count <= 1) return
+    const perPerson = c(totalAmount).divide(count).value
     const remainder = Math.round((totalAmount - perPerson * count) * 100) / 100
     setTempConfig((c) => ({
       ...c,
-      userShare: 0,
-      splits: c.splits.map((s, i) => ({
+      userShare: perPerson + remainder,
+      splits: c.splits.map((s) => ({
         ...s,
-        amount: i === c.splits.length - 1 ? perPerson + remainder : perPerson,
+        amount: perPerson,
       })),
     }))
   }
@@ -79,7 +81,7 @@ export default function DebtConfigModal({
     // If totalAmount > 0, validate that splits don't exceed it
     if (totalAmount > 0 && !isBalanced) {
       toast(
-        `Debt splits must total R$ ${totalAmount.toFixed(2)} (currently ${assignedTotal.toFixed(2)})`,
+        `Debt splits must total ${formatCurrency(totalAmount)} (currently ${formatCurrency(assignedTotal)})`,
         'error',
       )
       return
@@ -113,11 +115,11 @@ export default function DebtConfigModal({
                 type="number"
                 step="0.01"
                 min="0"
-                value={tempConfig.userShare}
+                value={tempConfig.userShare || ''}
                 onChange={(e) =>
                   setTempConfig((c) => ({
                     ...c,
-                    userShare: parseFloat(e.target.value) || 0,
+                    userShare: parseCurrency(e.target.value),
                   }))
                 }
                 className="w-28"
@@ -153,9 +155,9 @@ export default function DebtConfigModal({
                       step="0.01"
                       min="0"
                       placeholder="Amount"
-                      value={split.amount}
+                      value={split.amount || ''}
                       onChange={(e) =>
-                        handleUpdateSplit(split.id, { amount: parseFloat(e.target.value) || 0 })
+                        handleUpdateSplit(split.id, { amount: parseCurrency(e.target.value) })
                       }
                       className="w-28"
                     />
@@ -206,14 +208,16 @@ export default function DebtConfigModal({
             <span>{totalAmount === 0 ? 'Amount will be set to:' : 'Balance:'}</span>
             <span className="font-mono font-medium">
               {totalAmount === 0
-                ? `R$ ${(tempConfig.userShare + tempConfig.splits.reduce((s, d) => s + d.amount, 0)).toFixed(2)}`
-                : `R$ ${tempConfig.userShare.toFixed(2)} + R$ ${assignedDebtors.toFixed(2)} = R$ ${assignedTotal.toFixed(2)} / R$ ${totalAmount.toFixed(2)}`}
+                ? formatCurrency(
+                    tempConfig.userShare + tempConfig.splits.reduce((s, d) => s + d.amount, 0),
+                  )
+                : `${formatCurrency(tempConfig.userShare)} + ${formatCurrency(assignedDebtors)} = ${formatCurrency(assignedTotal)} / ${formatCurrency(totalAmount)}`}
             </span>
           </div>
 
           {!isBalanced && remaining !== 0 && (
             <div className="text-xs text-muted-foreground">
-              Remaining: R$ {remaining.toFixed(2)}
+              Remaining: {formatCurrency(remaining)}
             </div>
           )}
         </div>

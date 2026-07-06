@@ -1,3 +1,4 @@
+import c from 'currency.js'
 import { DAYS_IN_MONTH, SES_ALPHA } from './constants'
 import type { Budget, Transaction } from './entities'
 
@@ -6,7 +7,7 @@ export function generateInstallments(
   total: number,
   groupId: string,
 ): Array<Omit<Transaction, 'id'>> {
-  const perInstallment = Math.round(((tx.amount || 0) / total) * 100) / 100
+  const perInstallment = c(tx.amount || 0).divide(total).value
   const result: Array<Omit<Transaction, 'id'>> = []
 
   for (let i = 1; i <= total; i++) {

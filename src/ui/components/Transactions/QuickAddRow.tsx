@@ -1,4 +1,4 @@
-import { PlusIcon, UsersIcon } from '@phosphor-icons/react'
+import { PlusIcon } from '@phosphor-icons/react'
 import React, { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -211,51 +211,35 @@ export default function QuickAddRow({
       </TableCell>
       <TableCell className="p-1 w-32">
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() =>
+          <Button
+            size="xs"
+            variant={row.isDebt ? 'default' : 'outline'}
+            disabled={!row.isDebt && !(parseFloat(row.amount) > 0)}
+            onClick={() => {
+              const wasDebt = row.isDebt
               setRow((r) => ({
                 ...r,
                 isDebt: !r.isDebt,
                 installmentTotal: r.isDebt ? 1 : r.installmentTotal,
               }))
-            }
-            className={`text-xs px-1.5 py-0.5 border ${
-              row.isDebt
-                ? 'bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-400'
-                : 'border-border text-muted-foreground'
-            }`}
-            title="Toggle debt"
-          >
-            Debt
-          </button>
-          {row.isDebt && (
-            <Button
-              size="icon-xs"
-              variant={debtConfig.splits.length > 0 ? 'default' : 'ghost'}
-              onClick={() => {
-                if (onOpenDebtModal) {
-                  const amount = parseFloat(row.amount) || 0
-                  onOpenDebtModal((config) => {
-                    setDebtConfig(config)
-                    if (amount === 0) {
-                      const total =
-                        config.userShare + config.splits.reduce((s, d) => s + d.amount, 0)
-                      setRow((r) => ({ ...r, amount: String(total) }))
-                    }
-                  }, amount)
-                }
-              }}
-              title={
-                debtConfig.splits.length > 0 ? `${debtConfig.splits.length} debtors` : 'Split debt'
+              if (!wasDebt && onOpenDebtModal) {
+                const amount = parseFloat(row.amount) || 0
+                onOpenDebtModal((config) => {
+                  setDebtConfig(config)
+                  if (amount === 0) {
+                    const total = config.userShare + config.splits.reduce((s, d) => s + d.amount, 0)
+                    setRow((r) => ({ ...r, amount: String(total) }))
+                  }
+                }, amount)
               }
-            >
-              <UsersIcon className="size-3" />
-              {debtConfig.splits.length > 0 && (
-                <span className="ml-1 text-xs">{debtConfig.splits.length}</span>
-              )}
-            </Button>
-          )}
+              if (wasDebt) {
+                setDebtConfig({ userShare: 0, splits: [] })
+              }
+            }}
+            title="Configure debt split"
+          >
+            Debt {debtConfig.splits.length > 0 && `(${debtConfig.splits.length})`}
+          </Button>
         </div>
       </TableCell>
       <TableCell className="p-1 text-right w-20">

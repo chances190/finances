@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { addMonths } from '@/domain/calculations'
 import { DEFAULT_CATEGORIES } from '@/domain/constants'
 import type { Budget, Budget as BudgetType } from '@/domain/entities'
+import { parseCurrency } from '@/lib/format'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
 
@@ -29,13 +30,13 @@ function emptyBudget(refMonth: string): BudgetFormData {
 function toBudget(data: BudgetFormData): BudgetType {
   const limits: Record<string, number> = {}
   for (const [cat, val] of Object.entries(data.categoryLimits)) {
-    const n = parseFloat(val)
+    const n = parseCurrency(val)
     if (n > 0) limits[cat] = n
   }
   return {
     referenceMonth: data.referenceMonth,
-    plannedIncome: parseFloat(data.plannedIncome) || 0,
-    plannedMealVoucher: parseFloat(data.plannedMealVoucher) || 0,
+    plannedIncome: parseCurrency(data.plannedIncome),
+    plannedMealVoucher: parseCurrency(data.plannedMealVoucher),
     categoryLimits: limits,
   }
 }
@@ -137,6 +138,7 @@ export default function BudgetFormDialog({
               <Input
                 type="number"
                 step="0.01"
+                min="0"
                 value={form.plannedIncome}
                 onChange={(e) => setForm((f) => ({ ...f, plannedIncome: e.target.value }))}
               />
@@ -146,6 +148,7 @@ export default function BudgetFormDialog({
               <Input
                 type="number"
                 step="0.01"
+                min="0"
                 value={form.plannedMealVoucher}
                 onChange={(e) => setForm((f) => ({ ...f, plannedMealVoucher: e.target.value }))}
               />

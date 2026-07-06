@@ -1,29 +1,54 @@
-import { ArrowCounterClockwiseIcon, ClockIcon, XIcon } from '@phosphor-icons/react'
+import {
+  ArrowClockwiseIcon,
+  ArrowCounterClockwiseIcon,
+  ClockIcon,
+  TrashIcon,
+  XIcon,
+} from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { useFinance } from '@/ui/context'
 
-export default function AuditLogPanel({ onClose }: { onClose: () => void }) {
+interface AuditLogPanelProps {
+  onClose?: () => void
+  standalone?: boolean
+}
+
+export default function AuditLogPanel({ onClose, standalone }: AuditLogPanelProps) {
   const { state, dispatch } = useFinance()
 
   function handleUndo(entryId: string) {
     dispatch({ type: 'UNDO', payload: entryId })
   }
 
+  function handleRedo() {
+    dispatch({ type: 'REDO' })
+  }
+
   return (
-    <div className="border border-border bg-card p-3">
+    <div className={standalone ? '' : 'border border-border bg-card p-3'}>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-xs font-semibold flex items-center gap-1">
           <ClockIcon /> Action History
         </h3>
         <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={handleRedo}
+            disabled={state.redoStack.length === 0}
+          >
+            <ArrowClockwiseIcon /> Redo
+          </Button>
           {state.auditLog.length > 0 && (
             <Button variant="ghost" size="xs" onClick={() => dispatch({ type: 'CLEAR_AUDIT' })}>
-              Clear
+              <TrashIcon /> Clear
             </Button>
           )}
-          <Button variant="ghost" size="icon-xs" onClick={onClose}>
-            <XIcon />
-          </Button>
+          {onClose && (
+            <Button variant="ghost" size="icon-xs" onClick={onClose}>
+              <XIcon />
+            </Button>
+          )}
         </div>
       </div>
 

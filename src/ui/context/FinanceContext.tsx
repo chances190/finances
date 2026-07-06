@@ -15,6 +15,7 @@ export interface FinanceState {
   transactions: Transaction[]
   budgets: Budget[]
   auditLog: AuditEntry[]
+  redoStack: AuditEntry[]
   loaded: boolean
 }
 
@@ -29,6 +30,7 @@ export type FinanceAction =
   | { type: 'SEED' }
   | { type: 'IMPORT'; payload: FinanceData; description?: string }
   | { type: 'UNDO'; payload: string }
+  | { type: 'REDO' }
   | { type: 'CLEAR_AUDIT' }
 
 function snapshot(state: FinanceState): { transactions: Transaction[]; budgets: Budget[] } {
@@ -58,6 +60,8 @@ function describeAction(action: FinanceAction): string {
       return 'Loaded seed data'
     case 'UNDO':
       return 'Undo'
+    case 'REDO':
+      return 'Redo'
     default:
       return 'Unknown action'
   }
@@ -177,11 +181,28 @@ function reducer(state: FinanceState, action: FinanceAction): FinanceState {
         transactions: entry.snapshot.transactions,
         budgets: entry.snapshot.budgets,
         auditLog: state.auditLog.filter((e) => e.id !== action.payload),
+        redoStack: [{ ...entry, forwardSnapshot: snapshot(state) }, ...state.redoStack],
+      }
+    }
+
+    case 'REDO': {
+      const [redoEntry, ...rest] = state.redoStack
+      if (!redoEntry) return state
+      if (!redoEntry.forwardSnapshot) return state
+      return {
+        ...state,
+        transactions: redoEntry.forwardSnapshot.transactions,
+        budgets: redoEntry.forwardSnapshot.budgets,
+        auditLog: [
+          { ...redoEntry, snapshot: snapshot(state), forwardSnapshot: undefined },
+          ...state.auditLog,
+        ],
+        redoStack: rest,
       }
     }
 
     case 'CLEAR_AUDIT':
-      return { ...state, auditLog: [] }
+      return { ...state, auditLog: [], redoStack: [] }
 
     case 'ADD_TRANSACTIONS':
     case 'UPDATE_TRANSACTION':
@@ -208,6 +229,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     transactions: [],
     budgets: [],
     auditLog: [],
+    redoStack: [],
     loaded: false,
   })
 

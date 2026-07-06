@@ -1,5 +1,6 @@
 import { v4 as uuid } from 'uuid'
 import type { FinanceData, PaymentMethod, Transaction, TransactionType } from '../domain/entities'
+import { parseCurrency } from '../lib/currency'
 import { validateFinanceData } from './validation'
 
 const VALID_TYPES: TransactionType[] = ['INCOME', 'EXPENSE']
@@ -103,7 +104,7 @@ export function importCSV(csv: string): Transaction[] {
       date,
       referenceMonth,
       description: row.description || '',
-      amount: parseFloat(row.amount) || 0,
+      amount: parseCurrency(row.amount),
       category: row.category || 'Other',
       paymentMethod: parsePaymentMethod(row.paymentMethod),
       installment: row.installmentTotal
@@ -125,9 +126,9 @@ export function importCSV(csv: string): Transaction[] {
       if (names.length === amounts.length && names.length > 0) {
         t.debtSplits = names.map((name, i) => ({
           debtorName: name,
-          amount: parseFloat(amounts[i]) || 0,
+          amount: parseCurrency(amounts[i]),
         }))
-        t.debtUserShare = parseFloat(row.debtUserShare) || 0
+        t.debtUserShare = parseCurrency(row.debtUserShare)
       }
     }
 

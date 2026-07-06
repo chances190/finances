@@ -1,4 +1,4 @@
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, TrashIcon } from '@phosphor-icons/react'
+import { CheckCircleIcon, TrashIcon } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { Badge } from '@/components/ui/badge'
@@ -21,9 +21,8 @@ import {
 import { generateInstallments } from '@/domain/calculations'
 import { PAYMENT_METHOD_LABELS } from '@/domain/constants'
 import type { DebtConfig, PaymentMethod, Transaction } from '@/domain/entities'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency, parseCurrency } from '@/lib/format'
 import { useFinance } from '@/ui/context'
-import AuditLogPanel from '../Common/AuditLogPanel'
 import DebtConfigModal from './DebtConfigModal'
 import QuickAddRow from './QuickAddRow'
 import TransactionForm from './TransactionForm'
@@ -50,7 +49,6 @@ function getAvailableMonths(tx: Transaction[]): string[] {
 
 export default function TransactionTable() {
   const { state, dispatch } = useFinance()
-  const [showAudit, setShowAudit] = useState(false)
   const [filterMonth, setFilterMonth] = useState<string>('all')
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
   const [showEditForm, setShowEditForm] = useState(false)
@@ -89,7 +87,7 @@ export default function TransactionTable() {
     refMonth: string,
     debtConfig?: DebtConfig,
   ) {
-    const amount = parseFloat(rowData.amount) || 0
+    const amount = parseCurrency(rowData.amount)
     if (amount <= 0) return
 
     const isDebt = rowData.isDebt || (!!debtConfig && debtConfig.splits.length > 0)
@@ -170,14 +168,8 @@ export default function TransactionTable() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="ghost" size="xs" onClick={() => setShowAudit(!showAudit)}>
-            <ArrowCounterClockwiseIcon />{' '}
-            {state.auditLog.length > 0 ? `Undo (${state.auditLog.length})` : 'History'}
-          </Button>
         </div>
       </div>
-
-      {showAudit && <AuditLogPanel onClose={() => setShowAudit(false)} />}
 
       <div className="border border-border">
         <Table>

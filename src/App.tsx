@@ -1,17 +1,19 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import BudgetPage from './ui/components/Budget/BudgetPage'
+import AuditLogPanel from './ui/components/Common/AuditLogPanel'
 import ErrorBoundary from './ui/components/Common/ErrorBoundary'
 import ExportImport from './ui/components/Common/ExportImport'
 import Tabs from './ui/components/Common/Tabs'
 import DebtPage from './ui/components/Debts/DebtPage'
 import TransactionTable from './ui/components/Transactions/TransactionTable'
-import { FinanceProvider } from './ui/context'
-import { ToastProvider } from './ui/context/ToastContext'
+import { FinanceProvider, useFinance } from './ui/context'
+import { ToastProvider, useToast } from './ui/context/ToastContext'
 
 const tabs = [
   { key: 'transactions', label: 'Transactions' },
   { key: 'budgets', label: 'Budgets' },
   { key: 'debts', label: 'Debts' },
+  { key: 'history', label: 'History' },
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'yearly', label: 'Yearly' },
 ]
@@ -24,7 +26,40 @@ function PagePlaceholder({ name }: { name: string }) {
   )
 }
 
-function AppShell() {
+function ShellInner() {
+  const { state, dispatch } = useFinance()
+  const { toast } = useToast()
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        const latest = state.auditLog[0]
+        if (latest) {
+          dispatch({ type: 'UNDO', payload: latest.id })
+          toast(`Undo: ${latest.description}`, 'info')
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault()
+        if (state.redoStack.length > 0) {
+          dispatch({ type: 'REDO' })
+          toast('Redo', 'info')
+        }
+      }
+    },
+    [state.auditLog, state.redoStack, dispatch, toast],
+  )
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
+
+  return <ShellContent />
+}
+
+function ShellContent() {
   const [activeTab, setActiveTab] = useState('transactions')
 
   return (
@@ -42,11 +77,16 @@ function AppShell() {
         {activeTab === 'transactions' && <TransactionTable />}
         {activeTab === 'budgets' && <BudgetPage />}
         {activeTab === 'debts' && <DebtPage />}
+        {activeTab === 'history' && <AuditLogPanel standalone />}
         {activeTab === 'dashboard' && <PagePlaceholder name="Dashboard" />}
         {activeTab === 'yearly' && <PagePlaceholder name="Yearly Overview" />}
       </main>
     </div>
   )
+}
+
+function AppShell() {
+  return <ShellInner />
 }
 
 export default function App() {
