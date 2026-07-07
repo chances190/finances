@@ -65,7 +65,14 @@ export default function CSVImportDialog({
           setError('Unsupported file format. Use .json or .csv')
         }
       } catch (err) {
-        setError((err as Error).message)
+        const msg = (err as Error).message
+        if (msg.includes('Unexpected token') || msg.includes('JSON')) {
+          setError(
+            'The file format is invalid. Make sure your .json or .csv file has the correct structure: columns like date, description, amount, category, paymentMethod, type.',
+          )
+        } else {
+          setError(msg)
+        }
       }
     }
     reader.readAsText(file)
@@ -189,10 +196,7 @@ export default function CSVImportDialog({
               >
                 Cancel
               </Button>
-              <Button onClick={handleImport}>
-                Import {preview.transactions.length} transaction
-                {preview.transactions.length !== 1 ? 's' : ''}
-              </Button>
+              <Button onClick={handleImport}>Import</Button>
             </div>
           </div>
         )}

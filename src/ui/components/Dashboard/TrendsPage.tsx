@@ -61,7 +61,11 @@ export default function TrendsPage() {
     for (const b of state.budgets) {
       y.add(b.referenceMonth.slice(0, 4))
     }
-    return Array.from(y).sort().reverse()
+    const currentYear = new Date().getFullYear()
+    return Array.from(y)
+      .filter((yearStr) => Number(yearStr) <= currentYear)
+      .sort()
+      .reverse()
   }, [state.transactions, state.budgets])
 
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()))

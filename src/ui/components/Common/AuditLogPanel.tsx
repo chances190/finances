@@ -58,8 +58,15 @@ export default function AuditLogPanel({ onClose, standalone }: AuditLogPanelProp
         </div>
       </div>
 
+      <p className="text-[10px] text-muted-foreground mb-2">
+        Tip: Ctrl+Z to undo, Ctrl+Shift+Z to redo
+      </p>
+
       {state.auditLog.length === 0 ? (
-        <p className="text-xs text-muted-foreground py-4 text-center">No actions recorded yet.</p>
+        <p className="text-xs text-muted-foreground py-4 text-center">
+          No actions recorded yet. Actions are recorded when you add, edit, or delete transactions
+          and budgets.
+        </p>
       ) : (
         <div className="space-y-1 max-h-48 overflow-y-auto">
           {state.auditLog.map((entry) => (

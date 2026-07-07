@@ -17,7 +17,7 @@ const tabs = [
   { key: 'debts', label: 'Debts' },
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'yearly', label: 'Trends' },
-  { key: 'history', label: 'History' },
+  { key: 'history', label: 'Actions' },
 ]
 
 function AppShell() {
