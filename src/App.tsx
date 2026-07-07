@@ -4,6 +4,7 @@ import AuditLogPanel from './ui/components/Common/AuditLogPanel'
 import ErrorBoundary from './ui/components/Common/ErrorBoundary'
 import ExportImport from './ui/components/Common/ExportImport'
 import Tabs from './ui/components/Common/Tabs'
+import ThemeToggle from './ui/components/Common/ThemeToggle'
 import DashboardPage from './ui/components/Dashboard/DashboardPage'
 import TrendsPage from './ui/components/Dashboard/TrendsPage'
 import DebtPage from './ui/components/Debts/DebtPage'
@@ -52,7 +53,10 @@ function AppShell() {
       <header className="bg-card border-b border-border sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <h1 className="text-base font-heading font-bold">Finances</h1>
-          <ExportImport />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <ExportImport />
+          </div>
         </div>
       </header>
 
