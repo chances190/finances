@@ -27,20 +27,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { availableMonths, generateInstallments, monthRelation } from '@/domain/calculations'
+import { availableMonths, monthRelation } from '@/domain/calculations'
 import {
   INCOME_PAYMENT_METHODS,
   PAYMENT_METHOD_BADGE_COLORS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
 } from '@/domain/constants'
-import type { DebtConfig, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
+import type { PaymentMethod, Transaction } from '@/domain/entities'
 import { formatCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
+import CSVImportDialog from '@/ui/components/Common/CSVImportDialog'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
-import DebtConfigModal from './DebtConfigModal'
-import QuickAddRow from './QuickAddRow'
+import SmartTransactionInput from './SmartTransactionInput'
 import TransactionForm from './TransactionForm'
 
 function PaymentBadge({ method }: { method: string }) {
@@ -67,18 +67,20 @@ export default function TransactionTable() {
   }, [searchQuery])
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
   const [showEditForm, setShowEditForm] = useState(false)
-  const [showDebtModal, setShowDebtModal] = useState(false)
-  const [debtModalCallback, setDebtModalCallback] = useState<((config: DebtConfig) => void) | null>(
-    null,
-  )
-  const [debtModalAmount, setDebtModalAmount] = useState(0)
-  const [tempDebtConfig, setTempDebtConfig] = useState<DebtConfig>({ userShare: 0, splits: [] })
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [showImportCsv, setShowImportCsv] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [defaultCategory, setDefaultCategory] = useState<string | null>(null)
-  const [defaultPayment, setDefaultPayment] = useState<PaymentMethod | null>(null)
   const { toast } = useToast()
 
   const months = useMemo(() => availableMonths(state.transactions), [state.transactions])
+
+  const knownDescriptions = useMemo(() => {
+    const descs = new Set<string>()
+    for (const t of state.transactions) {
+      if (t.description) descs.add(t.description)
+    }
+    return Array.from(descs).sort()
+  }, [state.transactions])
 
   const allCategories = useMemo(() => {
     const cats = new Set<string>()
@@ -122,11 +124,6 @@ export default function TransactionTable() {
     sortDir,
   ])
 
-  const displayRefMonth =
-    filterMonth !== 'all'
-      ? filterMonth
-      : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
-
   function handleSort(key: string) {
     if (sortKey === key) {
       if (sortDir === 'desc') {
@@ -150,68 +147,35 @@ export default function TransactionTable() {
     )
   }
 
-  function handleQuickAdd(
-    rowData: {
-      type: TransactionType
-      description: string
-      date: string
-      amount: string
-      category: string
-      paymentMethod: PaymentMethod
-      installmentTotal: number
-      isDebt: boolean
-    },
-    refMonth: string,
-    debtConfig?: DebtConfig,
-  ) {
-    const amount = parseCurrency(rowData.amount)
+  function handleSmartAdd(row: {
+    description: string
+    amount: string
+    category: string | null
+    paymentMethod: string | null
+    date: string
+    error: string | null
+  }) {
+    const amount = parseCurrency(row.amount)
     if (amount <= 0) return
 
-    const isDebt = rowData.isDebt || (!!debtConfig && debtConfig.splits.length > 0)
+    const isIncome =
+      row.paymentMethod && INCOME_PAYMENT_METHODS.includes(row.paymentMethod as PaymentMethod)
 
+    const refMonth = row.date.slice(0, 7)
     const tx: Omit<Transaction, 'id'> = {
-      type: rowData.type,
-      date: rowData.date,
+      type: isIncome ? 'INCOME' : 'EXPENSE',
+      date: row.date,
       referenceMonth: refMonth,
-      description: rowData.description,
+      description: row.description,
       amount,
-      category: rowData.category,
-      paymentMethod: rowData.paymentMethod,
-      isDebt,
-      debtUserShare: debtConfig ? debtConfig.userShare : undefined,
-      debtSplits:
-        debtConfig && debtConfig.splits.length > 0
-          ? debtConfig.splits.map((s) => ({ debtorName: s.name, amount: s.amount }))
-          : undefined,
+      category: row.category ?? 'Other',
+      paymentMethod: (row.paymentMethod ?? 'DEBIT') as PaymentMethod,
+      isDebt: false,
       isSettled: false,
     }
 
-    setDefaultCategory(rowData.category)
-    setDefaultPayment(rowData.paymentMethod)
-
-    if (rowData.paymentMethod === 'CREDIT' && rowData.installmentTotal > 1) {
-      const groupId = uuid()
-      const txs = generateInstallments(tx, rowData.installmentTotal, groupId)
-      dispatch({ type: 'ADD_TRANSACTIONS', payload: txs.map((t) => ({ ...t, id: uuid() })) })
-      toast(`Added ${rowData.installmentTotal} installments`, 'success')
-    } else {
-      dispatch({ type: 'ADD_TRANSACTIONS', payload: [{ ...tx, id: uuid() }] })
-      toast('Transaction added', 'success')
-    }
-  }
-
-  function handleOpenDebtModal(callback: (config: DebtConfig) => void, totalAmount: number) {
-    setDebtModalCallback(() => callback)
-    setDebtModalAmount(totalAmount)
-    setTempDebtConfig({ userShare: 0, splits: [] })
-    setShowDebtModal(true)
-  }
-
-  function handleDebtModalSave(config: DebtConfig) {
-    if (debtModalCallback) {
-      debtModalCallback(config)
-    }
-    setShowDebtModal(false)
+    dispatch({ type: 'ADD_TRANSACTIONS', payload: [{ ...tx, id: uuid() }] })
+    toast('Transaction added', 'success')
   }
 
   function handleDelete(id: string) {
@@ -245,8 +209,14 @@ export default function TransactionTable() {
 
   return (
     <div className="space-y-4">
+      <SmartTransactionInput
+        onAdd={handleSmartAdd}
+        onOpenModal={() => setShowAddForm(true)}
+        onOpenImport={() => setShowImportCsv(true)}
+        knownDescriptions={knownDescriptions}
+      />
+
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-sm font-semibold mr-2">Transactions</h2>
         <Input
           placeholder="Search description..."
           value={searchQuery}
@@ -389,15 +359,6 @@ export default function TransactionTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            <QuickAddRow
-              refMonth={displayRefMonth}
-              onAdd={handleQuickAdd}
-              isFilteredMonth={filterMonth !== 'all'}
-              onOpenDebtModal={handleOpenDebtModal}
-              defaultCategory={defaultCategory ?? undefined}
-              defaultPayment={defaultPayment ?? undefined}
-            />
-
             {filtered.length === 0 && (
               <TableRow>
                 <TableCell colSpan={10} className="text-center text-muted-foreground py-12">
@@ -515,13 +476,9 @@ export default function TransactionTable() {
         editTransaction={editingTx}
       />
 
-      <DebtConfigModal
-        open={showDebtModal}
-        onOpenChange={setShowDebtModal}
-        config={tempDebtConfig}
-        onConfigChange={handleDebtModalSave}
-        totalAmount={debtModalAmount}
-      />
+      <TransactionForm open={showAddForm} onOpenChange={setShowAddForm} />
+
+      <CSVImportDialog open={showImportCsv} onOpenChange={setShowImportCsv} />
 
       <ConfirmDialog
         open={confirmDeleteId !== null}
