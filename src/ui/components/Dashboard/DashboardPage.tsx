@@ -257,6 +257,15 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {currentDay > 0 && dailyQuota === 0 && (
+        <div className="border bg-card p-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <TrendDown className="size-4" />
+            <span>Set a budget to see your spending pace.</span>
+          </div>
+        </div>
+      )}
+
       {currentDay > 0 && dailyQuota > 0 && (
         <div className="border bg-card p-4 space-y-4">
           <div className="flex items-center justify-between">
@@ -301,12 +310,12 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="day"
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v: number) => `R$${v}`}
@@ -370,12 +379,12 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="day"
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v: number) => `R$${v}`}
@@ -447,12 +456,12 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="category"
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v: number) => `R$${v}`}

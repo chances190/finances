@@ -33,19 +33,21 @@ const CHART_COLORS = {
   income: '#22c55e',
   expense: '#ef4444',
   balance: '#3b82f6',
-  category1: '#3b82f6',
-  category2: '#22c55e',
-  category3: '#f59e0b',
-  category4: '#a855f7',
-  category5: '#ef4444',
 }
 
 const CATEGORY_COLORS = [
-  CHART_COLORS.category1,
-  CHART_COLORS.category2,
-  CHART_COLORS.category3,
-  CHART_COLORS.category4,
-  CHART_COLORS.category5,
+  '#3b82f6',
+  '#22c55e',
+  '#f59e0b',
+  '#a855f7',
+  '#ef4444',
+  '#06b6d4',
+  '#ec4899',
+  '#14b8a6',
+  '#f97316',
+  '#6366f1',
+  '#84cc16',
+  '#d946ef',
 ]
 
 export default function TrendsPage() {
@@ -90,8 +92,13 @@ export default function TrendsPage() {
 
   const topCategories = useMemo(() => {
     if (timeSeriesData.length === 0) return []
-    const keys = Object.keys(timeSeriesData[0]).filter((k) => k !== 'month')
-    return keys.slice(0, 5)
+    const keys = new Set<string>()
+    for (const entry of timeSeriesData) {
+      for (const key of Object.keys(entry)) {
+        if (key !== 'month') keys.add(key)
+      }
+    }
+    return Array.from(keys).slice(0, 6)
   }, [timeSeriesData])
 
   if (years.length === 0) {
@@ -180,13 +187,13 @@ export default function TrendsPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
                 dataKey="referenceMonth"
-                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v: string) => v.slice(5)}
               />
               <YAxis
-                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v: number) => `R$${v}`}
@@ -233,12 +240,12 @@ export default function TrendsPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="month"
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v: number) => `R$${v}`}
@@ -284,12 +291,12 @@ export default function TrendsPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="referenceMonth"
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v: number) => `R$${v}`}
@@ -329,12 +336,12 @@ export default function TrendsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis
                   dataKey="category"
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                   tickLine={false}
                   axisLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(v: number) => `R$${v}`}

@@ -301,21 +301,25 @@ export function categoryTimeSeries(
   months: number = 6,
 ): { month: string; [category: string]: number | string }[] {
   const now = new Date()
-  const result: { month: string; [category: string]: number | string }[] = []
+  const allCategories = new Set<string>()
+  const monthlyData: { month: string; [category: string]: number | string }[] = []
 
   for (let i = months - 1; i >= 0; i--) {
     const ym = addMonths(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, -i)
     const cats = byCategory(tx, ym)
-    const top5 = Object.entries(cats)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5)
-      .reduce<Record<string, number>>((acc, [k, v]) => {
-        acc[k] = v
-        return acc
-      }, {})
-
-    result.push({ month: ym, ...top5 } as { month: string; [category: string]: number | string })
+    for (const cat of Object.keys(cats)) {
+      allCategories.add(cat)
+    }
+    monthlyData.push({ month: ym, ...cats })
   }
+
+  const result = monthlyData.map((entry) => {
+    const filled: { month: string; [category: string]: number | string } = { month: entry.month }
+    for (const cat of allCategories) {
+      filled[cat] = (entry[cat] as number) || 0
+    }
+    return filled
+  })
 
   return result
 }
