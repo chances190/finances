@@ -36,16 +36,22 @@ export default function AuditLogPanel({ onClose, standalone }: AuditLogPanelProp
             size="xs"
             onClick={handleRedo}
             disabled={state.redoStack.length === 0}
+            aria-label="Redo"
           >
             <ArrowClockwiseIcon /> Redo
           </Button>
           {state.auditLog.length > 0 && (
-            <Button variant="ghost" size="xs" onClick={() => dispatch({ type: 'CLEAR_AUDIT' })}>
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => dispatch({ type: 'CLEAR_AUDIT' })}
+              aria-label="Clear history"
+            >
               <TrashIcon /> Clear
             </Button>
           )}
           {onClose && (
-            <Button variant="ghost" size="icon-xs" onClick={onClose}>
+            <Button variant="ghost" size="icon-xs" onClick={onClose} aria-label="Close panel">
               <XIcon />
             </Button>
           )}
@@ -67,7 +73,12 @@ export default function AuditLogPanel({ onClose, standalone }: AuditLogPanelProp
                   {new Date(entry.timestamp).toLocaleString()}
                 </span>
               </div>
-              <Button variant="ghost" size="xs" onClick={() => handleUndo(entry.id)}>
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => handleUndo(entry.id)}
+                aria-label="Undo this action"
+              >
                 <ArrowCounterClockwiseIcon /> Undo
               </Button>
             </div>

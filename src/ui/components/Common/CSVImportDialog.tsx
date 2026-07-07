@@ -126,7 +126,13 @@ export default function CSVImportDialog({
         {error && (
           <div className="bg-destructive/10 text-destructive text-xs p-3 rounded-none">
             {error}
-            <Button variant="ghost" size="xs" className="ml-2" onClick={() => setError(null)}>
+            <Button
+              variant="ghost"
+              size="xs"
+              className="ml-2"
+              onClick={() => setError(null)}
+              aria-label="Dismiss error"
+            >
               Dismiss
             </Button>
           </div>

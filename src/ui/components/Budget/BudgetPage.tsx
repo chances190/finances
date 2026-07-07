@@ -108,6 +108,7 @@ export default function BudgetPage() {
                         setEditingMonth(b.referenceMonth)
                         setShowForm(true)
                       }}
+                      aria-label="Edit budget"
                     >
                       <PencilSimpleIcon />
                     </Button>
@@ -118,6 +119,7 @@ export default function BudgetPage() {
                         e.stopPropagation()
                         handleDelete(b.referenceMonth)
                       }}
+                      aria-label="Delete budget"
                     >
                       <TrashIcon />
                     </Button>

@@ -176,16 +176,22 @@ export default function TransactionForm({
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-xs">Date</Label>
+                <Label htmlFor="tx-date" className="text-xs">
+                  Date
+                </Label>
                 <Input
+                  id="tx-date"
                   type="date"
                   value={form.date}
                   onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Amount (R$)</Label>
+                <Label htmlFor="tx-amount" className="text-xs">
+                  Amount (R$)
+                </Label>
                 <Input
+                  id="tx-amount"
                   type="number"
                   step="0.01"
                   min="0"
@@ -196,8 +202,11 @@ export default function TransactionForm({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Description</Label>
+              <Label htmlFor="tx-description" className="text-xs">
+                Description
+              </Label>
               <Input
+                id="tx-description"
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               />
@@ -205,12 +214,14 @@ export default function TransactionForm({
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-xs">Category</Label>
+                <Label htmlFor="tx-category" className="text-xs">
+                  Category
+                </Label>
                 <Select
                   value={form.category}
                   onValueChange={(v) => setForm((f) => ({ ...f, category: v ?? 'Other' }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="tx-category">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -224,14 +235,16 @@ export default function TransactionForm({
               </div>
               {form.type === 'EXPENSE' && (
                 <div className="space-y-1">
-                  <Label className="text-xs">Payment Method</Label>
+                  <Label htmlFor="tx-payment" className="text-xs">
+                    Payment Method
+                  </Label>
                   <Select
                     value={form.paymentMethod}
                     onValueChange={(v) =>
                       setForm((f) => ({ ...f, paymentMethod: (v ?? 'DEBIT') as PaymentMethod }))
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="tx-payment">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -247,8 +260,11 @@ export default function TransactionForm({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Reference Month</Label>
+              <Label htmlFor="tx-refmonth" className="text-xs">
+                Reference Month
+              </Label>
               <Input
+                id="tx-refmonth"
                 type="month"
                 value={form.referenceMonth}
                 onChange={(e) => setForm((f) => ({ ...f, referenceMonth: e.target.value }))}
@@ -257,8 +273,11 @@ export default function TransactionForm({
 
             {form.type === 'EXPENSE' && form.paymentMethod === 'CREDIT' && (
               <div className="space-y-1">
-                <Label className="text-xs">Installments</Label>
+                <Label htmlFor="tx-installments" className="text-xs">
+                  Installments
+                </Label>
                 <Input
+                  id="tx-installments"
                   type="number"
                   min="1"
                   max="48"

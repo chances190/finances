@@ -22,7 +22,12 @@ export default function ExportImport() {
         <Button variant="outline" size="xs" onClick={() => exportCSV(state.transactions)}>
           Export CSV
         </Button>
-        <Button variant="outline" size="xs" onClick={() => setShowImport(true)}>
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => setShowImport(true)}
+          aria-label="Import transactions"
+        >
           <FileArrowDownIcon /> Import
         </Button>
       </div>

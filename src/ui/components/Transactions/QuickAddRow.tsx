@@ -295,7 +295,7 @@ export default function QuickAddRow({
         )}
       </TableCell>
       <TableCell className="p-1 text-right w-20">
-        <Button size="icon-xs" onClick={handleAdd} title="Add transaction (or press Enter)">
+        <Button size="icon-xs" onClick={handleAdd} aria-label="Add transaction">
           <PlusIcon />
         </Button>
       </TableCell>

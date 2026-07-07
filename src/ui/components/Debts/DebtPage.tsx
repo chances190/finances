@@ -2,6 +2,7 @@ import { CheckCircleIcon, UserIcon, UsersIcon } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Table,
   TableBody,
@@ -16,15 +17,15 @@ import { formatCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
 
 function DebtUrgency({ days }: { days: number }) {
-  const color =
+  const urgency =
     days > 30
-      ? 'text-red-600 bg-red-50 dark:bg-red-900/20'
+      ? { label: 'Overdue', color: 'text-red-600 bg-red-50 dark:bg-red-900/20' }
       : days > 15
-        ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20'
-        : 'text-green-600 bg-green-50 dark:bg-green-900/20'
+        ? { label: 'Aging', color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' }
+        : { label: 'Recent', color: 'text-green-600 bg-green-50 dark:bg-green-900/20' }
   return (
-    <Badge variant="outline" className={color}>
-      {days}d
+    <Badge variant="outline" className={urgency.color}>
+      {urgency.label} ({days}d)
     </Badge>
   )
 }
@@ -104,10 +105,10 @@ export default function DebtPage() {
           {showSettled ? 'All Debts' : 'Active Debts (who owes me)'}
         </h2>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 rounded border p-0.5">
+          <div className="flex items-center gap-1 border p-0.5">
             <button
               type="button"
-              className={`px-2 py-0.5 text-xs rounded ${viewMode === 'transaction' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+              className={`px-2 py-0.5 text-xs ${viewMode === 'transaction' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
               onClick={() => setViewMode('transaction')}
             >
               <UserIcon className="size-3 inline mr-1" />
@@ -115,22 +116,22 @@ export default function DebtPage() {
             </button>
             <button
               type="button"
-              className={`px-2 py-0.5 text-xs rounded ${viewMode === 'person' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+              className={`px-2 py-0.5 text-xs ${viewMode === 'person' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
               onClick={() => setViewMode('person')}
             >
               <UsersIcon className="size-3 inline mr-1" />
               Per-Person
             </button>
           </div>
-          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-            <input
-              type="checkbox"
+          <span className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+            <Checkbox
+              id="show-settled"
               checked={showSettled}
-              onChange={(e) => setShowSettled(e.target.checked)}
-              className="size-3.5"
+              onCheckedChange={(c) => setShowSettled(c === true)}
+              aria-labelledby="show-settled-label"
             />
-            Show settled
-          </label>
+            <span id="show-settled-label">Show settled</span>
+          </span>
         </div>
       </div>
 
@@ -279,6 +280,7 @@ export default function DebtPage() {
                         size="icon-sm"
                         onClick={() => handleToggleSettle(tx.id, tx.isSettled)}
                         title={tx.isSettled ? 'Unsettle all' : 'Settle all'}
+                        aria-label={tx.isSettled ? 'Unsettle all' : 'Settle all'}
                       >
                         <CheckCircleIcon />
                       </Button>

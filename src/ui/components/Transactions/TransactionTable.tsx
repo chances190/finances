@@ -297,11 +297,17 @@ export default function TransactionTable() {
                           size="icon-xs"
                           onClick={() => handleSettle(tx.id, tx.isSettled)}
                           title={tx.isSettled ? 'Unsettle' : 'Settle debt'}
+                          aria-label={tx.isSettled ? 'Unsettle debt' : 'Settle debt'}
                         >
                           <CheckCircleIcon />
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon-xs" onClick={() => handleDelete(tx.id)}>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => handleDelete(tx.id)}
+                        aria-label="Delete transaction"
+                      >
                         <TrashIcon />
                       </Button>
                     </span>

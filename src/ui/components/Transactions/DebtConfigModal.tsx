@@ -109,10 +109,13 @@ export default function DebtConfigModal({
 
         <div className="space-y-4">
           <div className="border-b pb-3">
-            <Label className="text-xs font-medium mb-2 block">Your share (R$)</Label>
+            <Label htmlFor="debt-usershare" className="text-xs font-medium mb-2 block">
+              Your share (R$)
+            </Label>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium flex-1">Me</span>
               <Input
+                id="debt-usershare"
                 type="number"
                 step="0.01"
                 min="0"
@@ -130,8 +133,10 @@ export default function DebtConfigModal({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">Debtors</Label>
-              <Button variant="ghost" size="xs" onClick={handleAddPerson}>
+              <Label className="text-xs font-medium" id="debtors-label">
+                Debtors
+              </Label>
+              <Button variant="ghost" size="xs" onClick={handleAddPerson} aria-label="Add person">
                 <PlusIcon className="size-3" /> Add person
               </Button>
             </div>
@@ -167,6 +172,7 @@ export default function DebtConfigModal({
                       title="Fill with remaining amount"
                       onClick={() => handleFillRemainder(split.id)}
                       disabled={remaining < 0.01}
+                      aria-label="Fill remaining amount"
                     >
                       <LightningAIcon />
                     </Button>
@@ -174,6 +180,7 @@ export default function DebtConfigModal({
                       variant="ghost"
                       size="icon-xs"
                       onClick={() => handleRemoveSplit(split.id)}
+                      aria-label="Remove person"
                     >
                       <TrashIcon />
                     </Button>
@@ -196,7 +203,7 @@ export default function DebtConfigModal({
           </div>
 
           <div
-            className={`flex items-center justify-between text-xs p-2 rounded border ${
+            className={`flex items-center justify-between text-xs p-2 border ${
               totalAmount === 0
                 ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400'
                 : isBalanced

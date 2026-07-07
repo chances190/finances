@@ -124,8 +124,11 @@ export default function BudgetFormDialog({
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label className="text-xs">Reference Month</Label>
+              <Label htmlFor="budget-month" className="text-xs">
+                Reference Month
+              </Label>
               <Input
+                id="budget-month"
                 type="month"
                 value={form.referenceMonth}
                 onChange={(e) => setForm((f) => ({ ...f, referenceMonth: e.target.value }))}
@@ -140,8 +143,11 @@ export default function BudgetFormDialog({
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label className="text-xs">Planned Income (R$)</Label>
+              <Label htmlFor="budget-income" className="text-xs">
+                Planned Income (R$)
+              </Label>
               <Input
+                id="budget-income"
                 type="number"
                 step="0.01"
                 min="0"
@@ -150,8 +156,11 @@ export default function BudgetFormDialog({
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Meal Voucher (R$)</Label>
+              <Label htmlFor="budget-mealvoucher" className="text-xs">
+                Meal Voucher (R$)
+              </Label>
               <Input
+                id="budget-mealvoucher"
                 type="number"
                 step="0.01"
                 min="0"
@@ -196,38 +205,45 @@ export default function BudgetFormDialog({
             )}
 
             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-              {Object.keys(form.categoryLimits).map((cat) => (
-                <div key={cat} className="space-y-0.5 flex items-end gap-1">
-                  <div className="flex-1">
-                    <Label className="text-[10px] text-muted-foreground">{cat}</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0"
-                      value={form.categoryLimits[cat]}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          categoryLimits: { ...f.categoryLimits, [cat]: e.target.value },
-                        }))
-                      }
-                    />
+              {Object.keys(form.categoryLimits).map((cat) => {
+                const catId = `budget-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`
+                return (
+                  <div key={cat} className="space-y-0.5 flex items-end gap-1">
+                    <div className="flex-1">
+                      <Label htmlFor={catId} className="text-[10px] text-muted-foreground">
+                        {cat}
+                      </Label>
+                      <Input
+                        id={catId}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0"
+                        value={form.categoryLimits[cat]}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            categoryLimits: { ...f.categoryLimits, [cat]: e.target.value },
+                          }))
+                        }
+                      />
+                    </div>
+                    {!(DEFAULT_CATEGORIES as readonly string[]).includes(cat) && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => {
+                          const { [cat]: _, ...rest } = form.categoryLimits
+                          setForm((f) => ({ ...f, categoryLimits: rest }))
+                        }}
+                        aria-label={`Remove category ${cat}`}
+                      >
+                        <TrashIcon className="size-3" />
+                      </Button>
+                    )}
                   </div>
-                  {!(DEFAULT_CATEGORIES as readonly string[]).includes(cat) && (
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => {
-                        const { [cat]: _, ...rest } = form.categoryLimits
-                        setForm((f) => ({ ...f, categoryLimits: rest }))
-                      }}
-                    >
-                      <TrashIcon className="size-3" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
