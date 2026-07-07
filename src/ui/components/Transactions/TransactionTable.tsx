@@ -19,24 +19,19 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { availableMonths, generateInstallments, monthRelation } from '@/domain/calculations'
-import { PAYMENT_METHOD_LABELS } from '@/domain/constants'
+import { PAYMENT_METHOD_BADGE_COLORS, PAYMENT_METHOD_LABELS } from '@/domain/constants'
 import type { DebtConfig, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { formatCurrency, parseCurrency } from '@/lib/currency'
+import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
+import { useToast } from '@/ui/context/ToastContext'
 import DebtConfigModal from './DebtConfigModal'
 import QuickAddRow from './QuickAddRow'
 import TransactionForm from './TransactionForm'
 
 function PaymentBadge({ method }: { method: string }) {
-  const colors: Record<string, string> = {
-    CREDIT: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-    DEBIT: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    PIX: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    CASH: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-    MEAL_VOUCHER: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400',
-  }
   return (
-    <Badge variant="outline" className={colors[method] ?? ''}>
+    <Badge variant="outline" className={PAYMENT_METHOD_BADGE_COLORS[method] ?? ''}>
       {PAYMENT_METHOD_LABELS[method] ?? method}
     </Badge>
   )
@@ -53,6 +48,8 @@ export default function TransactionTable() {
   )
   const [debtModalAmount, setDebtModalAmount] = useState(0)
   const [tempDebtConfig, setTempDebtConfig] = useState<DebtConfig>({ userShare: 0, splits: [] })
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const months = useMemo(() => availableMonths(state.transactions), [state.transactions])
 
@@ -109,8 +106,10 @@ export default function TransactionTable() {
       const groupId = uuid()
       const txs = generateInstallments(tx, rowData.installmentTotal, groupId)
       dispatch({ type: 'ADD_TRANSACTIONS', payload: txs.map((t) => ({ ...t, id: uuid() })) })
+      toast(`Added ${rowData.installmentTotal} installments`, 'success')
     } else {
       dispatch({ type: 'ADD_TRANSACTIONS', payload: [{ ...tx, id: uuid() }] })
+      toast('Transaction added', 'success')
     }
   }
 
@@ -129,7 +128,14 @@ export default function TransactionTable() {
   }
 
   function handleDelete(id: string) {
-    dispatch({ type: 'DELETE_TRANSACTION', payload: id })
+    setConfirmDeleteId(id)
+  }
+
+  function handleConfirmDelete() {
+    if (confirmDeleteId) {
+      dispatch({ type: 'DELETE_TRANSACTION', payload: confirmDeleteId })
+      setConfirmDeleteId(null)
+    }
   }
 
   function handleSettle(id: string, currently: boolean, debtorName?: string) {
@@ -331,6 +337,17 @@ export default function TransactionTable() {
         config={tempDebtConfig}
         onConfigChange={handleDebtModalSave}
         totalAmount={debtModalAmount}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(o) => {
+          if (!o) setConfirmDeleteId(null)
+        }}
+        title="Delete Transaction"
+        message="Are you sure you want to delete this transaction? You can undo this with Ctrl+Z."
+        confirmLabel="Delete"
+        onConfirm={handleConfirmDelete}
       />
     </div>
   )

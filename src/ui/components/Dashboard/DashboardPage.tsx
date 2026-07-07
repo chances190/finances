@@ -43,7 +43,11 @@ import {
   spendingPace,
   totalByMonth,
 } from '@/domain/calculations'
-import { DAYS_IN_MONTH, PAYMENT_METHOD_LABELS } from '@/domain/constants'
+import {
+  DAYS_IN_MONTH,
+  PAYMENT_METHOD_CHART_COLORS,
+  PAYMENT_METHOD_LABELS,
+} from '@/domain/constants'
 import { formatCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
 
@@ -69,11 +73,6 @@ const CHART_COLORS = {
   warning: '#f59e0b',
   projection: '#f97316',
   suggestion: '#22c55e',
-  va: '#a855f7',
-  credit: '#ef4444',
-  debit: '#22c55e',
-  cash: '#3b82f6',
-  pix: '#06b6d4',
 }
 
 export default function DashboardPage() {
@@ -119,16 +118,7 @@ export default function DashboardPage() {
       .map(([method, amount]) => ({
         name: PAYMENT_METHOD_LABELS[method] ?? method,
         value: amount,
-        color:
-          method === 'MEAL_VOUCHER'
-            ? CHART_COLORS.va
-            : method === 'CREDIT'
-              ? CHART_COLORS.credit
-              : method === 'DEBIT'
-                ? CHART_COLORS.debit
-                : method === 'PIX'
-                  ? CHART_COLORS.pix
-                  : CHART_COLORS.cash,
+        color: PAYMENT_METHOD_CHART_COLORS[method] ?? '#6b7280',
       }))
   }, [state.transactions, selectedMonth])
 
