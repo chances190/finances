@@ -75,6 +75,7 @@ export default function BudgetFormDialog({
   )
   const [newCategoryName, setNewCategoryName] = useState('')
   const [showAddCategory, setShowAddCategory] = useState(false)
+  const [showAllCategories, setShowAllCategories] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -173,9 +174,14 @@ export default function BudgetFormDialog({
           <div>
             <div className="flex items-center justify-between mb-2">
               <Label className="text-xs font-medium">Category Limits</Label>
-              <Button variant="ghost" size="xs" onClick={() => setShowAddCategory(true)}>
-                <PlusIcon className="size-3" /> Add Category
-              </Button>
+              <div className="flex gap-1">
+                <Button variant="ghost" size="xs" onClick={() => setShowAllCategories((s) => !s)}>
+                  {showAllCategories ? 'Hide empty' : 'Show all'}
+                </Button>
+                <Button variant="ghost" size="xs" onClick={() => setShowAddCategory(true)}>
+                  <PlusIcon className="size-3" /> Add Category
+                </Button>
+              </div>
             </div>
 
             {showAddCategory && (
@@ -205,45 +211,47 @@ export default function BudgetFormDialog({
             )}
 
             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-              {Object.keys(form.categoryLimits).map((cat) => {
-                const catId = `budget-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`
-                return (
-                  <div key={cat} className="space-y-0.5 flex items-end gap-1">
-                    <div className="flex-1">
-                      <Label htmlFor={catId} className="text-[10px] text-muted-foreground">
-                        {cat}
-                      </Label>
-                      <Input
-                        id={catId}
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0"
-                        value={form.categoryLimits[cat]}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            categoryLimits: { ...f.categoryLimits, [cat]: e.target.value },
-                          }))
-                        }
-                      />
+              {Object.keys(form.categoryLimits)
+                .filter((cat) => showAllCategories || form.categoryLimits[cat] !== '')
+                .map((cat) => {
+                  const catId = `budget-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`
+                  return (
+                    <div key={cat} className="space-y-0.5 flex items-end gap-1">
+                      <div className="flex-1">
+                        <Label htmlFor={catId} className="text-[10px] text-muted-foreground">
+                          {cat}
+                        </Label>
+                        <Input
+                          id={catId}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0"
+                          value={form.categoryLimits[cat]}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              categoryLimits: { ...f.categoryLimits, [cat]: e.target.value },
+                            }))
+                          }
+                        />
+                      </div>
+                      {!(DEFAULT_CATEGORIES as readonly string[]).includes(cat) && (
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => {
+                            const { [cat]: _, ...rest } = form.categoryLimits
+                            setForm((f) => ({ ...f, categoryLimits: rest }))
+                          }}
+                          aria-label={`Remove category ${cat}`}
+                        >
+                          <TrashIcon className="size-3" />
+                        </Button>
+                      )}
                     </div>
-                    {!(DEFAULT_CATEGORIES as readonly string[]).includes(cat) && (
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => {
-                          const { [cat]: _, ...rest } = form.categoryLimits
-                          setForm((f) => ({ ...f, categoryLimits: rest }))
-                        }}
-                        aria-label={`Remove category ${cat}`}
-                      >
-                        <TrashIcon className="size-3" />
-                      </Button>
-                    )}
-                  </div>
-                )
-              })}
+                  )
+                })}
             </div>
           </div>
 

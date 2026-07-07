@@ -194,8 +194,8 @@ export default function DebtConfigModal({
                     className="w-full"
                     onClick={handleSplitEvenly}
                   >
-                    Split evenly across {tempConfig.splits.length} person
-                    {tempConfig.splits.length !== 1 ? 's' : ''}
+                    Split evenly (you + {tempConfig.splits.length} other
+                    {tempConfig.splits.length !== 1 ? 's' : ''})
                   </Button>
                 )}
               </>

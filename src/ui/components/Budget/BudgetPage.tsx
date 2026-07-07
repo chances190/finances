@@ -1,5 +1,6 @@
 import { PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -82,7 +83,14 @@ export default function BudgetPage() {
                   setShowForm(true)
                 }}
               >
-                <TableCell className="font-medium">{b.referenceMonth}</TableCell>
+                <TableCell className="font-medium">
+                  {b.referenceMonth}
+                  {b.referenceMonth === new Date().toISOString().slice(0, 7) && (
+                    <Badge variant="outline" className="ml-2 text-[10px]">
+                      Current
+                    </Badge>
+                  )}
+                </TableCell>
                 <TableCell className="text-right font-mono">
                   {formatCurrency(b.plannedIncome)}
                 </TableCell>
