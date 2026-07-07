@@ -204,14 +204,18 @@ export default function DashboardPage() {
             <TrendUp className="size-3 text-green-500" />
             Income
           </div>
-          <div className="text-xl font-bold">{formatCurrency(monthData.income)}</div>
+          <div className="text-xl font-bold text-foreground">
+            {formatCurrency(monthData.income)}
+          </div>
         </div>
         <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <TrendDown className="size-3 text-red-500" />
             Expenses
           </div>
-          <div className="text-xl font-bold">{formatCurrency(monthData.expenses)}</div>
+          <div className="text-xl font-bold text-foreground">
+            {formatCurrency(monthData.expenses)}
+          </div>
         </div>
         <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -229,7 +233,9 @@ export default function DashboardPage() {
             <CreditCard className="size-3 text-orange-500" />
             Credit card
           </div>
-          <div className="text-xl font-bold">{formatCurrency(monthData.creditInvoice)}</div>
+          <div className="text-xl font-bold text-foreground">
+            {formatCurrency(monthData.creditInvoice)}
+          </div>
         </div>
         <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -247,7 +253,9 @@ export default function DashboardPage() {
             <CurrencyDollar className="size-3 text-cyan-500" />
             Cash spent
           </div>
-          <div className="text-xl font-bold">{formatCurrency(monthData.cashExpenses)}</div>
+          <div className="text-xl font-bold text-foreground">
+            {formatCurrency(monthData.cashExpenses)}
+          </div>
         </div>
       </div>
 
@@ -495,13 +503,13 @@ export default function DashboardPage() {
                   <Bar
                     dataKey="budgeted"
                     name="Budgeted"
-                    fill={CHART_COLORS.primary}
+                    fill={CHART_COLORS.budgeted}
                     radius={[2, 2, 0, 0]}
                   />
                   <Bar
                     dataKey="actual"
                     name="Actual"
-                    fill={CHART_COLORS.warning}
+                    fill={CHART_COLORS.actual}
                     radius={[2, 2, 0, 0]}
                   />
                 </BarChart>

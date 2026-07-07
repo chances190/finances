@@ -69,6 +69,16 @@ export default function TrendsPage() {
     [state.transactions],
   )
 
+  const commitmentsMax = useMemo(() => {
+    const sorted = [...state.budgets].sort((a, b) =>
+      b.referenceMonth.localeCompare(a.referenceMonth),
+    )
+    const latest = sorted[0]
+    if (!latest) return 0
+    const catTotal = Object.values(latest.categoryLimits).reduce((s, v) => s + v, 0)
+    return catTotal + latest.plannedMealVoucher
+  }, [state.budgets])
+
   const yearlyBudgetVsActual = useMemo(
     () => budgetVsActualYear(state.transactions, state.budgets, Number(selectedYear)),
     [state.transactions, state.budgets, selectedYear],
@@ -130,14 +140,18 @@ export default function TrendsPage() {
             <ArrowUp className="size-3 text-green-500" />
             Total Income
           </div>
-          <div className="text-xl font-bold">{formatCurrency(yearData.totalIncome)}</div>
+          <div className="text-xl font-bold text-foreground">
+            {formatCurrency(yearData.totalIncome)}
+          </div>
         </div>
         <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <ArrowDown className="size-3 text-red-500" />
             Total Expenses
           </div>
-          <div className="text-xl font-bold">{formatCurrency(yearData.totalExpenses)}</div>
+          <div className="text-xl font-bold text-foreground">
+            {formatCurrency(yearData.totalExpenses)}
+          </div>
         </div>
         <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -155,7 +169,7 @@ export default function TrendsPage() {
             <TrendUp className="size-3 text-cyan-500" />
             Savings Rate
           </div>
-          <div className="text-xl font-bold">
+          <div className="text-xl font-bold text-foreground">
             {yearData.totalIncome > 0
               ? `${((yearData.totalBalance / yearData.totalIncome) * 100).toFixed(1)}%`
               : '—'}
@@ -192,7 +206,7 @@ export default function TrendsPage() {
                 formatter={(value: number) => formatCurrency(value)}
                 labelFormatter={(label: string) => label}
               />
-<Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--foreground))' }} />
+              <Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--foreground))' }} />
               <Bar
                 dataKey="income"
                 name="Income"
@@ -284,6 +298,7 @@ export default function TrendsPage() {
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v: number) => `R$${v}`}
+                    domain={commitmentsMax > 0 ? [0, commitmentsMax] : undefined}
                   />
                   <Tooltip
                     contentStyle={{
@@ -343,13 +358,13 @@ export default function TrendsPage() {
                 <Bar
                   dataKey="budgeted"
                   name="Budgeted"
-                  fill={CHART_COLORS.income}
+                  fill={CHART_COLORS.budgeted}
                   radius={[2, 2, 0, 0]}
                 />
                 <Bar
                   dataKey="actual"
                   name="Actual"
-                  fill={CHART_COLORS.expense}
+                  fill={CHART_COLORS.actual}
                   radius={[2, 2, 0, 0]}
                 />
               </BarChart>

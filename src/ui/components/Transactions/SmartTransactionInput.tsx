@@ -2,7 +2,12 @@ import { PlusIcon } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { DEFAULT_CATEGORIES, INCOME_PAYMENT_METHODS, PAYMENT_METHODS } from '@/domain/constants'
+import {
+  DEFAULT_CATEGORIES,
+  INCOME_PAYMENT_METHODS,
+  PAYMENT_METHOD_LABELS,
+  PAYMENT_METHODS,
+} from '@/domain/constants'
 import { parseNaturalDate } from '@/lib/parseDate'
 
 type ParsedRow = {
@@ -21,22 +26,42 @@ interface SmartInputProps {
   knownDescriptions: string[]
 }
 
-function getPaymentMethods(): string[] {
+function getAllPaymentMethods() {
   return [...PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS]
 }
 
-function getPaymentMethodLabel(pm: string): string {
-  const labels: Record<string, string> = {
-    CASH: 'Cash',
-    DEBIT: 'Debit',
-    CREDIT: 'Credit',
-    PIX: 'Pix',
-    MEAL_VOUCHER: 'Meal Voucher',
-    SALARY: 'Salary',
-    TRANSFER: 'Transfer',
-    VOUCHER: 'Voucher',
+function getSuggestionsForToken(tokenIndex: number, prefix: string, allDescs: string[]): string[] {
+  const lower = prefix.toLowerCase()
+  if (tokenIndex === 0) {
+    const all = [...getAllPaymentMethods().map((p) => PAYMENT_METHOD_LABELS[p])]
+    if (!prefix) return all
+    return all.filter((label) => label.toLowerCase().includes(lower))
   }
-  return labels[pm] ?? pm
+  if (tokenIndex === 1) return []
+  if (tokenIndex === 2) {
+    const all = Array.from(new Set([...DEFAULT_CATEGORIES, ...allDescs]))
+    if (!prefix) return all.slice(0, 10)
+    return all.filter((c) => c.toLowerCase().includes(lower)).slice(0, 10)
+  }
+  if (tokenIndex === 3) {
+    const all = Array.from(new Set([...DEFAULT_CATEGORIES, ...allDescs]))
+    if (!prefix) return all.slice(0, 10)
+    return all.filter((c) => c.toLowerCase().includes(lower)).slice(0, 10)
+  }
+  if (tokenIndex === 4) {
+    const datePresets = ['today', 'yesterday', 'tomorrow']
+    if (!prefix) return datePresets
+    return datePresets.filter((d) => d.includes(lower))
+  }
+  return []
+}
+
+function buildSuggestionText(suggestion: string, tokens: string[], tokenIndex: number): string {
+  const result = [...tokens]
+  while (result.length <= tokenIndex) result.push('')
+  result[tokenIndex] = suggestion
+  const built = result.map((t) => t.trim()).join(', ')
+  return tokenIndex < 4 ? `${built}, ` : built
 }
 
 export default function SmartTransactionInput({
@@ -53,67 +78,35 @@ export default function SmartTransactionInput({
   const suggestionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const tokens = raw.split(',').map((t) => t.trim())
-    const lastToken = tokens[tokens.length - 1] || ''
-    const tokenIndex = tokens.length - 1
-
-    if (!lastToken || tokenIndex > 4) {
-      setShowSuggestions(false)
-      return
-    }
-
-    const lower = lastToken.toLowerCase()
-    let matches: string[] = []
-
-    if (tokenIndex === 0) {
-      matches = knownDescriptions
-        .filter((d) => d.toLowerCase().includes(lower))
-        .slice(0, 6)
-        .map((d) => {
-          const rest = tokens.slice(1).join(', ')
-          return rest ? `${d}, ${rest}` : d
-        })
-    } else if (tokenIndex === 2) {
-      const allCats = Array.from(new Set([...DEFAULT_CATEGORIES, ...knownDescriptions]))
-        .filter((d) => d.toLowerCase().includes(lower))
-        .slice(0, 8)
-      matches = allCats.map((cat) => {
-        const prefix = tokens.slice(0, 2).join(', ')
-        return `${prefix}, ${cat}`
-      })
-    } else if (tokenIndex === 3) {
-      matches = getPaymentMethods()
-        .filter(
-          (pm) =>
-            pm.toLowerCase().includes(lower) ||
-            getPaymentMethodLabel(pm).toLowerCase().includes(lower),
-        )
-        .slice(0, 6)
-        .map((pm) => {
-          const prefix = tokens.slice(0, 3).join(', ')
-          return `${prefix}, ${pm}`
-        })
-    }
-
+    const parts = raw.split(',').map((t) => t.trim())
+    const idx = Math.min(parts.length - 1, 4)
+    const last = parts.length > 0 ? parts[parts.length - 1] || '' : ''
+    const matches = getSuggestionsForToken(idx, last, knownDescriptions)
     setSuggestions(matches)
-    setShowSuggestions(matches.length > 0)
+    setShowSuggestions(matches.length > 0 && idx <= 4)
     setActiveSuggestion(-1)
   }, [raw, knownDescriptions])
 
   function parseInput(text: string): ParsedRow {
-    const tokens = text.split(',').map((t) => t.trim())
-    const description = tokens[0] || ''
-    const amount = tokens[1] || ''
-    const category = tokens[2] || null
-    const paymentMethod = tokens[3] || null
-    const dateText = tokens[4] || null
+    const parts = text.split(',').map((t) => t.trim())
+    const paymentMethod = parts[0] || null
+    const amount = parts[1] || ''
+    const description = parts[2] || ''
+    const category = parts[3] || null
+    const dateText = parts[4] || null
 
     let date = new Date().toISOString().slice(0, 10)
     let error: string | null = null
 
-    if (!description) error = 'Description is required'
-    else if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0)
+    const pmCode = paymentMethod
+      ? (Object.entries(PAYMENT_METHOD_LABELS).find(
+          ([, label]) => label.toLowerCase() === paymentMethod.toLowerCase(),
+        )?.[0] ?? paymentMethod.toUpperCase())
+      : null
+
+    if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0)
       error = 'Amount must be a positive number'
+    else if (!description) error = 'Description is required'
     else {
       if (dateText) {
         const parsed = parseNaturalDate(dateText)
@@ -122,7 +115,7 @@ export default function SmartTransactionInput({
       }
     }
 
-    return { description, amount, category, paymentMethod, date, error }
+    return { description, amount, category, paymentMethod: pmCode, date, error }
   }
 
   function handleSubmit(text: string) {
@@ -134,12 +127,22 @@ export default function SmartTransactionInput({
     inputRef.current?.focus()
   }
 
+  function applySuggestion() {
+    if (activeSuggestion >= 0 && suggestions[activeSuggestion]) {
+      const selected = suggestions[activeSuggestion]
+      const parts = raw.split(',').map((t) => t.trim())
+      const idx = Math.min(parts.length - 1, 4)
+      const built = buildSuggestionText(selected, parts, idx)
+      setRaw(built)
+      setShowSuggestions(false)
+    }
+  }
+
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault()
       if (showSuggestions && activeSuggestion >= 0 && suggestions[activeSuggestion]) {
-        setRaw(suggestions[activeSuggestion])
-        setShowSuggestions(false)
+        applySuggestion()
       } else {
         handleSubmit(raw)
       }
@@ -151,11 +154,10 @@ export default function SmartTransactionInput({
       setActiveSuggestion((prev) => Math.max(prev - 1, 0))
     } else if (e.key === 'Escape') {
       setShowSuggestions(false)
-    } else if (e.key === 'Tab' && showSuggestions) {
-      e.preventDefault()
-      if (activeSuggestion >= 0 && suggestions[activeSuggestion]) {
-        setRaw(suggestions[activeSuggestion])
-        setShowSuggestions(false)
+    } else if (e.key === 'Tab') {
+      if (showSuggestions && activeSuggestion >= 0 && suggestions[activeSuggestion]) {
+        e.preventDefault()
+        applySuggestion()
       }
     }
   }
@@ -173,16 +175,16 @@ export default function SmartTransactionInput({
             onKeyDown={handleKeyDown}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             onFocus={() => {
-              if (raw && suggestions.length > 0) setShowSuggestions(true)
+              if (suggestions.length > 0) setShowSuggestions(true)
             }}
-            placeholder="Lunch, 25.90, Food, debit"
+            placeholder="debit, 25.90, Lunch, Food, today"
             className="h-7 text-xs font-mono"
             aria-label="Quick add transaction"
           />
           {showSuggestions && (
             <div
               ref={suggestionRef}
-              className="absolute z-50 top-full left-0 right-0 mt-0.5 bg-popover border border-border shadow-md text-xs"
+              className="absolute z-50 top-full left-0 right-0 mt-0.5 bg-popover border border-border shadow-md text-xs max-h-40 overflow-y-auto"
             >
               {suggestions.map((s, i) => (
                 <button
@@ -193,10 +195,14 @@ export default function SmartTransactionInput({
                   }`}
                   onMouseDown={(e) => {
                     e.preventDefault()
-                    setRaw(s)
+                    const parts = raw.split(',').map((t) => t.trim())
+                    const idx = Math.min(parts.length - 1, 4)
+                    const built = buildSuggestionText(s, parts, idx)
+                    setRaw(built)
                     setShowSuggestions(false)
                     inputRef.current?.focus()
                   }}
+                  onFocus={() => setActiveSuggestion(i)}
                 >
                   {s}
                 </button>
@@ -226,20 +232,22 @@ export default function SmartTransactionInput({
       {parsed && !parsed.error && (
         <div className="mt-0.5 text-[10px] text-muted-foreground bg-muted/50 px-2 py-1 flex flex-wrap gap-x-4 gap-y-0.5">
           <span>
-            Desc: <span className="font-medium">{parsed.description}</span>
+            Pay:{' '}
+            <span className="font-medium">
+              {parsed.paymentMethod
+                ? (PAYMENT_METHOD_LABELS[parsed.paymentMethod] ?? parsed.paymentMethod)
+                : '—'}
+            </span>
           </span>
           <span>
             Amt: <span className="font-medium font-mono">{Number(parsed.amount).toFixed(2)}</span>
           </span>
+          <span>
+            Desc: <span className="font-medium">{parsed.description}</span>
+          </span>
           {parsed.category && (
             <span>
               Cat: <span className="font-medium">{parsed.category}</span>
-            </span>
-          )}
-          {parsed.paymentMethod && (
-            <span>
-              Pay:{' '}
-              <span className="font-medium">{getPaymentMethodLabel(parsed.paymentMethod)}</span>
             </span>
           )}
           <span>
