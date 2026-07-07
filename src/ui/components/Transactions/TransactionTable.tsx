@@ -1,5 +1,5 @@
 import { CheckCircleIcon, TrashIcon } from '@phosphor-icons/react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -46,6 +46,12 @@ export default function TransactionTable() {
   const { state, dispatch } = useFinance()
   const [filterMonth, setFilterMonth] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>()
+  useEffect(() => {
+    searchTimer.current = setTimeout(() => setDebouncedSearch(searchQuery), 150)
+    return () => clearTimeout(searchTimer.current)
+  }, [searchQuery])
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterPayment, setFilterPayment] = useState<string>('all')
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
@@ -74,8 +80,8 @@ export default function TransactionTable() {
     if (filterMonth !== 'all') {
       txs = txs.filter((t) => t.referenceMonth === filterMonth)
     }
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase()
       txs = txs.filter((t) => t.description.toLowerCase().includes(q))
     }
     if (filterCategory !== 'all') {
@@ -85,7 +91,7 @@ export default function TransactionTable() {
       txs = txs.filter((t) => t.paymentMethod === filterPayment)
     }
     return txs.sort((a, b) => b.date.localeCompare(a.date))
-  }, [state.transactions, filterMonth, searchQuery, filterCategory, filterPayment])
+  }, [state.transactions, filterMonth, debouncedSearch, filterCategory, filterPayment])
 
   const displayRefMonth =
     filterMonth !== 'all'

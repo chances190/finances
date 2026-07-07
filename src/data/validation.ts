@@ -1,4 +1,4 @@
-import { PAYMENT_METHODS, TRANSACTION_TYPES } from '../domain/constants'
+import { INCOME_PAYMENT_METHODS, PAYMENT_METHODS, TRANSACTION_TYPES } from '../domain/constants'
 import type { Budget, FinanceData, PaymentMethod, Transaction } from '../domain/entities'
 
 function isValidTransaction(value: unknown): value is Transaction {
@@ -12,7 +12,8 @@ function isValidTransaction(value: unknown): value is Transaction {
     typeof t.amount === 'number' &&
     typeof t.category === 'string' &&
     TRANSACTION_TYPES.includes(t.type as (typeof TRANSACTION_TYPES)[number]) &&
-    PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod)
+    PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod) ||
+    INCOME_PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod)
   )
 }
 

@@ -1,5 +1,5 @@
 export type TransactionType = 'INCOME' | 'EXPENSE'
-export type PaymentMethod = 'CASH' | 'DEBIT' | 'CREDIT' | 'PIX' | 'MEAL_VOUCHER'
+export type PaymentMethod = 'CASH' | 'DEBIT' | 'CREDIT' | 'PIX' | 'MEAL_VOUCHER' | 'SALARY' | 'TRANSFER' | 'VOUCHER'
 
 export interface InstallmentConfig {
   current: number

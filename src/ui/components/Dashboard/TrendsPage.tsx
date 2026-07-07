@@ -26,29 +26,9 @@ import {
   yearRelation,
   yearSummary,
 } from '@/domain/calculations'
+import { CATEGORY_COLORS, CHART_COLORS } from '@/domain/constants'
 import { formatCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
-
-const CHART_COLORS = {
-  income: '#22c55e',
-  expense: '#ef4444',
-  balance: '#3b82f6',
-}
-
-const CATEGORY_COLORS = [
-  '#3b82f6',
-  '#22c55e',
-  '#f59e0b',
-  '#a855f7',
-  '#ef4444',
-  '#06b6d4',
-  '#ec4899',
-  '#14b8a6',
-  '#f97316',
-  '#6366f1',
-  '#84cc16',
-  '#d946ef',
-]
 
 export default function TrendsPage() {
   const { state } = useFinance()
@@ -212,7 +192,7 @@ export default function TrendsPage() {
                 formatter={(value: number) => formatCurrency(value)}
                 labelFormatter={(label: string) => label}
               />
-              <Legend wrapperStyle={{ fontSize: '10px' }} />
+<Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--foreground))' }} />
               <Bar
                 dataKey="income"
                 name="Income"
@@ -220,7 +200,7 @@ export default function TrendsPage() {
                 radius={[2, 2, 0, 0]}
               />
               <Bar
-                dataKey="expenses"
+                dataKey="expense"
                 name="Expenses"
                 fill={CHART_COLORS.expense}
                 radius={[2, 2, 0, 0]}
@@ -263,7 +243,7 @@ export default function TrendsPage() {
                     }}
                     formatter={(value: number) => formatCurrency(value)}
                   />
-                  <Legend wrapperStyle={{ fontSize: '10px' }} />
+                  <Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--foreground))' }} />
                   {topCategories.map((cat, i) => (
                     <Line
                       key={cat}
@@ -359,7 +339,7 @@ export default function TrendsPage() {
                   }}
                   formatter={(value: number) => formatCurrency(value)}
                 />
-                <Legend wrapperStyle={{ fontSize: '10px' }} />
+                <Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--foreground))' }} />
                 <Bar
                   dataKey="budgeted"
                   name="Budgeted"

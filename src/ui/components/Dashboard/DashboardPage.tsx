@@ -44,6 +44,7 @@ import {
   totalByMonth,
 } from '@/domain/calculations'
 import {
+  CHART_COLORS,
   DAYS_IN_MONTH,
   PAYMENT_METHOD_CHART_COLORS,
   PAYMENT_METHOD_LABELS,
@@ -64,15 +65,6 @@ function PaceKpi({ label, value, color }: PaceKpiProps) {
       <span className={`text-lg font-bold ${color}`}>{value}</span>
     </div>
   )
-}
-
-const CHART_COLORS = {
-  income: '#22c55e',
-  expense: '#ef4444',
-  primary: '#3b82f6',
-  warning: '#f59e0b',
-  projection: '#f97316',
-  suggestion: '#22c55e',
 }
 
 export default function DashboardPage() {
@@ -329,7 +321,7 @@ export default function DashboardPage() {
                     }}
                     formatter={(value: number) => formatCurrency(value)}
                   />
-                  <Legend wrapperStyle={{ fontSize: '10px' }} />
+                  <Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--foreground))' }} />
                   <Bar
                     dataKey="actual"
                     name="Actual"
@@ -398,7 +390,7 @@ export default function DashboardPage() {
                     }}
                     formatter={(value: number) => formatCurrency(value)}
                   />
-                  <Legend wrapperStyle={{ fontSize: '10px' }} />
+                  <Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--foreground))' }} />
                   <Bar
                     dataKey="actual"
                     name="Actual"
@@ -475,7 +467,7 @@ export default function DashboardPage() {
                     }}
                     formatter={(value: number) => formatCurrency(value)}
                   />
-                  <Legend wrapperStyle={{ fontSize: '10px' }} />
+                  <Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--foreground))' }} />
                   <Bar
                     dataKey="budgeted"
                     name="Budgeted"
