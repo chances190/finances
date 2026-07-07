@@ -10,7 +10,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { TableCell, TableRow } from '@/components/ui/table'
-import { DEFAULT_CATEGORIES, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/domain/constants'
+import {
+  DEFAULT_CATEGORIES,
+  INCOME_PAYMENT_METHODS,
+  PAYMENT_METHOD_LABELS,
+  PAYMENT_METHODS,
+} from '@/domain/constants'
 import type { DebtConfig, PaymentMethod, TransactionType } from '@/domain/entities'
 import { useToast } from '@/ui/context/ToastContext'
 
@@ -89,8 +94,8 @@ export default function QuickAddRow({
       toast('Category is required', 'error')
       return
     }
-    if (row.type === 'EXPENSE' && !row.paymentMethod) {
-      toast('Payment method is required for expenses', 'error')
+    if (!row.paymentMethod) {
+      toast('Payment method is required', 'error')
       return
     }
 
@@ -226,25 +231,23 @@ export default function QuickAddRow({
         />
       </TableCell>
       <TableCell className="p-1 w-20">
-        {!isIncome && (
-          <Select
-            value={row.paymentMethod ?? ''}
-            onValueChange={(v) =>
-              setRow((r) => ({ ...r, paymentMethod: (v || null) as PaymentMethod | null }))
-            }
-          >
-            <SelectTrigger className="h-6 text-xs">
-              <SelectValue placeholder="Payment" />
-            </SelectTrigger>
-            <SelectContent>
-              {PAYMENT_METHODS.map((pm) => (
-                <SelectItem key={pm} value={pm} className="text-xs">
-                  {PAYMENT_METHOD_LABELS[pm] ?? pm}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <Select
+          value={row.paymentMethod ?? ''}
+          onValueChange={(v) =>
+            setRow((r) => ({ ...r, paymentMethod: (v || null) as PaymentMethod | null }))
+          }
+        >
+          <SelectTrigger className="h-6 text-xs">
+            <SelectValue placeholder="Payment" />
+          </SelectTrigger>
+          <SelectContent>
+            {(isIncome ? INCOME_PAYMENT_METHODS : PAYMENT_METHODS).map((pm) => (
+              <SelectItem key={pm} value={pm} className="text-xs">
+                {PAYMENT_METHOD_LABELS[pm] ?? pm}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </TableCell>
       <TableCell className="p-1 w-16 text-center">
         {!isIncome && row.paymentMethod === 'CREDIT' && (

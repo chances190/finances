@@ -11,7 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { DEFAULT_CATEGORIES, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/domain/constants'
+import {
+  DEFAULT_CATEGORIES,
+  INCOME_PAYMENT_METHODS,
+  PAYMENT_METHOD_LABELS,
+  PAYMENT_METHODS,
+} from '@/domain/constants'
 
 import type { DebtConfig, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { formatCurrency, parseCurrency } from '@/lib/currency'
@@ -103,8 +108,6 @@ export default function TransactionForm({
 
     if (!editTransaction) return
 
-    const isIncomeForm = form.type === 'INCOME'
-
     const updated: Transaction = {
       ...editTransaction,
       type: form.type,
@@ -112,7 +115,7 @@ export default function TransactionForm({
       amount,
       description: form.description,
       category: form.category,
-      paymentMethod: isIncomeForm ? 'DEBIT' : form.paymentMethod,
+      paymentMethod: form.paymentMethod,
       referenceMonth: form.referenceMonth,
       installment:
         form.installmentTotal > 1
@@ -233,30 +236,34 @@ export default function TransactionForm({
                   </SelectContent>
                 </Select>
               </div>
-              {form.type === 'EXPENSE' && (
-                <div className="space-y-1">
-                  <Label htmlFor="tx-payment" className="text-xs">
-                    Payment Method
-                  </Label>
-                  <Select
-                    value={form.paymentMethod}
-                    onValueChange={(v) =>
-                      setForm((f) => ({ ...f, paymentMethod: (v ?? 'DEBIT') as PaymentMethod }))
-                    }
-                  >
-                    <SelectTrigger id="tx-payment">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_METHODS.map((pm) => (
+              <div className="space-y-1">
+                <Label htmlFor="tx-payment" className="text-xs">
+                  Payment Method
+                </Label>
+                <Select
+                  value={form.paymentMethod}
+                  onValueChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      paymentMethod: (v ??
+                        (form.type === 'INCOME' ? 'SALARY' : 'DEBIT')) as PaymentMethod,
+                    }))
+                  }
+                >
+                  <SelectTrigger id="tx-payment">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(form.type === 'INCOME' ? INCOME_PAYMENT_METHODS : PAYMENT_METHODS).map(
+                      (pm) => (
                         <SelectItem key={pm} value={pm}>
                           {PAYMENT_METHOD_LABELS[pm] ?? pm}
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+                      ),
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-1">

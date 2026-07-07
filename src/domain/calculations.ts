@@ -87,6 +87,13 @@ export function totalByMonth(tx: Transaction[], refMonth: string): number {
   return incomeByMonth(tx, refMonth).reduce((s, t) => s + t.amount, 0)
 }
 
+export function incomeByPaymentMethod(tx: Transaction[], refMonth: string): Record<string, number> {
+  return incomeByMonth(tx, refMonth).reduce<Record<string, number>>((acc, t) => {
+    acc[t.paymentMethod] = (acc[t.paymentMethod] || 0) + t.amount
+    return acc
+  }, {})
+}
+
 export function expensesByMonth(tx: Transaction[], refMonth: string): number {
   return byMonth(tx, refMonth).reduce((s, t) => s + t.amount, 0)
 }

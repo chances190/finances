@@ -38,6 +38,7 @@ import {
   expensesByMonth,
   groupedByPaymentMethod,
   incomeByMonth,
+  incomeByPaymentMethod,
   mealVoucherBalance,
   monthRelation,
   spendingPace,
@@ -94,6 +95,7 @@ export default function DashboardPage() {
       cashExpenses: cashExpenses(state.transactions, selectedMonth),
       mealVoucher: mealVoucherBalance(state.transactions, selectedMonth),
       incomeTransactions: incomeByMonth(state.transactions, selectedMonth),
+      incomeByMethod: incomeByPaymentMethod(state.transactions, selectedMonth),
     }
   }, [state.transactions, selectedMonth])
 
@@ -248,6 +250,28 @@ export default function DashboardPage() {
           <div className="text-xl font-bold">{formatCurrency(monthData.cashExpenses)}</div>
         </div>
       </div>
+
+      {monthData.income > 0 && Object.keys(monthData.incomeByMethod).length > 0 && (
+        <div className="border bg-card p-4">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            Income by Account
+          </h3>
+          <div className="flex flex-wrap gap-4">
+            {Object.entries(monthData.incomeByMethod).map(([method, amount]) => (
+              <div key={method} className="flex items-center gap-2 text-sm">
+                <span
+                  className="inline-block size-2.5 rounded-full"
+                  style={{ background: PAYMENT_METHOD_CHART_COLORS[method] ?? '#6b7280' }}
+                />
+                <span className="text-muted-foreground text-xs">
+                  {PAYMENT_METHOD_LABELS[method] ?? method}:
+                </span>
+                <span className="font-mono text-xs font-medium">{formatCurrency(amount)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {currentDay > 0 && dailyQuota === 0 && (
         <div className="border bg-card p-4">
