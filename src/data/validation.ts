@@ -1,7 +1,5 @@
+import { PAYMENT_METHODS, TRANSACTION_TYPES } from '../domain/constants'
 import type { Budget, FinanceData, PaymentMethod, Transaction } from '../domain/entities'
-
-const VALID_PAYMENT_METHODS: PaymentMethod[] = ['CASH', 'DEBIT', 'CREDIT', 'PIX', 'MEAL_VOUCHER']
-const VALID_TYPES = ['INCOME', 'EXPENSE']
 
 function isValidTransaction(value: unknown): value is Transaction {
   if (!value || typeof value !== 'object') return false
@@ -13,8 +11,8 @@ function isValidTransaction(value: unknown): value is Transaction {
     typeof t.description === 'string' &&
     typeof t.amount === 'number' &&
     typeof t.category === 'string' &&
-    VALID_TYPES.includes(t.type as string) &&
-    VALID_PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod)
+    TRANSACTION_TYPES.includes(t.type as (typeof TRANSACTION_TYPES)[number]) &&
+    PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod)
   )
 }
 

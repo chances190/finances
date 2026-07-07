@@ -17,6 +17,7 @@ export const DEFAULT_CATEGORIES = [
 ] as const
 
 export const PAYMENT_METHODS: PaymentMethod[] = ['CASH', 'DEBIT', 'CREDIT', 'PIX', 'MEAL_VOUCHER']
+export const TRANSACTION_TYPES = ['INCOME', 'EXPENSE'] as const
 
 export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   CASH: 'Cash',
@@ -24,9 +25,4 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   CREDIT: 'Credit',
   PIX: 'Pix',
   MEAL_VOUCHER: 'Meal Voucher',
-}
-
-export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
-  INCOME: 'Income',
-  EXPENSE: 'Expense',
 }

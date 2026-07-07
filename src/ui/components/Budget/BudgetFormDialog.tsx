@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { addMonths } from '@/domain/calculations'
 import { DEFAULT_CATEGORIES } from '@/domain/constants'
 import type { Budget, Budget as BudgetType } from '@/domain/entities'
-import { parseCurrency } from '@/lib/format'
+import { parseCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
 

@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import BudgetPage from './ui/components/Budget/BudgetPage'
 import AuditLogPanel from './ui/components/Common/AuditLogPanel'
 import ErrorBoundary from './ui/components/Common/ErrorBoundary'
 import ExportImport from './ui/components/Common/ExportImport'
 import Tabs from './ui/components/Common/Tabs'
+import DashboardPage from './ui/components/Dashboard/DashboardPage'
+import TrendsPage from './ui/components/Dashboard/TrendsPage'
 import DebtPage from './ui/components/Debts/DebtPage'
 import TransactionTable from './ui/components/Transactions/TransactionTable'
 import { FinanceProvider, useFinance } from './ui/context'
@@ -14,24 +16,17 @@ const tabs = [
   { key: 'budgets', label: 'Budgets' },
   { key: 'debts', label: 'Debts' },
   { key: 'dashboard', label: 'Dashboard' },
-  { key: 'yearly', label: 'Yearly' },
+  { key: 'yearly', label: 'Trends' },
   { key: 'history', label: 'History' },
 ]
 
-function PagePlaceholder({ name }: { name: string }) {
-  return (
-    <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
-      {name} — coming soon
-    </div>
-  )
-}
-
-function ShellInner() {
+function AppShell() {
   const { state, dispatch } = useFinance()
   const { toast } = useToast()
+  const [activeTab, setActiveTab] = useState('transactions')
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
         const latest = state.auditLog[0]
@@ -47,20 +42,10 @@ function ShellInner() {
           toast('Redo', 'info')
         }
       }
-    },
-    [state.auditLog, state.redoStack, dispatch, toast],
-  )
-
-  useEffect(() => {
+    }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleKeyDown])
-
-  return <ShellContent />
-}
-
-function ShellContent() {
-  const [activeTab, setActiveTab] = useState('transactions')
+  }, [state.auditLog, state.redoStack, dispatch, toast])
 
   return (
     <div className="min-h-screen bg-background">
@@ -78,15 +63,11 @@ function ShellContent() {
         {activeTab === 'budgets' && <BudgetPage />}
         {activeTab === 'debts' && <DebtPage />}
         {activeTab === 'history' && <AuditLogPanel standalone />}
-        {activeTab === 'dashboard' && <PagePlaceholder name="Dashboard" />}
-        {activeTab === 'yearly' && <PagePlaceholder name="Yearly Overview" />}
+        {activeTab === 'dashboard' && <DashboardPage />}
+        {activeTab === 'yearly' && <TrendsPage />}
       </main>
     </div>
   )
-}
-
-function AppShell() {
-  return <ShellInner />
 }
 
 export default function App() {

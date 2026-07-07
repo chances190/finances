@@ -15,7 +15,3 @@ export function loadData(): FinanceData | null {
 export function saveData(data: FinanceData): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
 }
-
-export function clearData(): void {
-  localStorage.removeItem(STORAGE_KEY)
-}

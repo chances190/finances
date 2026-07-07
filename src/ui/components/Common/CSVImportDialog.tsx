@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/table'
 import { importCSV, importJSON } from '@/data/exportImport'
 import type { Transaction } from '@/domain/entities'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
 
 type PreviewData = {

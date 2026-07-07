@@ -14,7 +14,7 @@ import {
 import { DEFAULT_CATEGORIES, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/domain/constants'
 
 import type { DebtConfig, PaymentMethod, Transaction } from '@/domain/entities'
-import { formatCurrency, parseCurrency } from '@/lib/format'
+import { formatCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
@@ -135,7 +135,6 @@ export default function TransactionForm({
           </DialogHeader>
 
           <div className="space-y-3">
-            {/* Date, Amount, Description - top priority */}
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs">Date</Label>
@@ -165,7 +164,6 @@ export default function TransactionForm({
               />
             </div>
 
-            {/* Category, Payment, RefMonth */}
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs">Category</Label>
@@ -216,7 +214,6 @@ export default function TransactionForm({
               />
             </div>
 
-            {/* Installments (if CREDIT) */}
             {form.paymentMethod === 'CREDIT' && (
               <div className="space-y-1">
                 <Label className="text-xs">Installments</Label>
@@ -235,7 +232,6 @@ export default function TransactionForm({
               </div>
             )}
 
-            {/* Debt toggle + configuration */}
             {form.paymentMethod !== 'MEAL_VOUCHER' && (
               <div className="border-t pt-3 space-y-2">
                 <div className="flex items-center gap-2">
@@ -274,12 +270,7 @@ export default function TransactionForm({
 
       <DebtConfigModal
         open={showDebtConfig}
-        onOpenChange={(open) => {
-          if (!open && !isDebt && !debtConfig.splits.length && !debtConfig.userShare) {
-            // cancelled a new debt creation — nothing to worry about
-          }
-          setShowDebtConfig(open)
-        }}
+        onOpenChange={setShowDebtConfig}
         config={debtConfig}
         onConfigChange={(config) => {
           setDebtConfig(config)

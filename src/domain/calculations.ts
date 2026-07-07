@@ -48,6 +48,31 @@ export function daysSince(date: string): number {
   return Math.floor((Date.now() - parseDate(date)) / 86400000)
 }
 
+export function availableMonths(tx: Transaction[]): string[] {
+  return Array.from(new Set(tx.map((t) => t.referenceMonth)))
+    .sort()
+    .reverse()
+}
+
+function currentYM(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+export function monthRelation(ym: string): 'past' | 'current' | 'future' {
+  const diff = monthDiff(currentYM(), ym)
+  if (diff > 0) return 'past'
+  if (diff < 0) return 'future'
+  return 'current'
+}
+
+export function yearRelation(y: string): 'past' | 'current' | 'future' {
+  const cy = String(new Date().getFullYear())
+  if (y < cy) return 'past'
+  if (y > cy) return 'future'
+  return 'current'
+}
+
 export function byMonth(tx: Transaction[], refMonth: string): Transaction[] {
   return tx.filter(
     (t) => t.referenceMonth === refMonth && !t.isSettled && t.type === 'EXPENSE' && !t.isDebt,

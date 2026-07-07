@@ -59,7 +59,6 @@ export default function QuickAddRow({
   const dateInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    // Auto-focus date input when row mounts
     dateInputRef.current?.focus()
   }, [])
 
@@ -95,7 +94,6 @@ export default function QuickAddRow({
       debtConfig.splits.length > 0 ? debtConfig : undefined,
     )
 
-    // Reset for next entry
     setRow({
       date: new Date().toISOString().slice(0, 10),
       amount: '',

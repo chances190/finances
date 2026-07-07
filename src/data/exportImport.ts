@@ -1,17 +1,17 @@
 import { v4 as uuid } from 'uuid'
+import { PAYMENT_METHODS, TRANSACTION_TYPES } from '../domain/constants'
 import type { FinanceData, PaymentMethod, Transaction, TransactionType } from '../domain/entities'
 import { parseCurrency } from '../lib/currency'
 import { validateFinanceData } from './validation'
 
-const VALID_TYPES: TransactionType[] = ['INCOME', 'EXPENSE']
-const VALID_PAYMENT_METHODS: PaymentMethod[] = ['CASH', 'DEBIT', 'CREDIT', 'PIX', 'MEAL_VOUCHER']
-
 function parseType(s: string | undefined): TransactionType {
-  return s && VALID_TYPES.includes(s as TransactionType) ? (s as TransactionType) : 'EXPENSE'
+  return s && TRANSACTION_TYPES.includes(s as (typeof TRANSACTION_TYPES)[number])
+    ? (s as TransactionType)
+    : 'EXPENSE'
 }
 
 function parsePaymentMethod(s: string | undefined): PaymentMethod {
-  return s && VALID_PAYMENT_METHODS.includes(s as PaymentMethod) ? (s as PaymentMethod) : 'DEBIT'
+  return s && PAYMENT_METHODS.includes(s as PaymentMethod) ? (s as PaymentMethod) : 'DEBIT'
 }
 
 export function exportJSON(data: FinanceData): void {

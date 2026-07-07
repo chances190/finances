@@ -11,7 +11,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { daysSince } from '@/domain/calculations'
-import { formatCurrency } from '@/lib/format'
+import type { Transaction } from '@/domain/entities'
+import { formatCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
 
 function DebtUrgency({ days }: { days: number }) {
@@ -30,6 +31,49 @@ function DebtUrgency({ days }: { days: number }) {
 
 type ViewMode = 'transaction' | 'person'
 
+interface PersonData {
+  name: string
+  unsettledAmount: number
+  totalAmount: number
+  txCount: number
+  anySettled: boolean
+  allSettled: boolean
+}
+
+function aggregatePersonData(transactions: Transaction[]): PersonData[] {
+  const map = new Map<string, Omit<PersonData, 'name'>>()
+  for (const tx of transactions) {
+    const splits = tx.debtSplits?.filter((s) => s.amount > 0) ?? []
+    for (const s of splits) {
+      const settled = s.settled ?? tx.isSettled
+      let entry = map.get(s.debtorName)
+      if (!entry) {
+        entry = {
+          unsettledAmount: 0,
+          totalAmount: 0,
+          txCount: 0,
+          anySettled: false,
+          allSettled: true,
+        }
+        map.set(s.debtorName, entry)
+      }
+      entry.totalAmount += s.amount
+      entry.anySettled ||= settled
+      if (!settled) {
+        entry.unsettledAmount += s.amount
+        entry.allSettled = false
+      }
+    }
+    for (const name of new Set(splits.map((s) => s.debtorName))) {
+      const entry = map.get(name)
+      if (entry) entry.txCount++
+    }
+  }
+  return [...map.entries()]
+    .map(([name, d]) => ({ name, ...d }))
+    .sort((a, b) => b.unsettledAmount - a.unsettledAmount)
+}
+
 export default function DebtPage() {
   const { state, dispatch } = useFinance()
   const [showSettled, setShowSettled] = useState(false)
@@ -40,48 +84,10 @@ export default function DebtPage() {
     [state.transactions, showSettled],
   )
 
-  const personView = useMemo(() => {
-    type PersonData = {
-      unsettledAmount: number
-      totalAmount: number
-      txCount: number
-      anySettled: boolean
-      allSettled: boolean
-    }
-    const map = new Map<string, PersonData>()
-    for (const tx of debts) {
-      const splits = tx.debtSplits?.filter((s) => s.amount > 0) ?? []
-      for (const s of splits) {
-        const settled = s.settled ?? tx.isSettled
-        let entry = map.get(s.debtorName)
-        if (!entry) {
-          entry = {
-            unsettledAmount: 0,
-            totalAmount: 0,
-            txCount: 0,
-            anySettled: false,
-            allSettled: true,
-          }
-          map.set(s.debtorName, entry)
-        }
-        entry.totalAmount += s.amount
-        entry.anySettled = entry.anySettled || settled
-        if (!settled) {
-          entry.unsettledAmount += s.amount
-          entry.allSettled = false
-        }
-      }
-      // Track unique tx count per person
-      const names = new Set(splits.map((s) => s.debtorName))
-      for (const name of names) {
-        const entry = map.get(name)
-        if (entry) entry.txCount++
-      }
-    }
-    return [...map.entries()]
-      .filter(([_, data]) => showSettled || data.unsettledAmount > 0)
-      .sort((a, b) => b[1].unsettledAmount - a[1].unsettledAmount)
-  }, [debts, showSettled])
+  const personView = useMemo(
+    () => aggregatePersonData(debts).filter((d) => showSettled || d.unsettledAmount > 0),
+    [debts, showSettled],
+  )
 
   function handleToggleSettle(id: string, settled: boolean, debtorName?: string) {
     if (debtorName) {
@@ -141,29 +147,29 @@ export default function DebtPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {personView.map(([name, data]) => (
-                <TableRow key={name} className={data.allSettled ? 'opacity-50' : ''}>
+              {personView.map((p) => (
+                <TableRow key={p.name} className={p.allSettled ? 'opacity-50' : ''}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-1">
                       <UserIcon className="size-3" />
-                      {name}
+                      {p.name}
                     </div>
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {formatCurrency(data.unsettledAmount)}
+                    {formatCurrency(p.unsettledAmount)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-muted-foreground">
-                    {formatCurrency(data.totalAmount)}
+                    {formatCurrency(p.totalAmount)}
                   </TableCell>
                   <TableCell>
-                    {data.allSettled ? (
+                    {p.allSettled ? (
                       <Badge
                         variant="outline"
                         className="text-green-600 bg-green-50 dark:bg-green-900/20"
                       >
                         All paid
                       </Badge>
-                    ) : data.anySettled ? (
+                    ) : p.anySettled ? (
                       <Badge
                         variant="outline"
                         className="text-amber-600 bg-amber-50 dark:bg-amber-900/20"
@@ -180,7 +186,7 @@ export default function DebtPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground">
-                    {data.txCount}
+                    {p.txCount}
                   </TableCell>
                 </TableRow>
               ))}

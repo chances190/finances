@@ -18,10 +18,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { generateInstallments } from '@/domain/calculations'
+import { availableMonths, generateInstallments, monthRelation } from '@/domain/calculations'
 import { PAYMENT_METHOD_LABELS } from '@/domain/constants'
 import type { DebtConfig, PaymentMethod, Transaction } from '@/domain/entities'
-import { formatCurrency, parseCurrency } from '@/lib/format'
+import { formatCurrency, parseCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
 import DebtConfigModal from './DebtConfigModal'
 import QuickAddRow from './QuickAddRow'
@@ -42,11 +42,6 @@ function PaymentBadge({ method }: { method: string }) {
   )
 }
 
-function getAvailableMonths(tx: Transaction[]): string[] {
-  const months = new Set(tx.map((t) => t.referenceMonth))
-  return Array.from(months).sort().reverse()
-}
-
 export default function TransactionTable() {
   const { state, dispatch } = useFinance()
   const [filterMonth, setFilterMonth] = useState<string>('all')
@@ -59,7 +54,7 @@ export default function TransactionTable() {
   const [debtModalAmount, setDebtModalAmount] = useState(0)
   const [tempDebtConfig, setTempDebtConfig] = useState<DebtConfig>({ userShare: 0, splits: [] })
 
-  const months = useMemo(() => getAvailableMonths(state.transactions), [state.transactions])
+  const months = useMemo(() => availableMonths(state.transactions), [state.transactions])
 
   const filtered = useMemo(() => {
     let txs = state.transactions
@@ -165,11 +160,24 @@ export default function TransactionTable() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All months</SelectItem>
-              {months.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {m}
-                </SelectItem>
-              ))}
+              {months.map((m) => {
+                const rel = monthRelation(m)
+                return (
+                  <SelectItem
+                    key={m}
+                    value={m}
+                    className={
+                      rel === 'future'
+                        ? 'text-muted-foreground/60'
+                        : rel === 'current'
+                          ? 'text-primary font-medium'
+                          : ''
+                    }
+                  >
+                    {m}
+                  </SelectItem>
+                )
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -191,7 +199,6 @@ export default function TransactionTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* Quick-add row */}
             <QuickAddRow
               refMonth={displayRefMonth}
               onAdd={handleQuickAdd}

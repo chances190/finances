@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { addMonths } from '@/domain/calculations'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
 import BudgetFormDialog from './BudgetFormDialog'
