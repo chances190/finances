@@ -35,6 +35,8 @@ interface QuickAddRowProps {
   onAdd: (row: CompletedQuickAddRow, refMonth: string, debtConfig?: DebtConfig) => void
   isFilteredMonth: boolean
   onOpenDebtModal?: (callback: (config: DebtConfig) => void, totalAmount: number) => void
+  defaultCategory?: string
+  defaultPayment?: PaymentMethod
 }
 
 export default function QuickAddRow({
@@ -42,14 +44,16 @@ export default function QuickAddRow({
   onAdd,
   isFilteredMonth,
   onOpenDebtModal,
+  defaultCategory,
+  defaultPayment,
 }: QuickAddRowProps) {
   const [row, setRow] = React.useState<QuickAddRowState>({
     type: 'EXPENSE',
     date: new Date().toISOString().slice(0, 10),
     amount: '',
     description: '',
-    category: null,
-    paymentMethod: null,
+    category: defaultCategory ?? null,
+    paymentMethod: defaultPayment ?? null,
     installmentTotal: 1,
     isDebt: false,
   })
@@ -101,8 +105,8 @@ export default function QuickAddRow({
       date: new Date().toISOString().slice(0, 10),
       amount: '',
       description: '',
-      category: null,
-      paymentMethod: null,
+      category: defaultCategory ?? null,
+      paymentMethod: defaultPayment ?? null,
       installmentTotal: 1,
       isDebt: false,
     })
@@ -134,6 +138,7 @@ export default function QuickAddRow({
           value={row.date}
           onChange={(e) => setRow((r) => ({ ...r, date: e.target.value }))}
           onKeyDown={handleKeyDown}
+          required
           className="h-6 text-xs"
         />
       </TableCell>
@@ -216,6 +221,7 @@ export default function QuickAddRow({
           value={row.amount}
           onChange={(e) => setRow((r) => ({ ...r, amount: e.target.value }))}
           onKeyDown={handleKeyDown}
+          required
           className="h-6 text-xs text-right font-mono"
         />
       </TableCell>

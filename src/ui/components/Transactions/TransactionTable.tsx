@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -19,7 +20,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { availableMonths, generateInstallments, monthRelation } from '@/domain/calculations'
-import { PAYMENT_METHOD_BADGE_COLORS, PAYMENT_METHOD_LABELS } from '@/domain/constants'
+import {
+  PAYMENT_METHOD_BADGE_COLORS,
+  PAYMENT_METHOD_LABELS,
+  PAYMENT_METHODS,
+} from '@/domain/constants'
 import type { DebtConfig, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { formatCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
@@ -40,6 +45,9 @@ function PaymentBadge({ method }: { method: string }) {
 export default function TransactionTable() {
   const { state, dispatch } = useFinance()
   const [filterMonth, setFilterMonth] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [filterPayment, setFilterPayment] = useState<string>('all')
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
   const [showEditForm, setShowEditForm] = useState(false)
   const [showDebtModal, setShowDebtModal] = useState(false)
@@ -49,17 +57,35 @@ export default function TransactionTable() {
   const [debtModalAmount, setDebtModalAmount] = useState(0)
   const [tempDebtConfig, setTempDebtConfig] = useState<DebtConfig>({ userShare: 0, splits: [] })
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [defaultCategory, setDefaultCategory] = useState<string | null>(null)
+  const [defaultPayment, setDefaultPayment] = useState<PaymentMethod | null>(null)
   const { toast } = useToast()
 
   const months = useMemo(() => availableMonths(state.transactions), [state.transactions])
+
+  const allCategories = useMemo(() => {
+    const cats = new Set<string>()
+    for (const t of state.transactions) cats.add(t.category)
+    return Array.from(cats).sort()
+  }, [state.transactions])
 
   const filtered = useMemo(() => {
     let txs = state.transactions
     if (filterMonth !== 'all') {
       txs = txs.filter((t) => t.referenceMonth === filterMonth)
     }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      txs = txs.filter((t) => t.description.toLowerCase().includes(q))
+    }
+    if (filterCategory !== 'all') {
+      txs = txs.filter((t) => t.category === filterCategory)
+    }
+    if (filterPayment !== 'all') {
+      txs = txs.filter((t) => t.paymentMethod === filterPayment)
+    }
     return txs.sort((a, b) => b.date.localeCompare(a.date))
-  }, [state.transactions, filterMonth])
+  }, [state.transactions, filterMonth, searchQuery, filterCategory, filterPayment])
 
   const displayRefMonth =
     filterMonth !== 'all'
@@ -101,6 +127,9 @@ export default function TransactionTable() {
           : undefined,
       isSettled: false,
     }
+
+    setDefaultCategory(rowData.category)
+    setDefaultPayment(rowData.paymentMethod)
 
     if (rowData.paymentMethod === 'CREDIT' && rowData.installmentTotal > 1) {
       const groupId = uuid()
@@ -158,36 +187,67 @@ export default function TransactionTable() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold">Transactions</h2>
-          <Select value={filterMonth} onValueChange={(v) => setFilterMonth(v ?? 'all')}>
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All months</SelectItem>
-              {months.map((m) => {
-                const rel = monthRelation(m)
-                return (
-                  <SelectItem
-                    key={m}
-                    value={m}
-                    className={
-                      rel === 'future'
-                        ? 'text-muted-foreground/60'
-                        : rel === 'current'
-                          ? 'text-primary font-medium'
-                          : ''
-                    }
-                  >
-                    {m}
-                  </SelectItem>
-                )
-              })}
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-sm font-semibold mr-2">Transactions</h2>
+        <Input
+          placeholder="Search description..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="h-7 w-44 text-xs"
+          aria-label="Search transactions"
+        />
+        <Select value={filterMonth} onValueChange={(v) => setFilterMonth(v ?? 'all')}>
+          <SelectTrigger className="h-7 w-28 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All months</SelectItem>
+            {months.map((m) => {
+              const rel = monthRelation(m)
+              return (
+                <SelectItem
+                  key={m}
+                  value={m}
+                  className={
+                    rel === 'future'
+                      ? 'text-muted-foreground/60'
+                      : rel === 'current'
+                        ? 'text-primary font-medium'
+                        : ''
+                  }
+                >
+                  {m}
+                </SelectItem>
+              )
+            })}
+          </SelectContent>
+        </Select>
+        <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v ?? 'all')}>
+          <SelectTrigger className="h-7 w-28 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            {allCategories.map((c) => (
+              <SelectItem key={c} value={c} className="text-xs">
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterPayment} onValueChange={(v) => setFilterPayment(v ?? 'all')}>
+          <SelectTrigger className="h-7 w-28 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All payments</SelectItem>
+            {PAYMENT_METHODS.map((pm) => (
+              <SelectItem key={pm} value={pm} className="text-xs">
+                {PAYMENT_METHOD_LABELS[pm] ?? pm}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="border border-border">
@@ -212,6 +272,8 @@ export default function TransactionTable() {
               onAdd={handleQuickAdd}
               isFilteredMonth={filterMonth !== 'all'}
               onOpenDebtModal={handleOpenDebtModal}
+              defaultCategory={defaultCategory ?? undefined}
+              defaultPayment={defaultPayment ?? undefined}
             />
 
             {filtered.length === 0 && (
