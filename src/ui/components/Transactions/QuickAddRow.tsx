@@ -1,4 +1,4 @@
-import { PlusIcon } from '@phosphor-icons/react'
+import { MinusIcon, PlusIcon } from '@phosphor-icons/react'
 import React, { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,10 +11,11 @@ import {
 } from '@/components/ui/select'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { DEFAULT_CATEGORIES, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/domain/constants'
-import type { DebtConfig, PaymentMethod } from '@/domain/entities'
+import type { DebtConfig, PaymentMethod, TransactionType } from '@/domain/entities'
 import { useToast } from '@/ui/context/ToastContext'
 
 interface QuickAddRowState {
+  type: TransactionType
   date: string
   amount: string
   description: string
@@ -43,6 +44,7 @@ export default function QuickAddRow({
   onOpenDebtModal,
 }: QuickAddRowProps) {
   const [row, setRow] = React.useState<QuickAddRowState>({
+    type: 'EXPENSE',
     date: new Date().toISOString().slice(0, 10),
     amount: '',
     description: '',
@@ -83,18 +85,19 @@ export default function QuickAddRow({
       toast('Category is required', 'error')
       return
     }
-    if (!row.paymentMethod) {
-      toast('Payment method is required', 'error')
+    if (row.type === 'EXPENSE' && !row.paymentMethod) {
+      toast('Payment method is required for expenses', 'error')
       return
     }
 
     onAdd(
-      row as CompletedQuickAddRow,
+      { ...row, paymentMethod: row.paymentMethod ?? 'DEBIT' } as CompletedQuickAddRow,
       selectedRefMonth,
       debtConfig.splits.length > 0 ? debtConfig : undefined,
     )
 
     setRow({
+      type: 'EXPENSE',
       date: new Date().toISOString().slice(0, 10),
       amount: '',
       description: '',
@@ -106,6 +109,8 @@ export default function QuickAddRow({
     setDebtConfig({ userShare: 0, splits: [] })
     dateInputRef.current?.focus()
   }
+
+  const isIncome = row.type === 'INCOME'
 
   return (
     <TableRow className="bg-muted/30 hover:bg-muted/50">
@@ -131,6 +136,50 @@ export default function QuickAddRow({
           onKeyDown={handleKeyDown}
           className="h-6 text-xs"
         />
+      </TableCell>
+      <TableCell className="p-1 w-14">
+        <div className="flex border border-input rounded-none overflow-hidden">
+          <button
+            type="button"
+            className={`px-1.5 py-1 text-[11px] font-medium leading-none transition-colors ${
+              row.type === 'EXPENSE'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-transparent text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => {
+              setRow((r) => ({
+                ...r,
+                type: 'EXPENSE',
+                isDebt: false,
+                installmentTotal: 1,
+              }))
+              setDebtConfig({ userShare: 0, splits: [] })
+            }}
+          >
+            <MinusIcon className="size-2.5 inline-block mr-0.5" />
+            Exp
+          </button>
+          <button
+            type="button"
+            className={`px-1.5 py-1 text-[11px] font-medium leading-none transition-colors ${
+              row.type === 'INCOME'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-transparent text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => {
+              setRow((r) => ({
+                ...r,
+                type: 'INCOME',
+                isDebt: false,
+                installmentTotal: 1,
+              }))
+              setDebtConfig({ userShare: 0, splits: [] })
+            }}
+          >
+            <PlusIcon className="size-2.5 inline-block mr-0.5" />
+            Inc
+          </button>
+        </div>
       </TableCell>
       <TableCell className="p-1 flex-1">
         <Input
@@ -171,26 +220,28 @@ export default function QuickAddRow({
         />
       </TableCell>
       <TableCell className="p-1 w-20">
-        <Select
-          value={row.paymentMethod ?? ''}
-          onValueChange={(v) =>
-            setRow((r) => ({ ...r, paymentMethod: (v || null) as PaymentMethod | null }))
-          }
-        >
-          <SelectTrigger className="h-6 text-xs">
-            <SelectValue placeholder="Payment" />
-          </SelectTrigger>
-          <SelectContent>
-            {PAYMENT_METHODS.map((pm) => (
-              <SelectItem key={pm} value={pm} className="text-xs">
-                {PAYMENT_METHOD_LABELS[pm] ?? pm}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {!isIncome && (
+          <Select
+            value={row.paymentMethod ?? ''}
+            onValueChange={(v) =>
+              setRow((r) => ({ ...r, paymentMethod: (v || null) as PaymentMethod | null }))
+            }
+          >
+            <SelectTrigger className="h-6 text-xs">
+              <SelectValue placeholder="Payment" />
+            </SelectTrigger>
+            <SelectContent>
+              {PAYMENT_METHODS.map((pm) => (
+                <SelectItem key={pm} value={pm} className="text-xs">
+                  {PAYMENT_METHOD_LABELS[pm] ?? pm}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </TableCell>
       <TableCell className="p-1 w-16 text-center">
-        {row.paymentMethod === 'CREDIT' && (
+        {!isIncome && row.paymentMethod === 'CREDIT' && (
           <Input
             type="number"
             min="1"
@@ -208,37 +259,40 @@ export default function QuickAddRow({
         )}
       </TableCell>
       <TableCell className="p-1 w-32">
-        <div className="flex items-center gap-1">
-          <Button
-            size="xs"
-            variant={row.isDebt ? 'default' : 'outline'}
-            disabled={!row.isDebt && !(parseFloat(row.amount) > 0)}
-            onClick={() => {
-              const wasDebt = row.isDebt
-              setRow((r) => ({
-                ...r,
-                isDebt: !r.isDebt,
-                installmentTotal: r.isDebt ? 1 : r.installmentTotal,
-              }))
-              if (!wasDebt && onOpenDebtModal) {
-                const amount = parseFloat(row.amount) || 0
-                onOpenDebtModal((config) => {
-                  setDebtConfig(config)
-                  if (amount === 0) {
-                    const total = config.userShare + config.splits.reduce((s, d) => s + d.amount, 0)
-                    setRow((r) => ({ ...r, amount: String(total) }))
-                  }
-                }, amount)
-              }
-              if (wasDebt) {
-                setDebtConfig({ userShare: 0, splits: [] })
-              }
-            }}
-            title="Configure debt split"
-          >
-            Debt {debtConfig.splits.length > 0 && `(${debtConfig.splits.length})`}
-          </Button>
-        </div>
+        {!isIncome && (
+          <div className="flex items-center gap-1">
+            <Button
+              size="xs"
+              variant={row.isDebt ? 'default' : 'outline'}
+              disabled={!row.isDebt && !(parseFloat(row.amount) > 0)}
+              onClick={() => {
+                const wasDebt = row.isDebt
+                setRow((r) => ({
+                  ...r,
+                  isDebt: !r.isDebt,
+                  installmentTotal: r.isDebt ? 1 : r.installmentTotal,
+                }))
+                if (!wasDebt && onOpenDebtModal) {
+                  const amount = parseFloat(row.amount) || 0
+                  onOpenDebtModal((config) => {
+                    setDebtConfig(config)
+                    if (amount === 0) {
+                      const total =
+                        config.userShare + config.splits.reduce((s, d) => s + d.amount, 0)
+                      setRow((r) => ({ ...r, amount: String(total) }))
+                    }
+                  }, amount)
+                }
+                if (wasDebt) {
+                  setDebtConfig({ userShare: 0, splits: [] })
+                }
+              }}
+              title="Configure debt split"
+            >
+              Debt {debtConfig.splits.length > 0 && `(${debtConfig.splits.length})`}
+            </Button>
+          </div>
+        )}
       </TableCell>
       <TableCell className="p-1 text-right w-20">
         <Button size="icon-xs" onClick={handleAdd} title="Add transaction (or press Enter)">

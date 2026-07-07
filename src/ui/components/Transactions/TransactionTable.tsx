@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/table'
 import { availableMonths, generateInstallments, monthRelation } from '@/domain/calculations'
 import { PAYMENT_METHOD_LABELS } from '@/domain/constants'
-import type { DebtConfig, PaymentMethod, Transaction } from '@/domain/entities'
+import type { DebtConfig, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { formatCurrency, parseCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
 import DebtConfigModal from './DebtConfigModal'
@@ -71,6 +71,7 @@ export default function TransactionTable() {
 
   function handleQuickAdd(
     rowData: {
+      type: TransactionType
       description: string
       date: string
       amount: string
@@ -88,7 +89,7 @@ export default function TransactionTable() {
     const isDebt = rowData.isDebt || (!!debtConfig && debtConfig.splits.length > 0)
 
     const tx: Omit<Transaction, 'id'> = {
-      type: 'EXPENSE',
+      type: rowData.type,
       date: rowData.date,
       referenceMonth: refMonth,
       description: rowData.description,
@@ -187,8 +188,9 @@ export default function TransactionTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-20">Ref Month</TableHead>
+              <TableHead className="w-20">Period</TableHead>
               <TableHead className="w-20">Date</TableHead>
+              <TableHead className="w-14">Type</TableHead>
               <TableHead className="flex-1">Description</TableHead>
               <TableHead className="w-20">Category</TableHead>
               <TableHead className="text-right w-24">Amount</TableHead>
@@ -208,7 +210,7 @@ export default function TransactionTable() {
 
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground py-12">
+                <TableCell colSpan={10} className="text-center text-muted-foreground py-12">
                   No transactions yet.
                 </TableCell>
               </TableRow>
@@ -227,6 +229,13 @@ export default function TransactionTable() {
                     {tx.referenceMonth}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{tx.date}</TableCell>
+                  <TableCell className="text-xs">
+                    {tx.type === 'INCOME' ? (
+                      <span className="text-green-600 font-medium">+</span>
+                    ) : (
+                      <span className="text-red-600 font-medium">−</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="max-w-48 truncate">
                       {tx.description}

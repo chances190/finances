@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select'
 import { DEFAULT_CATEGORIES, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/domain/constants'
 
-import type { DebtConfig, PaymentMethod, Transaction } from '@/domain/entities'
+import type { DebtConfig, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { formatCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
@@ -21,6 +21,7 @@ import { useToast } from '@/ui/context/ToastContext'
 import DebtConfigModal from './DebtConfigModal'
 
 interface EditFormState {
+  type: TransactionType
   date: string
   amount: string
   description: string
@@ -45,6 +46,7 @@ export default function TransactionForm({
   const { toast } = useToast()
 
   const [form, setForm] = useState<EditFormState>({
+    type: 'EXPENSE',
     date: '',
     amount: '',
     description: '',
@@ -62,6 +64,7 @@ export default function TransactionForm({
   useEffect(() => {
     if (editTransaction) {
       setForm({
+        type: editTransaction.type,
         date: editTransaction.date,
         amount: String(editTransaction.amount),
         description: editTransaction.description,
@@ -100,13 +103,16 @@ export default function TransactionForm({
 
     if (!editTransaction) return
 
+    const isIncomeForm = form.type === 'INCOME'
+
     const updated: Transaction = {
       ...editTransaction,
+      type: form.type,
       date: form.date,
       amount,
       description: form.description,
       category: form.category,
-      paymentMethod: form.paymentMethod,
+      paymentMethod: isIncomeForm ? 'DEBIT' : form.paymentMethod,
       referenceMonth: form.referenceMonth,
       installment:
         form.installmentTotal > 1
@@ -135,6 +141,39 @@ export default function TransactionForm({
           </DialogHeader>
 
           <div className="space-y-3">
+            <div className="flex gap-1">
+              <button
+                type="button"
+                className={`flex-1 py-1.5 text-xs font-medium transition-colors border ${
+                  form.type === 'EXPENSE'
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-transparent text-muted-foreground border-input hover:text-foreground'
+                }`}
+                onClick={() => {
+                  setForm((f) => ({ ...f, type: 'EXPENSE' }))
+                  setIsDebt(false)
+                  setDebtConfig({ userShare: 0, splits: [] })
+                }}
+              >
+                Expense
+              </button>
+              <button
+                type="button"
+                className={`flex-1 py-1.5 text-xs font-medium transition-colors border ${
+                  form.type === 'INCOME'
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-transparent text-muted-foreground border-input hover:text-foreground'
+                }`}
+                onClick={() => {
+                  setForm((f) => ({ ...f, type: 'INCOME', installmentTotal: 1 }))
+                  setIsDebt(false)
+                  setDebtConfig({ userShare: 0, splits: [] })
+                }}
+              >
+                Income
+              </button>
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs">Date</Label>
@@ -183,26 +222,28 @@ export default function TransactionForm({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Payment Method</Label>
-                <Select
-                  value={form.paymentMethod}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, paymentMethod: (v ?? 'DEBIT') as PaymentMethod }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_METHODS.map((pm) => (
-                      <SelectItem key={pm} value={pm}>
-                        {PAYMENT_METHOD_LABELS[pm] ?? pm}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {form.type === 'EXPENSE' && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Payment Method</Label>
+                  <Select
+                    value={form.paymentMethod}
+                    onValueChange={(v) =>
+                      setForm((f) => ({ ...f, paymentMethod: (v ?? 'DEBIT') as PaymentMethod }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map((pm) => (
+                        <SelectItem key={pm} value={pm}>
+                          {PAYMENT_METHOD_LABELS[pm] ?? pm}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">
@@ -214,7 +255,7 @@ export default function TransactionForm({
               />
             </div>
 
-            {form.paymentMethod === 'CREDIT' && (
+            {form.type === 'EXPENSE' && form.paymentMethod === 'CREDIT' && (
               <div className="space-y-1">
                 <Label className="text-xs">Installments</Label>
                 <Input
@@ -232,7 +273,7 @@ export default function TransactionForm({
               </div>
             )}
 
-            {form.paymentMethod !== 'MEAL_VOUCHER' && (
+            {form.type === 'EXPENSE' && form.paymentMethod !== 'MEAL_VOUCHER' && (
               <div className="border-t pt-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <Button
