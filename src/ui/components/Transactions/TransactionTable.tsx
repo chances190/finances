@@ -1,9 +1,17 @@
-import { CheckCircleIcon, TrashIcon } from '@phosphor-icons/react'
+import {
+  CheckCircleIcon,
+  FunnelIcon,
+  SortAscendingIcon,
+  SortDescendingIcon,
+  TrashIcon,
+} from '@phosphor-icons/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,
   SelectContent,
@@ -21,6 +29,7 @@ import {
 } from '@/components/ui/table'
 import { availableMonths, generateInstallments, monthRelation } from '@/domain/calculations'
 import {
+  INCOME_PAYMENT_METHODS,
   PAYMENT_METHOD_BADGE_COLORS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
@@ -47,13 +56,15 @@ export default function TransactionTable() {
   const [filterMonth, setFilterMonth] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [filterCategories, setFilterCategories] = useState<string[]>([])
+  const [filterPayments, setFilterPayments] = useState<string[]>([])
+  const [sortKey, setSortKey] = useState<string | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const searchTimer = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => {
     searchTimer.current = setTimeout(() => setDebouncedSearch(searchQuery), 150)
     return () => clearTimeout(searchTimer.current)
   }, [searchQuery])
-  const [filterCategory, setFilterCategory] = useState<string>('all')
-  const [filterPayment, setFilterPayment] = useState<string>('all')
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
   const [showEditForm, setShowEditForm] = useState(false)
   const [showDebtModal, setShowDebtModal] = useState(false)
@@ -84,19 +95,60 @@ export default function TransactionTable() {
       const q = debouncedSearch.toLowerCase()
       txs = txs.filter((t) => t.description.toLowerCase().includes(q))
     }
-    if (filterCategory !== 'all') {
-      txs = txs.filter((t) => t.category === filterCategory)
+    if (filterCategories.length > 0) {
+      txs = txs.filter((t) => filterCategories.includes(t.category))
     }
-    if (filterPayment !== 'all') {
-      txs = txs.filter((t) => t.paymentMethod === filterPayment)
+    if (filterPayments.length > 0) {
+      txs = txs.filter((t) => filterPayments.includes(t.paymentMethod))
     }
-    return txs.sort((a, b) => b.date.localeCompare(a.date))
-  }, [state.transactions, filterMonth, debouncedSearch, filterCategory, filterPayment])
+    if (sortKey) {
+      txs = [...txs].sort((a, b) => {
+        const aVal = String(a[sortKey as keyof Transaction] ?? '')
+        const bVal = String(b[sortKey as keyof Transaction] ?? '')
+        const cmp = aVal.localeCompare(bVal)
+        return sortDir === 'asc' ? cmp : -cmp
+      })
+    } else {
+      txs = [...txs].sort((a, b) => b.date.localeCompare(a.date))
+    }
+    return txs
+  }, [
+    state.transactions,
+    filterMonth,
+    debouncedSearch,
+    filterCategories,
+    filterPayments,
+    sortKey,
+    sortDir,
+  ])
 
   const displayRefMonth =
     filterMonth !== 'all'
       ? filterMonth
       : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+
+  function handleSort(key: string) {
+    if (sortKey === key) {
+      if (sortDir === 'desc') {
+        setSortDir('asc')
+      } else {
+        setSortKey(null)
+        setSortDir('desc')
+      }
+    } else {
+      setSortKey(key)
+      setSortDir('desc')
+    }
+  }
+
+  const sortIndicator = (key: string) => {
+    if (sortKey !== key) return null
+    return sortDir === 'asc' ? (
+      <SortAscendingIcon className="size-3 inline ml-0.5" />
+    ) : (
+      <SortDescendingIcon className="size-3 inline ml-0.5" />
+    )
+  }
 
   function handleQuickAdd(
     rowData: {
@@ -228,45 +280,109 @@ export default function TransactionTable() {
             })}
           </SelectContent>
         </Select>
-        <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v ?? 'all')}>
-          <SelectTrigger className="h-7 w-28 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
-            {allCategories.map((c) => (
-              <SelectItem key={c} value={c} className="text-xs">
-                {c}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterPayment} onValueChange={(v) => setFilterPayment(v ?? 'all')}>
-          <SelectTrigger className="h-7 w-28 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All payments</SelectItem>
-            {PAYMENT_METHODS.map((pm) => (
-              <SelectItem key={pm} value={pm} className="text-xs">
-                {PAYMENT_METHOD_LABELS[pm] ?? pm}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover>
+          <PopoverTrigger className="group inline-flex shrink-0 items-center justify-center h-7 gap-1 rounded-none px-2 text-xs font-medium whitespace-nowrap transition-all outline-none select-none border border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3">
+            <FunnelIcon className="size-3" />
+            Category{filterCategories.length > 0 && ` (${filterCategories.length})`}
+          </PopoverTrigger>
+          <PopoverContent className="w-48 p-2">
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {allCategories.map((cat) => (
+                <span key={cat} className="flex items-center gap-2 py-1 cursor-pointer">
+                  <Checkbox
+                    id={`cat-filter-${cat}`}
+                    checked={filterCategories.includes(cat)}
+                    onCheckedChange={(checked) => {
+                      setFilterCategories(
+                        checked
+                          ? [...filterCategories, cat]
+                          : filterCategories.filter((c) => c !== cat),
+                      )
+                    }}
+                  />
+                  <span className="text-xs">{cat}</span>
+                </span>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+        <Popover>
+          <PopoverTrigger className="group inline-flex shrink-0 items-center justify-center h-7 gap-1 rounded-none px-2 text-xs font-medium whitespace-nowrap transition-all outline-none select-none border border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3">
+            <FunnelIcon className="size-3" />
+            Payment{filterPayments.length > 0 && ` (${filterPayments.length})`}
+          </PopoverTrigger>
+          <PopoverContent className="w-48 p-2">
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {[...PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS].map((pm) => {
+                const key = pm
+                return (
+                  <span key={key} className="flex items-center gap-2 py-1 cursor-pointer">
+                    <Checkbox
+                      id={`pay-filter-${key}`}
+                      checked={filterPayments.includes(key)}
+                      onCheckedChange={(checked) => {
+                        setFilterPayments(
+                          checked
+                            ? [...filterPayments, key]
+                            : filterPayments.filter((p) => p !== key),
+                        )
+                      }}
+                    />
+                    <span className="text-xs">{PAYMENT_METHOD_LABELS[key] ?? key}</span>
+                  </span>
+                )
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="border border-border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-20">Period</TableHead>
-              <TableHead className="w-20">Date</TableHead>
-              <TableHead className="w-14">Type</TableHead>
-              <TableHead className="flex-1">Description</TableHead>
-              <TableHead className="w-20">Category</TableHead>
-              <TableHead className="text-right w-24">Amount</TableHead>
-              <TableHead className="w-20">Payment</TableHead>
+              <TableHead
+                className="w-20 cursor-pointer select-none"
+                onClick={() => handleSort('referenceMonth')}
+              >
+                Period{sortIndicator('referenceMonth')}
+              </TableHead>
+              <TableHead
+                className="w-20 cursor-pointer select-none"
+                onClick={() => handleSort('date')}
+              >
+                Date{sortIndicator('date')}
+              </TableHead>
+              <TableHead
+                className="w-14 cursor-pointer select-none"
+                onClick={() => handleSort('type')}
+              >
+                Type{sortIndicator('type')}
+              </TableHead>
+              <TableHead
+                className="flex-1 cursor-pointer select-none"
+                onClick={() => handleSort('description')}
+              >
+                Description{sortIndicator('description')}
+              </TableHead>
+              <TableHead
+                className="w-20 cursor-pointer select-none"
+                onClick={() => handleSort('category')}
+              >
+                Category{sortIndicator('category')}
+              </TableHead>
+              <TableHead
+                className="text-right w-24 cursor-pointer select-none"
+                onClick={() => handleSort('amount')}
+              >
+                Amount{sortIndicator('amount')}
+              </TableHead>
+              <TableHead
+                className="w-20 cursor-pointer select-none"
+                onClick={() => handleSort('paymentMethod')}
+              >
+                Payment{sortIndicator('paymentMethod')}
+              </TableHead>
               <TableHead className="w-16 text-center">Install</TableHead>
               <TableHead className="w-32">Details</TableHead>
               <TableHead className="text-right w-20">Actions</TableHead>
