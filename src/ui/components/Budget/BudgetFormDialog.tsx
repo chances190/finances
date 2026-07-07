@@ -1,5 +1,5 @@
 import { CopyIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -75,6 +75,12 @@ export default function BudgetFormDialog({
   )
   const [newCategoryName, setNewCategoryName] = useState('')
   const [showAddCategory, setShowAddCategory] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      setForm(existingBudget ? formFromBudget(existingBudget) : emptyBudget(nextMonth))
+    }
+  }, [open, existingBudget, nextMonth])
 
   function handleClone() {
     const sourceMonth = editingMonth

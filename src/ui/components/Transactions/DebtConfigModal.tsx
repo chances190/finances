@@ -1,6 +1,6 @@
 import { LightningAIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import c from 'currency.js'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -27,6 +27,10 @@ export default function DebtConfigModal({
 }: DebtConfigModalProps) {
   const [tempConfig, setTempConfig] = useState<DebtConfig>(config)
   const { toast } = useToast()
+
+  useEffect(() => {
+    setTempConfig(config)
+  }, [config])
 
   const assignedDebtors = tempConfig.splits.reduce((s, d) => s + d.amount, 0)
   const assignedTotal = tempConfig.userShare + assignedDebtors

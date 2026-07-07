@@ -9,6 +9,7 @@ export interface InstallmentConfig {
 export interface DebtSplit {
   debtorName: string
   amount: number
+  settled?: boolean
 }
 
 export interface DebtSplitUI {

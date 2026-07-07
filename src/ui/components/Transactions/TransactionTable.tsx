@@ -136,8 +136,12 @@ export default function TransactionTable() {
     dispatch({ type: 'DELETE_TRANSACTION', payload: id })
   }
 
-  function handleSettle(id: string, currently: boolean) {
-    dispatch({ type: 'SETTLE_TRANSACTION', payload: id, settled: !currently })
+  function handleSettle(id: string, currently: boolean, debtorName?: string) {
+    if (debtorName) {
+      dispatch({ type: 'SETTLE_TRANSACTION', payload: id, debtorName })
+    } else {
+      dispatch({ type: 'SETTLE_TRANSACTION', payload: id, settled: !currently })
+    }
   }
 
   function handleEdit(tx: Transaction) {
@@ -203,73 +207,92 @@ export default function TransactionTable() {
               </TableRow>
             )}
 
-            {filtered.map((tx) => (
-              <TableRow
-                key={tx.id}
-                className={`cursor-pointer ${tx.isSettled ? 'opacity-50' : ''}`}
-                onClick={() => !tx.parentId && handleEdit(tx)}
-              >
-                <TableCell className="text-xs text-muted-foreground">{tx.referenceMonth}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">{tx.date}</TableCell>
-                <TableCell>
-                  <div className="max-w-48 truncate">
-                    {tx.description}
-                    {tx.parentId && (
-                      <span className="text-muted-foreground ml-1 text-[10px]">(installment)</span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-xs">{tx.category}</TableCell>
-                <TableCell
-                  className={`text-right font-mono text-xs ${tx.type === 'INCOME' ? 'text-green-600' : ''}`}
+            {filtered.map((tx) => {
+              const isFullSettled =
+                tx.isSettled && (tx.debtUserShare == null || tx.debtUserShare === 0)
+              return (
+                <TableRow
+                  key={tx.id}
+                  className={`cursor-pointer ${isFullSettled ? 'opacity-50' : ''}`}
+                  onClick={() => !tx.parentId && handleEdit(tx)}
                 >
-                  {formatCurrency(tx.amount)}
-                </TableCell>
-                <TableCell>
-                  <PaymentBadge method={tx.paymentMethod} />
-                </TableCell>
-                <TableCell className="text-center text-xs">
-                  {tx.installment ? (
-                    <Badge variant="outline" className="text-xs">
-                      {tx.installment.current}/{tx.installment.total}
-                    </Badge>
-                  ) : null}
-                </TableCell>
-                <TableCell>
-                  {tx.isDebt ? (
-                    <div className="text-xs space-y-0.5">
-                      {tx.debtUserShare != null && tx.debtUserShare > 0 && (
-                        <div className="text-muted-foreground">
-                          Me: {formatCurrency(tx.debtUserShare)}
-                        </div>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {tx.referenceMonth}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{tx.date}</TableCell>
+                  <TableCell>
+                    <div className="max-w-48 truncate">
+                      {tx.description}
+                      {tx.parentId && (
+                        <span className="text-muted-foreground ml-1 text-[10px]">
+                          (installment)
+                        </span>
                       )}
-                      {tx.debtSplits?.map((s) => (
-                        <div key={s.debtorName} className="text-muted-foreground">
-                          {s.debtorName}: {formatCurrency(s.amount)}
-                        </div>
-                      ))}
                     </div>
-                  ) : null}
-                </TableCell>
-                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                  <span className="flex gap-1 justify-end">
-                    {tx.isDebt && (
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => handleSettle(tx.id, tx.isSettled)}
-                        title={tx.isSettled ? 'Unsettle' : 'Settle debt'}
-                      >
-                        <CheckCircleIcon />
+                  </TableCell>
+                  <TableCell className="text-xs">{tx.category}</TableCell>
+                  <TableCell
+                    className={`text-right font-mono text-xs ${tx.type === 'INCOME' ? 'text-green-600' : ''}`}
+                  >
+                    {formatCurrency(tx.amount)}
+                  </TableCell>
+                  <TableCell>
+                    <PaymentBadge method={tx.paymentMethod} />
+                  </TableCell>
+                  <TableCell className="text-center text-xs">
+                    {tx.installment ? (
+                      <Badge variant="outline" className="text-xs">
+                        {tx.installment.current}/{tx.installment.total}
+                      </Badge>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>
+                    {tx.isDebt ? (
+                      <div className="text-xs space-y-0.5">
+                        {tx.debtUserShare != null && tx.debtUserShare > 0 && (
+                          <div className="text-muted-foreground">
+                            Me: {formatCurrency(tx.debtUserShare)}
+                          </div>
+                        )}
+                        {tx.debtSplits?.map((s) => {
+                          const splitSettled = s.settled ?? tx.isSettled
+                          return (
+                            <button
+                              key={s.debtorName}
+                              type="button"
+                              className={`block w-full text-muted-foreground hover:text-foreground text-left ${splitSettled ? 'line-through opacity-50' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleSettle(tx.id, tx.isSettled, s.debtorName)
+                              }}
+                            >
+                              {s.debtorName}: {formatCurrency(s.amount)}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <span className="flex gap-1 justify-end">
+                      {tx.isDebt && (
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => handleSettle(tx.id, tx.isSettled)}
+                          title={tx.isSettled ? 'Unsettle' : 'Settle debt'}
+                        >
+                          <CheckCircleIcon />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon-xs" onClick={() => handleDelete(tx.id)}>
+                        <TrashIcon />
                       </Button>
-                    )}
-                    <Button variant="ghost" size="icon-xs" onClick={() => handleDelete(tx.id)}>
-                      <TrashIcon />
-                    </Button>
-                  </span>
-                </TableCell>
-              </TableRow>
-            ))}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </div>

@@ -13,9 +13,9 @@ const tabs = [
   { key: 'transactions', label: 'Transactions' },
   { key: 'budgets', label: 'Budgets' },
   { key: 'debts', label: 'Debts' },
-  { key: 'history', label: 'History' },
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'yearly', label: 'Yearly' },
+  { key: 'history', label: 'History' },
 ]
 
 function PagePlaceholder({ name }: { name: string }) {

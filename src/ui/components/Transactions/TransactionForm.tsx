@@ -15,6 +15,7 @@ import { DEFAULT_CATEGORIES, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/do
 
 import type { DebtConfig, PaymentMethod, Transaction } from '@/domain/entities'
 import { formatCurrency, parseCurrency } from '@/lib/format'
+import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
 import DebtConfigModal from './DebtConfigModal'
@@ -56,12 +57,13 @@ export default function TransactionForm({
   const [isDebt, setIsDebt] = useState(false)
   const [debtConfig, setDebtConfig] = useState<DebtConfig>({ userShare: 0, splits: [] })
   const [showDebtConfig, setShowDebtConfig] = useState(false)
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
 
   useEffect(() => {
     if (editTransaction) {
       setForm({
         date: editTransaction.date,
-        amount: String(editTransaction.amount / 100),
+        amount: String(editTransaction.amount),
         description: editTransaction.description,
         category: editTransaction.category,
         paymentMethod: editTransaction.paymentMethod,
@@ -241,21 +243,21 @@ export default function TransactionForm({
                     size="xs"
                     variant={isDebt ? 'default' : 'outline'}
                     disabled={!isDebt && !(parseFloat(form.amount) > 0)}
-                    onClick={() => {
-                      setIsDebt((v) => {
-                        if (!v) {
-                          setShowDebtConfig(true)
-                        } else {
-                          setDebtConfig({ userShare: 0, splits: [] })
-                        }
-                        return !v
-                      })
-                    }}
+                    onClick={() => setShowDebtConfig(true)}
                   >
                     {isDebt
                       ? `Debt (${debtConfig.splits.length} debtor${debtConfig.splits.length !== 1 ? 's' : ''}, Me: ${formatCurrency(debtConfig.userShare)})`
                       : 'Debt'}
                   </Button>
+                  {isDebt && (
+                    <button
+                      type="button"
+                      className="text-xs text-destructive hover:text-destructive/80 underline"
+                      onClick={() => setShowRemoveConfirm(true)}
+                    >
+                      Remove debt
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -272,10 +274,34 @@ export default function TransactionForm({
 
       <DebtConfigModal
         open={showDebtConfig}
-        onOpenChange={setShowDebtConfig}
+        onOpenChange={(open) => {
+          if (!open && !isDebt && !debtConfig.splits.length && !debtConfig.userShare) {
+            // cancelled a new debt creation — nothing to worry about
+          }
+          setShowDebtConfig(open)
+        }}
         config={debtConfig}
-        onConfigChange={setDebtConfig}
+        onConfigChange={(config) => {
+          setDebtConfig(config)
+          setIsDebt(config.splits.length > 0 || config.userShare > 0)
+          setShowDebtConfig(false)
+        }}
         totalAmount={amount}
+      />
+
+      <ConfirmDialog
+        open={showRemoveConfirm}
+        onOpenChange={(o) => {
+          if (!o) setShowRemoveConfirm(false)
+        }}
+        title="Remove debt"
+        message="This will remove all debt configuration from this transaction."
+        confirmLabel="Remove"
+        onConfirm={() => {
+          setIsDebt(false)
+          setDebtConfig({ userShare: 0, splits: [] })
+          setShowRemoveConfirm(false)
+        }}
       />
     </>
   )

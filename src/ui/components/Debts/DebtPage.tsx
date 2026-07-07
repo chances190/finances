@@ -1,5 +1,5 @@
-import { CheckCircleIcon, UserIcon } from '@phosphor-icons/react'
-import { useMemo } from 'react'
+import { CheckCircleIcon, UserIcon, UsersIcon } from '@phosphor-icons/react'
+import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { activeDebts, daysSince } from '@/domain/calculations'
+import { daysSince } from '@/domain/calculations'
 import { formatCurrency } from '@/lib/format'
 import { useFinance } from '@/ui/context'
 
@@ -28,22 +28,168 @@ function DebtUrgency({ days }: { days: number }) {
   )
 }
 
+type ViewMode = 'transaction' | 'person'
+
 export default function DebtPage() {
   const { state, dispatch } = useFinance()
+  const [showSettled, setShowSettled] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>('transaction')
 
-  const debts = useMemo(() => activeDebts(state.transactions), [state.transactions])
+  const debts = useMemo(
+    () => state.transactions.filter((t) => t.isDebt && (showSettled || !t.isSettled)),
+    [state.transactions, showSettled],
+  )
 
-  function handleSettle(id: string) {
-    dispatch({ type: 'SETTLE_TRANSACTION', payload: id, settled: true })
+  const personView = useMemo(() => {
+    type PersonData = {
+      unsettledAmount: number
+      totalAmount: number
+      txCount: number
+      anySettled: boolean
+      allSettled: boolean
+    }
+    const map = new Map<string, PersonData>()
+    for (const tx of debts) {
+      const splits = tx.debtSplits?.filter((s) => s.amount > 0) ?? []
+      for (const s of splits) {
+        const settled = s.settled ?? tx.isSettled
+        let entry = map.get(s.debtorName)
+        if (!entry) {
+          entry = {
+            unsettledAmount: 0,
+            totalAmount: 0,
+            txCount: 0,
+            anySettled: false,
+            allSettled: true,
+          }
+          map.set(s.debtorName, entry)
+        }
+        entry.totalAmount += s.amount
+        entry.anySettled = entry.anySettled || settled
+        if (!settled) {
+          entry.unsettledAmount += s.amount
+          entry.allSettled = false
+        }
+      }
+      // Track unique tx count per person
+      const names = new Set(splits.map((s) => s.debtorName))
+      for (const name of names) {
+        const entry = map.get(name)
+        if (entry) entry.txCount++
+      }
+    }
+    return [...map.entries()]
+      .filter(([_, data]) => showSettled || data.unsettledAmount > 0)
+      .sort((a, b) => b[1].unsettledAmount - a[1].unsettledAmount)
+  }, [debts, showSettled])
+
+  function handleToggleSettle(id: string, settled: boolean, debtorName?: string) {
+    if (debtorName) {
+      dispatch({ type: 'SETTLE_TRANSACTION', payload: id, debtorName })
+    } else {
+      dispatch({ type: 'SETTLE_TRANSACTION', payload: id, settled: !settled })
+    }
   }
 
   return (
     <div className="space-y-4">
-      <h2 className="text-sm font-semibold">Active Debts (who owes me)</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold">
+          {showSettled ? 'All Debts' : 'Active Debts (who owes me)'}
+        </h2>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 rounded border p-0.5">
+            <button
+              type="button"
+              className={`px-2 py-0.5 text-xs rounded ${viewMode === 'transaction' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+              onClick={() => setViewMode('transaction')}
+            >
+              <UserIcon className="size-3 inline mr-1" />
+              Per-Tx
+            </button>
+            <button
+              type="button"
+              className={`px-2 py-0.5 text-xs rounded ${viewMode === 'person' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+              onClick={() => setViewMode('person')}
+            >
+              <UsersIcon className="size-3 inline mr-1" />
+              Per-Person
+            </button>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showSettled}
+              onChange={(e) => setShowSettled(e.target.checked)}
+              className="size-3.5"
+            />
+            Show settled
+          </label>
+        </div>
+      </div>
 
-      {debts.length === 0 ? (
+      {viewMode === 'person' && personView.length > 0 ? (
+        <div className="border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Person</TableHead>
+                <TableHead className="text-right">Unsettled</TableHead>
+                <TableHead className="text-right">Total Lent</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Transactions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {personView.map(([name, data]) => (
+                <TableRow key={name} className={data.allSettled ? 'opacity-50' : ''}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-1">
+                      <UserIcon className="size-3" />
+                      {name}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatCurrency(data.unsettledAmount)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-muted-foreground">
+                    {formatCurrency(data.totalAmount)}
+                  </TableCell>
+                  <TableCell>
+                    {data.allSettled ? (
+                      <Badge
+                        variant="outline"
+                        className="text-green-600 bg-green-50 dark:bg-green-900/20"
+                      >
+                        All paid
+                      </Badge>
+                    ) : data.anySettled ? (
+                      <Badge
+                        variant="outline"
+                        className="text-amber-600 bg-amber-50 dark:bg-amber-900/20"
+                      >
+                        Partial
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-red-600 bg-red-50 dark:bg-red-900/20"
+                      >
+                        Pending
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right text-xs text-muted-foreground">
+                    {data.txCount}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : debts.length === 0 ? (
         <div className="border border-border p-8 text-center text-muted-foreground text-sm">
-          No active debts.
+          No {showSettled ? 'debts' : 'active debts'}.
         </div>
       ) : (
         <div className="border border-border">
@@ -64,7 +210,7 @@ export default function DebtPage() {
                 const days = daysSince(tx.date)
                 const splits = tx.debtSplits?.filter((s) => s.amount > 0) ?? []
                 return (
-                  <TableRow key={tx.id}>
+                  <TableRow key={tx.id} className={tx.isSettled ? 'opacity-50' : ''}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-1">
                         <UserIcon className="size-3" />
@@ -76,26 +222,58 @@ export default function DebtPage() {
                       {formatCurrency(tx.amount)}
                     </TableCell>
                     <TableCell>
-                      <DebtUrgency days={days} />
+                      {tx.isSettled ? (
+                        <Badge
+                          variant="outline"
+                          className="text-green-600 bg-green-50 dark:bg-green-900/20"
+                        >
+                          Paid
+                        </Badge>
+                      ) : (
+                        <DebtUrgency days={days} />
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{tx.date}</TableCell>
                     <TableCell>
                       {splits.length > 1 ? (
                         <div className="text-xs space-y-0.5">
-                          {splits.map((s) => (
-                            <div key={s.debtorName} className="text-muted-foreground">
-                              {s.debtorName}: {formatCurrency(s.amount)}
-                            </div>
-                          ))}
+                          {splits.map((s) => {
+                            const splitSettled = s.settled ?? tx.isSettled
+                            return (
+                              <button
+                                key={s.debtorName}
+                                type="button"
+                                className={`block w-full text-muted-foreground hover:text-foreground text-left ${splitSettled ? 'line-through opacity-50' : ''}`}
+                                onClick={() =>
+                                  handleToggleSettle(tx.id, tx.isSettled, s.debtorName)
+                                }
+                              >
+                                {s.debtorName}: {formatCurrency(s.amount)}
+                              </button>
+                            )
+                          })}
                         </div>
                       ) : splits.length === 1 ? (
-                        <span className="text-xs text-muted-foreground">100%</span>
+                        <button
+                          type="button"
+                          className={`text-xs ${(splits[0].settled ?? tx.isSettled) ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}
+                          onClick={() =>
+                            handleToggleSettle(tx.id, tx.isSettled, splits[0].debtorName)
+                          }
+                        >
+                          {(splits[0].settled ?? tx.isSettled) ? 'Settled' : '100%'}
+                        </button>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon-sm" onClick={() => handleSettle(tx.id)}>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handleToggleSettle(tx.id, tx.isSettled)}
+                        title={tx.isSettled ? 'Unsettle all' : 'Settle all'}
+                      >
                         <CheckCircleIcon />
                       </Button>
                     </TableCell>

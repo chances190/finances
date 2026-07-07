@@ -24,7 +24,13 @@ export type FinanceAction =
   | { type: 'ADD_TRANSACTIONS'; payload: Transaction[]; description?: string }
   | { type: 'UPDATE_TRANSACTION'; payload: Transaction; description?: string }
   | { type: 'DELETE_TRANSACTION'; payload: string; description?: string }
-  | { type: 'SETTLE_TRANSACTION'; payload: string; settled?: boolean; description?: string }
+  | {
+      type: 'SETTLE_TRANSACTION'
+      payload: string
+      settled?: boolean
+      debtorName?: string
+      description?: string
+    }
   | { type: 'UPSERT_BUDGET'; payload: Budget; description?: string }
   | { type: 'DELETE_BUDGET'; payload: string; description?: string }
   | { type: 'SEED' }
@@ -48,7 +54,13 @@ function describeAction(action: FinanceAction): string {
     case 'SETTLE_TRANSACTION':
       return (
         action.description ??
-        (action.settled === false ? 'Unsettled transaction' : 'Settled transaction')
+        (action.debtorName
+          ? action.settled === false
+            ? `Unsettled ${action.debtorName}`
+            : `Settled ${action.debtorName}`
+          : action.settled === false
+            ? 'Unsettled transaction'
+            : 'Settled transaction')
       )
     case 'UPSERT_BUDGET':
       return action.description ?? `Saved budget for ${action.payload.referenceMonth}`
@@ -107,14 +119,32 @@ function withAudit(
     }
 
     case 'SETTLE_TRANSACTION': {
-      const settled = action.settled ?? true
-      next = {
-        ...state,
-        transactions: state.transactions.map((t) =>
-          t.parentId === action.payload || t.id === action.payload
-            ? { ...t, isSettled: settled }
-            : t,
-        ),
+      if (action.debtorName) {
+        next = {
+          ...state,
+          transactions: state.transactions.map((t) => {
+            if (t.id !== action.payload && t.parentId !== action.payload) return t
+            const splits = t.debtSplits?.map((s) =>
+              s.debtorName === action.debtorName ? { ...s, settled: !s.settled } : s,
+            )
+            const allSettled = splits?.every((s) => s.settled) ?? true
+            return { ...t, debtSplits: splits, isSettled: allSettled }
+          }),
+        }
+      } else {
+        const settled = action.settled ?? true
+        next = {
+          ...state,
+          transactions: state.transactions.map((t) =>
+            t.id === action.payload || t.parentId === action.payload
+              ? {
+                  ...t,
+                  isSettled: settled,
+                  debtSplits: t.debtSplits?.map((s) => ({ ...s, settled })) ?? t.debtSplits,
+                }
+              : t,
+          ),
+        }
       }
       break
     }
