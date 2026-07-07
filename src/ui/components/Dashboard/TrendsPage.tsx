@@ -134,21 +134,21 @@ export default function TrendsPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="rounded-xl border bg-card p-4 space-y-1">
+        <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <ArrowUp className="size-3 text-green-500" />
             Total Income
           </div>
           <div className="text-xl font-bold">{formatCurrency(yearData.totalIncome)}</div>
         </div>
-        <div className="rounded-xl border bg-card p-4 space-y-1">
+        <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <ArrowDown className="size-3 text-red-500" />
             Total Expenses
           </div>
           <div className="text-xl font-bold">{formatCurrency(yearData.totalExpenses)}</div>
         </div>
-        <div className="rounded-xl border bg-card p-4 space-y-1">
+        <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <PiggyBank className="size-3 text-blue-500" />
             Net Balance
@@ -159,7 +159,7 @@ export default function TrendsPage() {
             {formatCurrency(yearData.totalBalance)}
           </div>
         </div>
-        <div className="rounded-xl border bg-card p-4 space-y-1">
+        <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <TrendUp className="size-3 text-cyan-500" />
             Savings Rate
@@ -172,7 +172,7 @@ export default function TrendsPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-4 space-y-3">
+      <div className="border bg-card p-4 space-y-3">
         <h3 className="text-sm font-semibold">Monthly Income vs Expenses</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
@@ -220,7 +220,7 @@ export default function TrendsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-xl border bg-card p-4 space-y-3">
+        <div className="border bg-card p-4 space-y-3">
           <h3 className="text-sm font-semibold">Category Trends (6 months)</h3>
           {timeSeriesData.length === 0 || topCategories.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-xs text-muted-foreground">
@@ -271,7 +271,7 @@ export default function TrendsPage() {
           )}
         </div>
 
-        <div className="rounded-xl border bg-card p-4 space-y-3">
+        <div className="border bg-card p-4 space-y-3">
           <h3 className="text-sm font-semibold">Future Credit Commitments</h3>
           {commitmentsData.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-xs text-muted-foreground">
@@ -316,7 +316,7 @@ export default function TrendsPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-4 space-y-3">
+      <div className="border bg-card p-4 space-y-3">
         <h3 className="text-sm font-semibold">Year Budget vs Actual</h3>
         {yearlyBudgetVsActual.length === 0 ? (
           <div className="flex items-center justify-center h-48 text-xs text-muted-foreground">

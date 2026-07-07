@@ -215,21 +215,21 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="rounded-xl border bg-card p-4 space-y-1">
+        <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <TrendUp className="size-3 text-green-500" />
             Income
           </div>
           <div className="text-xl font-bold">{formatCurrency(monthData.income)}</div>
         </div>
-        <div className="rounded-xl border bg-card p-4 space-y-1">
+        <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <TrendDown className="size-3 text-red-500" />
             Expenses
           </div>
           <div className="text-xl font-bold">{formatCurrency(monthData.expenses)}</div>
         </div>
-        <div className="rounded-xl border bg-card p-4 space-y-1">
+        <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <PiggyBank className="size-3 text-blue-500" />
             Balance
@@ -240,14 +240,14 @@ export default function DashboardPage() {
             {formatCurrency(monthData.balance)}
           </div>
         </div>
-        <div className="rounded-xl border bg-card p-4 space-y-1">
+        <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <CreditCard className="size-3 text-orange-500" />
             Credit card
           </div>
           <div className="text-xl font-bold">{formatCurrency(monthData.creditInvoice)}</div>
         </div>
-        <div className="rounded-xl border bg-card p-4 space-y-1">
+        <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <ForkKnife className="size-3 text-purple-500" />
             Meal Voucher
@@ -258,7 +258,7 @@ export default function DashboardPage() {
             {formatCurrency(monthData.mealVoucher)}
           </div>
         </div>
-        <div className="rounded-xl border bg-card p-4 space-y-1">
+        <div className="border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <CurrencyDollar className="size-3 text-cyan-500" />
             Cash spent
@@ -268,7 +268,7 @@ export default function DashboardPage() {
       </div>
 
       {currentDay > 0 && dailyQuota > 0 && (
-        <div className="rounded-xl border bg-card p-4 space-y-4">
+        <div className="border bg-card p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <TrendDown className="size-4" />
@@ -444,7 +444,7 @@ export default function DashboardPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 rounded-xl border bg-card p-4 space-y-3">
+        <div className="lg:col-span-2 border bg-card p-4 space-y-3">
           <h3 className="text-sm font-semibold">Budget vs Actual</h3>
           {budgetVsActualData.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-xs text-muted-foreground">
@@ -495,7 +495,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="rounded-xl border bg-card p-4 space-y-3">
+        <div className="border bg-card p-4 space-y-3">
           <h3 className="text-sm font-semibold">Payment Methods</h3>
           {paymentMethodData.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-xs text-muted-foreground">
