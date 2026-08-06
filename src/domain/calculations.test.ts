@@ -10,6 +10,7 @@ import {
   cashExpenses,
   categoryTimeSeries,
   creditInvoice,
+  currentYM,
   daysSince,
   expensesByMonth,
   futureCommitments,
@@ -17,6 +18,7 @@ import {
   groupBudgetsByRange,
   groupedByPaymentMethod,
   incomeByMonth,
+  localYMD,
   mealVoucherBalance,
   mealVoucherExpenses,
   mealVoucherIncome,
@@ -470,5 +472,19 @@ describe('groupBudgetsByRange', () => {
     const result = groupBudgetsByRange([budget('2026-05'), budget('2026-03'), budget('2026-04')])
     expect(result).toHaveLength(1)
     expect(result[0].months).toEqual(['2026-03', '2026-04', '2026-05'])
+  })
+})
+
+describe('local date helpers', () => {
+  test('currentYM returns zero-padded local YYYY-MM', () => {
+    expect(currentYM(new Date(2026, 0, 15))).toBe('2026-01')
+    expect(currentYM(new Date(2026, 8, 5))).toBe('2026-09')
+    expect(currentYM(new Date(2026, 11, 31))).toBe('2026-12')
+  })
+
+  test('localYMD returns zero-padded local YYYY-MM-DD', () => {
+    expect(localYMD(new Date(2026, 0, 3))).toBe('2026-01-03')
+    expect(localYMD(new Date(2026, 9, 10))).toBe('2026-10-10')
+    expect(localYMD(new Date(2026, 11, 31))).toBe('2026-12-31')
   })
 })

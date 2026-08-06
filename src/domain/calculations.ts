@@ -54,9 +54,12 @@ export function availableMonths(tx: Transaction[]): string[] {
     .reverse()
 }
 
-export function currentYM(): string {
-  const d = new Date()
+export function currentYM(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+export function localYMD(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export function monthRelation(ym: string): 'past' | 'current' | 'future' {
