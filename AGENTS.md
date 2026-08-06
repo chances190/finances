@@ -5,6 +5,11 @@
 bun run typecheck
 ```
 
+## Tests
+```bash
+bun test
+```
+
 ## Lint & format
 ```bash
 bun run lint
