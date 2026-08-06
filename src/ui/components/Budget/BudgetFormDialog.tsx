@@ -258,11 +258,45 @@ export default function BudgetFormDialog({
 
             <div className="space-y-3">
               <div className="space-y-2">
-                {editingMonth ? (
+                <Label className="text-xs font-medium">Period</Label>
+                <Tabs
+                  value={isRange ? 'range' : 'single'}
+                  onValueChange={(v) => {
+                    const next = v === 'range'
+                    setIsRange(next)
+                    setRangeEnd((prev) =>
+                      next && prev <= form.referenceMonth
+                        ? addMonths(form.referenceMonth, 1)
+                        : prev,
+                    )
+                  }}
+                >
+                  <TabsList className="w-full">
+                    <TabsTrigger value="single" className="flex-1">
+                      Single month
+                    </TabsTrigger>
+                    <TabsTrigger value="range" className="flex-1">
+                      Range of months
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                {!isRange ? (
+                  <div className="space-y-1">
+                    <Label htmlFor="budget-month-from" className="text-xs">
+                      Reference Month
+                    </Label>
+                    <Input
+                      id="budget-month-from"
+                      type="month"
+                      value={form.referenceMonth}
+                      onChange={(e) => setForm((f) => ({ ...f, referenceMonth: e.target.value }))}
+                    />
+                  </div>
+                ) : (
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <Label htmlFor="budget-month-from" className="text-xs">
-                        Reference Month
+                        From
                       </Label>
                       <Input
                         id="budget-month-from"
@@ -271,104 +305,41 @@ export default function BudgetFormDialog({
                         onChange={(e) => setForm((f) => ({ ...f, referenceMonth: e.target.value }))}
                       />
                     </div>
-                    <div className="flex items-end">
-                      <Button variant="outline" size="sm" onClick={handleClone}>
-                        <CopyIcon /> Clone from prev
-                      </Button>
+                    <div className="space-y-1">
+                      <Label htmlFor="budget-month-to" className="text-xs">
+                        To
+                      </Label>
+                      <Input
+                        id="budget-month-to"
+                        type="month"
+                        value={rangeEnd}
+                        min={form.referenceMonth}
+                        onChange={(e) => setRangeEnd(e.target.value)}
+                      />
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <Label className="text-xs font-medium">Period</Label>
-                    <Tabs
-                      value={isRange ? 'range' : 'single'}
-                      onValueChange={(v) => {
-                        const next = v === 'range'
-                        setIsRange(next)
-                        setRangeEnd((prev) =>
-                          next && prev <= form.referenceMonth
-                            ? addMonths(form.referenceMonth, 1)
-                            : prev,
-                        )
-                      }}
-                    >
-                      <TabsList className="w-full">
-                        <TabsTrigger value="single" className="flex-1">
-                          Single month
-                        </TabsTrigger>
-                        <TabsTrigger value="range" className="flex-1">
-                          Range of months
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                    {!isRange ? (
-                      <div className="space-y-1">
-                        <Label htmlFor="budget-month-from" className="text-xs">
-                          Reference Month
-                        </Label>
-                        <Input
-                          id="budget-month-from"
-                          type="month"
-                          value={form.referenceMonth}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, referenceMonth: e.target.value }))
-                          }
-                        />
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <Label htmlFor="budget-month-from" className="text-xs">
-                            From
-                          </Label>
-                          <Input
-                            id="budget-month-from"
-                            type="month"
-                            value={form.referenceMonth}
-                            onChange={(e) =>
-                              setForm((f) => ({ ...f, referenceMonth: e.target.value }))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="budget-month-to" className="text-xs">
-                            To
-                          </Label>
-                          <Input
-                            id="budget-month-to"
-                            type="month"
-                            value={rangeEnd}
-                            min={form.referenceMonth}
-                            onChange={(e) => setRangeEnd(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    )}
-                    {isRange && (
-                      <div className="text-xs text-muted-foreground">
-                        {rangeEnd > form.referenceMonth ? (
-                          <span>
-                            Creating budget for{' '}
-                            <span className="font-medium text-foreground">
-                              {monthsBetween(form.referenceMonth, rangeEnd).length} months
-                            </span>{' '}
-                            ({form.referenceMonth} – {rangeEnd})
-                          </span>
-                        ) : (
-                          'Set To a later month to create budgets for a range.'
-                        )}
-                      </div>
-                    )}
-                  </>
                 )}
-              </div>
-              {!editingMonth && (
+                {isRange && (
+                  <div className="text-xs text-muted-foreground">
+                    {rangeEnd > form.referenceMonth ? (
+                      <span>
+                        {editingMonth ? 'Editing' : 'Creating'} budget for{' '}
+                        <span className="font-medium text-foreground">
+                          {monthsBetween(form.referenceMonth, rangeEnd).length} months
+                        </span>{' '}
+                        ({form.referenceMonth} – {rangeEnd})
+                      </span>
+                    ) : (
+                      'Set To a later month to create budgets for a range.'
+                    )}
+                  </div>
+                )}
                 <div className="flex">
                   <Button variant="outline" size="sm" onClick={handleClone}>
                     <CopyIcon /> Clone from prev
                   </Button>
                 </div>
-              )}
+              </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
