@@ -102,10 +102,11 @@ export default function SmartTransactionInput({
     const pmCode = paymentMethod
       ? (Object.entries(PAYMENT_METHOD_LABELS).find(
           ([, label]) => label.toLowerCase() === paymentMethod.toLowerCase(),
-        )?.[0] ?? paymentMethod.toUpperCase())
+        )?.[0] ?? null)
       : null
 
-    if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0)
+    if (paymentMethod && !pmCode) error = `Unknown payment method: "${paymentMethod}"`
+    else if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0)
       error = 'Amount must be a positive number'
     else if (!description) error = 'Description is required'
     else {
