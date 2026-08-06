@@ -35,6 +35,7 @@ import {
   budgetVsActual,
   cashExpenses,
   creditInvoice,
+  currentYM,
   expensesByMonth,
   groupedByPaymentMethod,
   incomeByMonth,
@@ -73,7 +74,7 @@ export default function DashboardPage() {
 
   const months = useMemo(() => availableMonths(state.transactions), [state.transactions])
 
-  const nowYM = new Date().toISOString().slice(0, 7)
+  const nowYM = currentYM()
   const [selectedMonth, setSelectedMonth] = useState(
     months.includes(nowYM) ? nowYM : (months[0] ?? ''),
   )

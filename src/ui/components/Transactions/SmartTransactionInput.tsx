@@ -2,6 +2,7 @@ import { PlusIcon } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { localYMD } from '@/domain/calculations'
 import {
   DEFAULT_CATEGORIES,
   INCOME_PAYMENT_METHODS,
@@ -95,7 +96,7 @@ export default function SmartTransactionInput({
     const category = parts[3] || null
     const dateText = parts[4] || null
 
-    let date = new Date().toISOString().slice(0, 10)
+    let date = localYMD()
     let error: string | null = null
 
     const pmCode = paymentMethod

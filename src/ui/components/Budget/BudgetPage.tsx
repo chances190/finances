@@ -43,10 +43,7 @@ export default function BudgetPage() {
     ? state.budgets.find((b) => b.referenceMonth === editingMonth)
     : undefined
 
-  const nextMonth =
-    sorted.length > 0
-      ? addMonths(sorted[0].referenceMonth, 1)
-      : new Date().toISOString().slice(0, 7)
+  const nextMonth = sorted.length > 0 ? addMonths(sorted[0].referenceMonth, 1) : currentYM()
 
   function handleDelete(range: BudgetRange) {
     setConfirmDeleteRange(range)
