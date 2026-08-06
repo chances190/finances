@@ -299,6 +299,7 @@ export default function TrendsPage() {
                     axisLine={false}
                     tickFormatter={(v: number) => `R$${v}`}
                     domain={commitmentsMax > 0 ? [0, commitmentsMax] : undefined}
+                    allowDataOverflow={true}
                   />
                   <Tooltip
                     contentStyle={{
