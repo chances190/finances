@@ -5,18 +5,18 @@ function isValidTransaction(value: unknown): value is Transaction {
   if (!value || typeof value !== 'object') return false
   const t = value as Record<string, unknown>
   return (
-    (typeof t.id === 'string' &&
-      typeof t.date === 'string' &&
-      typeof t.referenceMonth === 'string' &&
-      typeof t.description === 'string' &&
-      typeof t.amount === 'number' &&
-      typeof t.category === 'string' &&
-      TRANSACTION_TYPES.includes(t.type as (typeof TRANSACTION_TYPES)[number]) &&
-      PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod)) ||
-    INCOME_PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod)
+    typeof t.id === 'string' &&
+    typeof t.date === 'string' &&
+    typeof t.referenceMonth === 'string' &&
+    typeof t.description === 'string' &&
+    typeof t.amount === 'number' &&
+    typeof t.category === 'string' &&
+    TRANSACTION_TYPES.includes(t.type as (typeof TRANSACTION_TYPES)[number]) &&
+    (t.type === 'INCOME'
+      ? INCOME_PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod)
+      : PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod))
   )
 }
-
 function isValidBudget(value: unknown): value is Budget {
   if (!value || typeof value !== 'object') return false
   const b = value as Record<string, unknown>
