@@ -10,7 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { addMonths, currentYM, groupBudgetsByRange, monthRelation } from '@/domain/calculations'
+import {
+  addMonths,
+  type BudgetRange,
+  currentYM,
+  groupBudgetsByRange,
+  monthRelation,
+} from '@/domain/calculations'
 import { formatCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
@@ -20,7 +26,10 @@ export default function BudgetPage() {
   const { state, dispatch } = useFinance()
   const [showForm, setShowForm] = useState(false)
   const [editingMonth, setEditingMonth] = useState<string | null>(null)
-  const [confirmDeleteMonth, setConfirmDeleteMonth] = useState<string | null>(null)
+  const [editingRange, setEditingRange] = useState<{ startMonth: string; endMonth: string } | null>(
+    null,
+  )
+  const [confirmDeleteRange, setConfirmDeleteRange] = useState<BudgetRange | null>(null)
 
   const sorted = useMemo(
     () => [...state.budgets].sort((a, b) => b.referenceMonth.localeCompare(a.referenceMonth)),
@@ -39,8 +48,14 @@ export default function BudgetPage() {
       ? addMonths(sorted[0].referenceMonth, 1)
       : new Date().toISOString().slice(0, 7)
 
-  function handleDelete(month: string) {
-    setConfirmDeleteMonth(month)
+  function handleDelete(range: BudgetRange) {
+    setConfirmDeleteRange(range)
+  }
+
+  function openEdit(range: BudgetRange) {
+    setEditingMonth(range.startMonth)
+    setEditingRange({ startMonth: range.startMonth, endMonth: range.endMonth })
+    setShowForm(true)
   }
 
   return (
@@ -51,6 +66,7 @@ export default function BudgetPage() {
           size="sm"
           onClick={() => {
             setEditingMonth(null)
+            setEditingRange(null)
             setShowForm(true)
           }}
         >
@@ -89,10 +105,7 @@ export default function BudgetPage() {
                 <TableRow
                   key={range.startMonth}
                   className={`cursor-pointer ${rel === 'future' ? 'opacity-60' : ''}`}
-                  onClick={() => {
-                    setEditingMonth(range.startMonth)
-                    setShowForm(true)
-                  }}
+                  onClick={() => openEdit(range)}
                 >
                   <TableCell className={`font-medium ${rel === 'current' ? 'text-primary' : ''}`}>
                     {label}
@@ -129,8 +142,7 @@ export default function BudgetPage() {
                         size="icon-xs"
                         onClick={(e) => {
                           e.stopPropagation()
-                          setEditingMonth(range.startMonth)
-                          setShowForm(true)
+                          openEdit(range)
                         }}
                         aria-label="Edit budget"
                       >
@@ -141,7 +153,7 @@ export default function BudgetPage() {
                         size="icon-xs"
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleDelete(range.startMonth)
+                          handleDelete(range)
                         }}
                         aria-label="Delete budget"
                       >
@@ -160,25 +172,37 @@ export default function BudgetPage() {
         open={showForm}
         onOpenChange={(o) => {
           setShowForm(o)
-          if (!o) setEditingMonth(null)
+          if (!o) {
+            setEditingMonth(null)
+            setEditingRange(null)
+          }
         }}
         editingMonth={editingMonth}
+        editingRange={editingRange}
         existingBudget={existingBudget}
         nextMonth={nextMonth}
       />
 
       <ConfirmDialog
-        open={confirmDeleteMonth !== null}
+        open={confirmDeleteRange !== null}
         onOpenChange={(o) => {
-          if (!o) setConfirmDeleteMonth(null)
+          if (!o) setConfirmDeleteRange(null)
         }}
         title="Delete Budget"
-        message={confirmDeleteMonth ? `Delete budget for ${confirmDeleteMonth}?` : ''}
+        message={
+          confirmDeleteRange
+            ? confirmDeleteRange.months.length > 1
+              ? `Delete budget for ${confirmDeleteRange.startMonth} – ${confirmDeleteRange.endMonth}? This will remove the budget for ${confirmDeleteRange.months.length} months.`
+              : `Delete budget for ${confirmDeleteRange.startMonth}?`
+            : ''
+        }
         confirmLabel="Delete"
         onConfirm={() => {
-          if (confirmDeleteMonth) {
-            dispatch({ type: 'DELETE_BUDGET', payload: confirmDeleteMonth })
-            setConfirmDeleteMonth(null)
+          if (confirmDeleteRange) {
+            for (const month of confirmDeleteRange.months) {
+              dispatch({ type: 'DELETE_BUDGET', payload: month })
+            }
+            setConfirmDeleteRange(null)
           }
         }}
       />
