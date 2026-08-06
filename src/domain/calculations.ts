@@ -386,3 +386,40 @@ export function budgetVsActualYear(
     .map(([category, v]) => ({ category, ...v }))
     .sort((a, b) => b.actual - a.actual)
 }
+
+export interface BudgetRange {
+  startMonth: string
+  endMonth: string
+  months: string[]
+  budget: Budget
+}
+
+function sameBudget(a: Budget, b: Budget): boolean {
+  if (a.plannedIncome !== b.plannedIncome || a.plannedMealVoucher !== b.plannedMealVoucher) {
+    return false
+  }
+  const aKeys = Object.keys(a.categoryLimits).sort()
+  const bKeys = Object.keys(b.categoryLimits).sort()
+  if (aKeys.length !== bKeys.length) return false
+  return aKeys.every((k, i) => bKeys[i] === k && a.categoryLimits[k] === b.categoryLimits[k])
+}
+
+export function groupBudgetsByRange(budgets: Budget[]): BudgetRange[] {
+  const sorted = [...budgets].sort((a, b) => a.referenceMonth.localeCompare(b.referenceMonth))
+  const ranges: BudgetRange[] = []
+  for (const b of sorted) {
+    const last = ranges[ranges.length - 1]
+    if (last && addMonths(last.endMonth, 1) === b.referenceMonth && sameBudget(last.budget, b)) {
+      last.endMonth = b.referenceMonth
+      last.months.push(b.referenceMonth)
+    } else {
+      ranges.push({
+        startMonth: b.referenceMonth,
+        endMonth: b.referenceMonth,
+        months: [b.referenceMonth],
+        budget: b,
+      })
+    }
+  }
+  return ranges
+}

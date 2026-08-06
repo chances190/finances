@@ -14,6 +14,7 @@ import {
   expensesByMonth,
   futureCommitments,
   generateInstallments,
+  groupBudgetsByRange,
   groupedByPaymentMethod,
   incomeByMonth,
   mealVoucherBalance,
@@ -406,5 +407,59 @@ describe('daysSince', () => {
   })
   test('past dates return positive', () => {
     expect(daysSince('2026-01-01')).toBeGreaterThanOrEqual(0)
+  })
+})
+
+function budget(month: string, income = 5000, limits: Record<string, number> = { Food: 1000 }): Budget {
+  return { referenceMonth: month, plannedIncome: income, plannedMealVoucher: 0, categoryLimits: limits }
+}
+
+describe('groupBudgetsByRange', () => {
+  test('returns empty for no budgets', () => {
+    expect(groupBudgetsByRange([])).toEqual([])
+  })
+
+  test('single budget is a one-month range', () => {
+    const result = groupBudgetsByRange([budget('2026-03')])
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({
+      startMonth: '2026-03',
+      endMonth: '2026-03',
+      months: ['2026-03'],
+    })
+  })
+
+  test('consecutive equal budgets collapse into one range', () => {
+    const result = groupBudgetsByRange([budget('2026-03'), budget('2026-04'), budget('2026-05')])
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({
+      startMonth: '2026-03',
+      endMonth: '2026-05',
+      months: ['2026-03', '2026-04', '2026-05'],
+    })
+  })
+
+  test('equal budgets with a gap form separate ranges', () => {
+    const result = groupBudgetsByRange([budget('2026-03'), budget('2026-04'), budget('2026-06')])
+    expect(result).toHaveLength(2)
+    expect(result[0]).toMatchObject({ startMonth: '2026-03', endMonth: '2026-04' })
+    expect(result[1]).toMatchObject({ startMonth: '2026-06', endMonth: '2026-06' })
+  })
+
+  test('consecutive months with different values form separate ranges', () => {
+    const result = groupBudgetsByRange([budget('2026-03', 5000), budget('2026-04', 6000)])
+    expect(result).toHaveLength(2)
+  })
+
+  test('equality ignores categoryLimits key insertion order', () => {
+    const a = budget('2026-03', 5000, { Food: 1000, Rent: 2000 })
+    const b = budget('2026-04', 5000, { Rent: 2000, Food: 1000 })
+    expect(groupBudgetsByRange([a, b])).toHaveLength(1)
+  })
+
+  test('sorts unordered input before grouping', () => {
+    const result = groupBudgetsByRange([budget('2026-05'), budget('2026-03'), budget('2026-04')])
+    expect(result).toHaveLength(1)
+    expect(result[0].months).toEqual(['2026-03', '2026-04', '2026-05'])
   })
 })
