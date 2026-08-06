@@ -54,7 +54,7 @@ export function availableMonths(tx: Transaction[]): string[] {
     .reverse()
 }
 
-function currentYM(): string {
+export function currentYM(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }

@@ -410,8 +410,17 @@ describe('daysSince', () => {
   })
 })
 
-function budget(month: string, income = 5000, limits: Record<string, number> = { Food: 1000 }): Budget {
-  return { referenceMonth: month, plannedIncome: income, plannedMealVoucher: 0, categoryLimits: limits }
+function budget(
+  month: string,
+  income = 5000,
+  limits: Record<string, number> = { Food: 1000 },
+): Budget {
+  return {
+    referenceMonth: month,
+    plannedIncome: income,
+    plannedMealVoucher: 0,
+    categoryLimits: limits,
+  }
 }
 
 describe('groupBudgetsByRange', () => {

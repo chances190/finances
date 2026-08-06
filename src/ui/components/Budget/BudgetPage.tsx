@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { addMonths, monthRelation } from '@/domain/calculations'
+import { addMonths, currentYM, groupBudgetsByRange, monthRelation } from '@/domain/calculations'
 import { formatCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
@@ -26,6 +26,9 @@ export default function BudgetPage() {
     () => [...state.budgets].sort((a, b) => b.referenceMonth.localeCompare(a.referenceMonth)),
     [state.budgets],
   )
+
+  const currentMonth = currentYM()
+  const ranges = useMemo(() => groupBudgetsByRange(state.budgets).reverse(), [state.budgets])
 
   const existingBudget = editingMonth
     ? state.budgets.find((b) => b.referenceMonth === editingMonth)
@@ -59,7 +62,7 @@ export default function BudgetPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Month</TableHead>
+              <TableHead>Period</TableHead>
               <TableHead className="text-right">Planned Income</TableHead>
               <TableHead className="text-right">Meal Voucher</TableHead>
               <TableHead>Categories</TableHead>
@@ -67,26 +70,37 @@ export default function BudgetPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sorted.length === 0 && (
+            {ranges.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                   No budgets yet. Create one to start planning.
                 </TableCell>
               </TableRow>
             )}
-            {sorted.map((b) => {
-              const rel = monthRelation(b.referenceMonth)
+            {ranges.map((range) => {
+              const label =
+                range.months.length > 1
+                  ? `${range.startMonth} – ${range.endMonth}`
+                  : range.startMonth
+              const rel = range.months.includes(currentMonth)
+                ? 'current'
+                : monthRelation(range.startMonth)
               return (
                 <TableRow
-                  key={b.referenceMonth}
+                  key={range.startMonth}
                   className={`cursor-pointer ${rel === 'future' ? 'opacity-60' : ''}`}
                   onClick={() => {
-                    setEditingMonth(b.referenceMonth)
+                    setEditingMonth(range.startMonth)
                     setShowForm(true)
                   }}
                 >
                   <TableCell className={`font-medium ${rel === 'current' ? 'text-primary' : ''}`}>
-                    {b.referenceMonth}
+                    {label}
+                    {range.months.length > 1 && (
+                      <span className="ml-2 text-[10px] text-muted-foreground">
+                        · {range.months.length} months
+                      </span>
+                    )}
                     {rel === 'current' && (
                       <Badge variant="outline" className="ml-2 text-[10px]">
                         Current
@@ -94,14 +108,14 @@ export default function BudgetPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {formatCurrency(b.plannedIncome)}
+                    {formatCurrency(range.budget.plannedIncome)}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {formatCurrency(b.plannedMealVoucher)}
+                    {formatCurrency(range.budget.plannedMealVoucher)}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {Object.entries(b.categoryLimits).map(([cat, val]) => (
+                      {Object.entries(range.budget.categoryLimits).map(([cat, val]) => (
                         <span key={cat} className="text-xs bg-muted px-1.5 py-0.5">
                           {cat}: {formatCurrency(val)}
                         </span>
@@ -115,7 +129,7 @@ export default function BudgetPage() {
                         size="icon-xs"
                         onClick={(e) => {
                           e.stopPropagation()
-                          setEditingMonth(b.referenceMonth)
+                          setEditingMonth(range.startMonth)
                           setShowForm(true)
                         }}
                         aria-label="Edit budget"
@@ -127,7 +141,7 @@ export default function BudgetPage() {
                         size="icon-xs"
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleDelete(b.referenceMonth)
+                          handleDelete(range.startMonth)
                         }}
                         aria-label="Delete budget"
                       >
