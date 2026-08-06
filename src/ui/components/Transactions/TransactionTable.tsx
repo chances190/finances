@@ -27,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { availableMonths, monthRelation } from '@/domain/calculations'
+import { availableMonths, compareTransactions, monthRelation } from '@/domain/calculations'
 import {
   INCOME_PAYMENT_METHODS,
   PAYMENT_METHOD_BADGE_COLORS,
@@ -104,12 +104,9 @@ export default function TransactionTable() {
       txs = txs.filter((t) => filterPayments.includes(t.paymentMethod))
     }
     if (sortKey) {
-      txs = [...txs].sort((a, b) => {
-        const aVal = String(a[sortKey as keyof Transaction] ?? '')
-        const bVal = String(b[sortKey as keyof Transaction] ?? '')
-        const cmp = aVal.localeCompare(bVal)
-        return sortDir === 'asc' ? cmp : -cmp
-      })
+      txs = [...txs].sort((a, b) =>
+        compareTransactions(a, b, sortKey as keyof Transaction, sortDir),
+      )
     } else {
       txs = [...txs].sort((a, b) => b.date.localeCompare(a.date))
     }

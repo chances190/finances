@@ -9,6 +9,7 @@ import {
   byMonth,
   cashExpenses,
   categoryTimeSeries,
+  compareTransactions,
   creditInvoice,
   currentYM,
   daysSince,
@@ -486,5 +487,63 @@ describe('local date helpers', () => {
     expect(localYMD(new Date(2026, 0, 3))).toBe('2026-01-03')
     expect(localYMD(new Date(2026, 9, 10))).toBe('2026-10-10')
     expect(localYMD(new Date(2026, 11, 31))).toBe('2026-12-31')
+  })
+})
+
+describe('compareTransactions', () => {
+  test('sorts amounts numerically ascending', () => {
+    expect(
+      compareTransactions(
+        tx({ id: '1', amount: 9 }),
+        tx({ id: '2', amount: 1000 }),
+        'amount',
+        'asc',
+      ),
+    ).toBeLessThan(0)
+    expect(
+      compareTransactions(
+        tx({ id: '1', amount: 1000 }),
+        tx({ id: '2', amount: 9 }),
+        'amount',
+        'asc',
+      ),
+    ).toBeGreaterThan(0)
+    expect(
+      compareTransactions(
+        tx({ id: '1', amount: 500 }),
+        tx({ id: '2', amount: 500 }),
+        'amount',
+        'asc',
+      ),
+    ).toBe(0)
+  })
+
+  test('reverses numeric order for desc', () => {
+    expect(
+      compareTransactions(
+        tx({ id: '1', amount: 9 }),
+        tx({ id: '2', amount: 1000 }),
+        'amount',
+        'desc',
+      ),
+    ).toBeGreaterThan(0)
+  })
+
+  test('compares string fields lexicographically', () => {
+    const a = tx({ id: '1', description: 'Apple' })
+    const b = tx({ id: '2', description: 'Banana' })
+    expect(compareTransactions(a, b, 'description', 'asc')).toBeLessThan(0)
+    expect(compareTransactions(a, b, 'description', 'desc')).toBeGreaterThan(0)
+  })
+
+  test('sorts dates chronologically by string comparison', () => {
+    expect(
+      compareTransactions(
+        tx({ id: '1', date: '2026-01-01' }),
+        tx({ id: '2', date: '2026-12-31' }),
+        'date',
+        'asc',
+      ),
+    ).toBeLessThan(0)
   })
 })

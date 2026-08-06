@@ -2,6 +2,19 @@ import c from 'currency.js'
 import { DAYS_IN_MONTH, SES_ALPHA } from './constants'
 import type { Budget, Transaction } from './entities'
 
+export function compareTransactions(
+  a: Transaction,
+  b: Transaction,
+  key: keyof Transaction,
+  dir: 'asc' | 'desc',
+): number {
+  const cmp =
+    key === 'amount'
+      ? a.amount - b.amount
+      : String(a[key] ?? '').localeCompare(String(b[key] ?? ''))
+  return dir === 'asc' ? cmp : -cmp
+}
+
 export function generateInstallments(
   tx: Omit<Transaction, 'id'>,
   total: number,
