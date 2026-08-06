@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { currentYM, localYMD } from '@/domain/calculations'
 import {
   DEFAULT_CATEGORIES,
   INCOME_PAYMENT_METHODS,
@@ -92,8 +93,21 @@ export default function TransactionForm({
       } else {
         setDebtConfig({ userShare: 0, splits: [] })
       }
+    } else if (open) {
+      setForm({
+        type: 'EXPENSE',
+        date: localYMD(),
+        amount: '',
+        description: '',
+        category: 'Other',
+        paymentMethod: 'DEBIT',
+        referenceMonth: currentYM(),
+        installmentTotal: 1,
+      })
+      setIsDebt(false)
+      setDebtConfig({ userShare: 0, splits: [] })
     }
-  }, [editTransaction])
+  }, [editTransaction, open])
 
   function handleSave() {
     const amount = parseCurrency(form.amount)
@@ -106,7 +120,32 @@ export default function TransactionForm({
       return
     }
 
-    if (!editTransaction) return
+    if (!editTransaction) {
+      const created: Transaction = {
+        id: uuid(),
+        type: form.type,
+        date: form.date,
+        referenceMonth: form.referenceMonth,
+        description: form.description,
+        amount,
+        category: form.category,
+        paymentMethod: form.paymentMethod,
+        installment:
+          form.installmentTotal > 1 ? { current: 1, total: form.installmentTotal } : undefined,
+        isDebt,
+        debtUserShare: isDebt ? debtConfig.userShare : undefined,
+        debtSplits:
+          isDebt && debtConfig.splits.length > 0
+            ? debtConfig.splits.map((s) => ({ debtorName: s.name, amount: s.amount }))
+            : undefined,
+        isSettled: false,
+      }
+
+      dispatch({ type: 'ADD_TRANSACTIONS', payload: [created] })
+      toast('Transaction added', 'success')
+      onOpenChange(false)
+      return
+    }
 
     const updated: Transaction = {
       ...editTransaction,
@@ -140,7 +179,7 @@ export default function TransactionForm({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Transaction</DialogTitle>
+            <DialogTitle>{editTransaction ? 'Edit Transaction' : 'Add Transaction'}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3">
