@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test'
 import {
-  activeDebts,
   addMonths,
   balance,
   budgetVsActual,
@@ -15,7 +14,6 @@ import {
   daysSince,
   expensesByMonth,
   futureCommitments,
-  generateInstallments,
   groupBudgetsByRange,
   groupedByPaymentMethod,
   incomeByMonth,
@@ -24,7 +22,6 @@ import {
   mealVoucherExpenses,
   mealVoucherIncome,
   monthDiff,
-  outstandingDebt,
   parseDate,
   ses,
   spendingPace,
@@ -72,51 +69,6 @@ describe('parseDate', () => {
     const ts = parseDate('2026-07-15')
     expect(typeof ts).toBe('number')
     expect(ts).toBeGreaterThan(0)
-  })
-})
-
-describe('generateInstallments', () => {
-  const base: Omit<Transaction, 'id'> = {
-    type: 'EXPENSE',
-    date: '2026-07-15',
-    referenceMonth: '2026-07',
-    description: 'Test',
-    amount: 1200,
-    category: 'Shopping',
-    paymentMethod: 'CREDIT',
-    isDebt: false,
-    isSettled: false,
-  }
-
-  test('generates correct number of installments', () => {
-    const result = generateInstallments(base, 12, 'group-1')
-    expect(result).toHaveLength(12)
-  })
-
-  test('first installment gets reference month from tx', () => {
-    const result = generateInstallments(base, 3, 'group-1')
-    expect(result[0].referenceMonth).toBe('2026-07')
-  })
-
-  test('subsequent months increment correctly', () => {
-    const result = generateInstallments(base, 3, 'group-1')
-    expect(result[1].referenceMonth).toBe('2026-08')
-    expect(result[2].referenceMonth).toBe('2026-09')
-  })
-
-  test('amounts distributed correctly with remainder on last', () => {
-    const result = generateInstallments({ ...base, amount: 100 }, 3, 'g')
-    expect(result[0].amount).toBeCloseTo(33.33)
-    expect(result[1].amount).toBeCloseTo(33.33)
-    expect(result[2].amount).toBeCloseTo(33.34)
-  })
-
-  test('all installments have groupId and parentId', () => {
-    const result = generateInstallments(base, 3, 'group-1')
-    for (const inst of result) {
-      expect(inst.groupId).toBe('group-1')
-      expect(inst.parentId).toBe('group-1')
-    }
   })
 })
 
@@ -265,20 +217,6 @@ describe('mealVoucherBalance', () => {
 describe('creditInvoice', () => {
   test('sums CREDIT expenses', () => {
     expect(creditInvoice(sampleTransactions, '2026-07')).toBe(150)
-  })
-})
-
-describe('activeDebts', () => {
-  test('returns unsettled debt transactions', () => {
-    const debts = activeDebts(sampleTransactions)
-    expect(debts).toHaveLength(1)
-    expect(debts[0].id).toBe('7')
-  })
-})
-
-describe('outstandingDebt', () => {
-  test('sums unsettled debt amounts', () => {
-    expect(outstandingDebt(sampleTransactions)).toBe(80)
   })
 })
 

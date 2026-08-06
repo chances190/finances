@@ -1,4 +1,3 @@
-import c from 'currency.js'
 import { DAYS_IN_MONTH, SES_ALPHA } from './constants'
 import type { Budget, Transaction } from './entities'
 
@@ -13,32 +12,6 @@ export function compareTransactions(
       ? a.amount - b.amount
       : String(a[key] ?? '').localeCompare(String(b[key] ?? ''))
   return dir === 'asc' ? cmp : -cmp
-}
-
-export function generateInstallments(
-  tx: Omit<Transaction, 'id'>,
-  total: number,
-  groupId: string,
-): Array<Omit<Transaction, 'id'>> {
-  const perInstallment = c(tx.amount || 0).divide(total).value
-  const result: Array<Omit<Transaction, 'id'>> = []
-
-  for (let i = 1; i <= total; i++) {
-    result.push({
-      ...tx,
-      referenceMonth: i === 1 ? tx.referenceMonth : addMonths(tx.referenceMonth, i - 1),
-      description: `${tx.description} - ${i}/${total}`,
-      amount: i === total ? (tx.amount || 0) - perInstallment * (total - 1) : perInstallment,
-      type: 'EXPENSE',
-      installment: { current: i, total },
-      groupId,
-      parentId: groupId,
-      isDebt: false,
-      isSettled: false,
-    })
-  }
-
-  return result
 }
 
 export function addMonths(ym: string, n: number): string {
@@ -161,14 +134,6 @@ export function creditInvoice(tx: Transaction[], refMonth: string): number {
   return byMonth(tx, refMonth)
     .filter((t) => t.paymentMethod === 'CREDIT')
     .reduce((s, t) => s + t.amount, 0)
-}
-
-export function activeDebts(tx: Transaction[]): Transaction[] {
-  return tx.filter((t) => t.isDebt && !t.isSettled)
-}
-
-export function outstandingDebt(tx: Transaction[]): number {
-  return activeDebts(tx).reduce((s, t) => s + t.amount, 0)
 }
 
 export function ses(expenses: number[]): number[] {
