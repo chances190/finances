@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { Transaction } from '../domain/entities'
-import { importCSV } from './exportImport'
+import { importCSV, importJSON } from './exportImport'
 
 describe('importCSV', () => {
   test('parses a valid CSV', () => {
@@ -42,5 +42,37 @@ ${tx.date},${tx.type},${tx.amount},${tx.category},${tx.paymentMethod},${tx.descr
     expect(result).toHaveLength(1)
     expect(result[0].amount).toBe(tx.amount)
     expect(result[0].description).toBe(tx.description)
+  })
+})
+
+describe('importJSON', () => {
+  test('round-trips transactions and budgets from an exported file', () => {
+    const data = {
+      transactions: [
+        {
+          id: 'tx-1',
+          type: 'EXPENSE',
+          date: '2026-07-01',
+          referenceMonth: '2026-07',
+          description: 'Groceries',
+          amount: 120.5,
+          category: 'Food',
+          paymentMethod: 'DEBIT',
+          isDebt: false,
+          isSettled: false,
+        },
+      ],
+      budgets: [
+        {
+          referenceMonth: '2026-07',
+          plannedIncome: 5000,
+          plannedMealVoucher: 500,
+          categoryLimits: { Food: 1000 },
+        },
+      ],
+    }
+    const result = importJSON(JSON.stringify(data))
+    expect(result.transactions).toEqual(data.transactions)
+    expect(result.budgets).toEqual(data.budgets)
   })
 })

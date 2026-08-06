@@ -18,13 +18,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { importCSV, importJSON } from '@/data/exportImport'
-import type { Transaction } from '@/domain/entities'
+import type { Budget, Transaction } from '@/domain/entities'
 import { formatCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
 
 type PreviewData = {
   type: 'json' | 'csv'
   transactions: Transaction[]
+  budgets: Budget[]
   filename: string
 }
 
@@ -57,10 +58,15 @@ export default function CSVImportDialog({
         const content = reader.result as string
         if (file.name.endsWith('.json')) {
           const data = importJSON(content)
-          setPreview({ type: 'json', transactions: data.transactions, filename: file.name })
+          setPreview({
+            type: 'json',
+            transactions: data.transactions,
+            budgets: data.budgets,
+            filename: file.name,
+          })
         } else if (file.name.endsWith('.csv')) {
           const txs = importCSV(content)
-          setPreview({ type: 'csv', transactions: txs, filename: file.name })
+          setPreview({ type: 'csv', transactions: txs, budgets: [], filename: file.name })
         } else {
           setError('Unsupported file format. Use .json or .csv')
         }
@@ -84,6 +90,9 @@ export default function CSVImportDialog({
       type: 'ADD_TRANSACTIONS',
       payload: preview.transactions.map((t) => ({ ...t, id: t.id || uuid() })),
     })
+    for (const budget of preview.budgets) {
+      dispatch({ type: 'UPSERT_BUDGET', payload: budget })
+    }
     setPreview(null)
     onOpenChange(false)
   }
@@ -149,7 +158,8 @@ export default function CSVImportDialog({
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
               {preview.filename} — {preview.transactions.length} transaction
-              {preview.transactions.length !== 1 ? 's' : ''} found
+              {preview.transactions.length !== 1 ? 's' : ''} and {preview.budgets.length} budget
+              {preview.budgets.length !== 1 ? 's' : ''} found
             </p>
             <div className="max-h-60 overflow-y-auto border border-border">
               <Table>
