@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { addMonths } from '@/domain/calculations'
+import { addMonths, monthRelation } from '@/domain/calculations'
 import { formatCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
@@ -74,67 +74,70 @@ export default function BudgetPage() {
                 </TableCell>
               </TableRow>
             )}
-            {sorted.map((b) => (
-              <TableRow
-                key={b.referenceMonth}
-                className="cursor-pointer"
-                onClick={() => {
-                  setEditingMonth(b.referenceMonth)
-                  setShowForm(true)
-                }}
-              >
-                <TableCell className="font-medium">
-                  {b.referenceMonth}
-                  {b.referenceMonth === new Date().toISOString().slice(0, 7) && (
-                    <Badge variant="outline" className="ml-2 text-[10px]">
-                      Current
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {formatCurrency(b.plannedIncome)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {formatCurrency(b.plannedMealVoucher)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {Object.entries(b.categoryLimits).map(([cat, val]) => (
-                      <span key={cat} className="text-xs bg-muted px-1.5 py-0.5">
-                        {cat}: {formatCurrency(val)}
-                      </span>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex gap-1 justify-end">
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditingMonth(b.referenceMonth)
-                        setShowForm(true)
-                      }}
-                      aria-label="Edit budget"
-                    >
-                      <PencilSimpleIcon />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDelete(b.referenceMonth)
-                      }}
-                      aria-label="Delete budget"
-                    >
-                      <TrashIcon />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+            {sorted.map((b) => {
+              const rel = monthRelation(b.referenceMonth)
+              return (
+                <TableRow
+                  key={b.referenceMonth}
+                  className={`cursor-pointer ${rel === 'future' ? 'opacity-60' : ''}`}
+                  onClick={() => {
+                    setEditingMonth(b.referenceMonth)
+                    setShowForm(true)
+                  }}
+                >
+                  <TableCell className={`font-medium ${rel === 'current' ? 'text-primary' : ''}`}>
+                    {b.referenceMonth}
+                    {rel === 'current' && (
+                      <Badge variant="outline" className="ml-2 text-[10px]">
+                        Current
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatCurrency(b.plannedIncome)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatCurrency(b.plannedMealVoucher)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {Object.entries(b.categoryLimits).map(([cat, val]) => (
+                        <span key={cat} className="text-xs bg-muted px-1.5 py-0.5">
+                          {cat}: {formatCurrency(val)}
+                        </span>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex gap-1 justify-end">
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEditingMonth(b.referenceMonth)
+                          setShowForm(true)
+                        }}
+                        aria-label="Edit budget"
+                      >
+                        <PencilSimpleIcon />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(b.referenceMonth)
+                        }}
+                        aria-label="Delete budget"
+                      >
+                        <TrashIcon />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </div>

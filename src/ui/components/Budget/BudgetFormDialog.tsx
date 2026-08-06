@@ -42,14 +42,31 @@ function toBudget(data: BudgetFormData): BudgetType {
 }
 
 function formFromBudget(b: Budget): BudgetFormData {
+  const limits: Record<string, string> = {}
+  for (const cat of DEFAULT_CATEGORIES) {
+    limits[cat] = b.categoryLimits[cat] !== undefined ? String(b.categoryLimits[cat]) : ''
+  }
+  for (const [k, v] of Object.entries(b.categoryLimits)) {
+    if (!(DEFAULT_CATEGORIES as readonly string[]).includes(k)) {
+      limits[k] = String(v)
+    }
+  }
   return {
     referenceMonth: b.referenceMonth,
     plannedIncome: String(b.plannedIncome),
     plannedMealVoucher: String(b.plannedMealVoucher),
-    categoryLimits: Object.fromEntries(
-      Object.entries(b.categoryLimits).map(([k, v]) => [k, String(v)]),
-    ),
+    categoryLimits: limits,
   }
+}
+
+function monthsBetween(start: string, end: string): string[] {
+  const result: string[] = []
+  let current = start
+  while (current <= end) {
+    result.push(current)
+    current = addMonths(current, 1)
+  }
+  return result
 }
 
 interface BudgetFormDialogProps {
@@ -67,12 +84,13 @@ export default function BudgetFormDialog({
   existingBudget,
   nextMonth,
 }: BudgetFormDialogProps) {
-  const { dispatch } = useFinance()
+  const { dispatch, state } = useFinance()
   const { toast } = useToast()
 
   const [form, setForm] = useState<BudgetFormData>(
     existingBudget ? formFromBudget(existingBudget) : emptyBudget(nextMonth),
   )
+  const [rangeEnd, setRangeEnd] = useState(nextMonth)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [showAllCategories, setShowAllCategories] = useState(false)
@@ -80,6 +98,7 @@ export default function BudgetFormDialog({
   useEffect(() => {
     if (open) {
       setForm(existingBudget ? formFromBudget(existingBudget) : emptyBudget(nextMonth))
+      setRangeEnd(nextMonth)
     }
   }, [open, existingBudget, nextMonth])
 
@@ -87,8 +106,7 @@ export default function BudgetFormDialog({
     const sourceMonth = editingMonth
       ? addMonths(editingMonth, -1)
       : addMonths(form.referenceMonth, -1)
-    const budgets = existingBudget ? [existingBudget] : []
-    const source = budgets.find((b) => b.referenceMonth === sourceMonth)
+    const source = state.budgets.find((b) => b.referenceMonth === sourceMonth)
     if (!source) {
       toast(`No budget found for ${sourceMonth}`, 'error')
       return
@@ -97,7 +115,28 @@ export default function BudgetFormDialog({
   }
 
   function handleSave() {
-    dispatch({ type: 'UPSERT_BUDGET', payload: toBudget(form) })
+    const budget = toBudget(form)
+    if (
+      budget.plannedIncome === 0 &&
+      budget.plannedMealVoucher === 0 &&
+      Object.keys(budget.categoryLimits).length === 0
+    ) {
+      toast('Budget has no values — set at least one limit or income.', 'error')
+      return
+    }
+    const months =
+      !editingMonth && rangeEnd > form.referenceMonth
+        ? monthsBetween(form.referenceMonth, rangeEnd)
+        : [form.referenceMonth]
+
+    for (const month of months) {
+      dispatch({ type: 'UPSERT_BUDGET', payload: { ...budget, referenceMonth: month } })
+    }
+
+    if (editingMonth && !months.includes(editingMonth)) {
+      dispatch({ type: 'DELETE_BUDGET', payload: editingMonth })
+    }
+
     onOpenChange(false)
   }
 
@@ -125,22 +164,45 @@ export default function BudgetFormDialog({
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label htmlFor="budget-month" className="text-xs">
-                Reference Month
+              <Label htmlFor="budget-month-from" className="text-xs">
+                {editingMonth ? 'Reference Month' : 'From'}
               </Label>
               <Input
-                id="budget-month"
+                id="budget-month-from"
                 type="month"
                 value={form.referenceMonth}
                 onChange={(e) => setForm((f) => ({ ...f, referenceMonth: e.target.value }))}
               />
             </div>
-            <div className="flex items-end">
+            {!editingMonth && (
+              <div className="space-y-1">
+                <Label htmlFor="budget-month-to" className="text-xs">
+                  To
+                </Label>
+                <Input
+                  id="budget-month-to"
+                  type="month"
+                  value={rangeEnd}
+                  min={form.referenceMonth}
+                  onChange={(e) => setRangeEnd(e.target.value)}
+                />
+              </div>
+            )}
+            {editingMonth && (
+              <div className="flex items-end">
+                <Button variant="outline" size="sm" onClick={handleClone}>
+                  <CopyIcon /> Clone from prev
+                </Button>
+              </div>
+            )}
+          </div>
+          {!editingMonth && (
+            <div className="flex">
               <Button variant="outline" size="sm" onClick={handleClone}>
                 <CopyIcon /> Clone from prev
               </Button>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
@@ -170,6 +232,14 @@ export default function BudgetFormDialog({
               />
             </div>
           </div>
+
+          {!editingMonth && (
+            <div className="text-xs text-muted-foreground">
+              {rangeEnd > form.referenceMonth
+                ? `Budget will be created for ${monthsBetween(form.referenceMonth, rangeEnd).length} month(s).`
+                : 'Set To a later month to create budgets for a range.'}
+            </div>
+          )}
 
           <div>
             <div className="flex items-center justify-between mb-2">
