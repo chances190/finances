@@ -28,6 +28,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { availableMonths, compareTransactions, monthRelation } from '@/domain/calculations'
+import { getAllCategories } from '@/domain/categories'
 import {
   INCOME_PAYMENT_METHODS,
   PAYMENT_METHOD_BADGE_COLORS,
@@ -82,11 +83,10 @@ export default function TransactionTable() {
     return Array.from(descs).sort()
   }, [state.transactions])
 
-  const allCategories = useMemo(() => {
-    const cats = new Set<string>()
-    for (const t of state.transactions) cats.add(t.category)
-    return Array.from(cats).sort()
-  }, [state.transactions])
+  const allCategories = useMemo(
+    () => getAllCategories(state.budgets, state.transactions),
+    [state.budgets, state.transactions],
+  )
 
   const filtered = useMemo(() => {
     let txs = state.transactions
@@ -211,6 +211,7 @@ export default function TransactionTable() {
         onOpenModal={() => setShowAddForm(true)}
         onOpenImport={() => setShowImportCsv(true)}
         knownDescriptions={knownDescriptions}
+        categories={allCategories}
       />
 
       <div className="flex flex-wrap items-center gap-2">

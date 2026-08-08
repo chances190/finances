@@ -39,13 +39,19 @@ interface SmartInputProps {
   onOpenModal: () => void
   onOpenImport: () => void
   knownDescriptions: string[]
+  categories: string[]
 }
 
 function getAllPaymentMethods() {
   return [...PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS]
 }
 
-function getSuggestionsForToken(tokenIndex: number, prefix: string, allDescs: string[]): string[] {
+function getSuggestionsForToken(
+  tokenIndex: number,
+  prefix: string,
+  allDescs: string[],
+  categories: string[],
+): string[] {
   const lower = prefix.toLowerCase()
   if (tokenIndex === 0) {
     const all = [...getAllPaymentMethods().map((p) => PAYMENT_METHOD_LABELS[p])]
@@ -59,7 +65,7 @@ function getSuggestionsForToken(tokenIndex: number, prefix: string, allDescs: st
     return all.filter((c) => c.toLowerCase().includes(lower)).slice(0, 10)
   }
   if (tokenIndex === 3) {
-    const all = Array.from(new Set([...DEFAULT_CATEGORIES, ...allDescs]))
+    const all = categories
     if (!prefix) return all.slice(0, 10)
     return all.filter((c) => c.toLowerCase().includes(lower)).slice(0, 10)
   }
@@ -84,6 +90,7 @@ export default function SmartTransactionInput({
   onOpenModal,
   onOpenImport,
   knownDescriptions,
+  categories,
 }: SmartInputProps) {
   const [raw, setRaw] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -96,11 +103,11 @@ export default function SmartTransactionInput({
     const parts = raw.split(',').map((t) => t.trim())
     const idx = Math.min(parts.length - 1, 4)
     const last = parts.length > 0 ? parts[parts.length - 1] || '' : ''
-    const matches = getSuggestionsForToken(idx, last, knownDescriptions)
+    const matches = getSuggestionsForToken(idx, last, knownDescriptions, categories)
     setSuggestions(matches)
     setShowSuggestions(matches.length > 0 && idx <= 4)
     setActiveSuggestion(-1)
-  }, [raw, knownDescriptions])
+  }, [raw, knownDescriptions, categories])
 
   function parseInput(text: string): ParsedRow {
     const parts = text.split(',').map((t) => t.trim())

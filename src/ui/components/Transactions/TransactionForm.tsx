@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -13,12 +13,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { currentYM, localYMD } from '@/domain/calculations'
-import {
-  DEFAULT_CATEGORIES,
-  INCOME_PAYMENT_METHODS,
-  PAYMENT_METHOD_LABELS,
-  PAYMENT_METHODS,
-} from '@/domain/constants'
+import { getAllCategories } from '@/domain/categories'
+import { INCOME_PAYMENT_METHODS, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/domain/constants'
 import type { DebtConfig, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
@@ -48,8 +44,13 @@ export default function TransactionForm({
   onOpenChange,
   editTransaction,
 }: TransactionFormProps) {
-  const { dispatch } = useFinance()
+  const { dispatch, state } = useFinance()
   const { toast } = useToast()
+
+  const categories = useMemo(
+    () => getAllCategories(state.budgets, state.transactions),
+    [state.budgets, state.transactions],
+  )
 
   const [form, setForm] = useState<EditFormState>({
     type: 'EXPENSE',
@@ -253,7 +254,7 @@ export default function TransactionForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {DEFAULT_CATEGORIES.map((c) => (
+                    {categories.map((c) => (
                       <SelectItem key={c} value={c}>
                         {c}
                       </SelectItem>
