@@ -111,8 +111,14 @@ export default function SmartTransactionInput({
     const matches = getSuggestionsForToken(idx, last, knownDescriptions, categories)
     setSuggestions(matches)
     setShowSuggestions(matches.length > 0 && idx <= 4 && last.length > 0)
-    setActiveSuggestion(-1)
+    setActiveSuggestion(matches.length > 0 ? 0 : -1)
   }, [raw, knownDescriptions, categories])
+
+  useEffect(() => {
+    if (activeSuggestion < 0 || !suggestionRef.current) return
+    const item = suggestionRef.current.children[activeSuggestion] as HTMLElement | undefined
+    item?.scrollIntoView({ block: 'nearest' })
+  }, [activeSuggestion])
 
   function parseInput(text: string): ParsedRow {
     const parts = text.split(',').map((t) => t.trim())
