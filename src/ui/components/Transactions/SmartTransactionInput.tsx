@@ -29,6 +29,17 @@ function splitAmountTokens(parts: string[]): { amount: string; rest: string[] } 
   return { amount: parts[1] || '', rest: parts.slice(2) }
 }
 
+function nextFieldHint(raw: string): string {
+  if (!raw.trim()) return 'payment method'
+  const parts = raw.split(',').map((t) => t.trim())
+  const { amount, rest } = splitAmountTokens(parts)
+  if (!parts[0] || !amount) return 'amount'
+  if (rest.length === 0 || !rest[0]) return 'description'
+  if (rest.length === 1 || !rest[1]) return 'category'
+  if (rest.length === 2 || !rest[2]) return 'date'
+  return ''
+}
+
 interface SmartInputProps {
   onAdd: (parsed: ParsedRow) => void
   onOpenModal: () => void
@@ -181,6 +192,7 @@ export default function SmartTransactionInput({
   }
 
   const parsed = raw ? parseInput(raw) : null
+  const hint = nextFieldHint(raw)
 
   return (
     <div className="relative">
@@ -244,6 +256,12 @@ export default function SmartTransactionInput({
           </Button>
         </div>
       </div>
+
+      {raw && !parsed?.error && hint && (
+        <div className="mt-0.5 text-[10px] text-muted-foreground">
+          Next: <span className="font-medium">{hint}</span>
+        </div>
+      )}
 
       {parsed && !parsed.error && (
         <div className="mt-0.5 text-[10px] text-muted-foreground bg-muted/50 px-2 py-1 flex flex-wrap gap-x-4 gap-y-0.5">
