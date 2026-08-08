@@ -101,7 +101,7 @@ export default function BudgetPage() {
               return (
                 <TableRow
                   key={range.startMonth}
-                  className={`cursor-pointer ${rel === 'future' ? 'opacity-60' : ''}`}
+                  className="cursor-pointer"
                   onClick={() => openEdit(range)}
                 >
                   <TableCell className={`font-medium ${rel === 'current' ? 'text-primary' : ''}`}>
@@ -114,6 +114,11 @@ export default function BudgetPage() {
                     {rel === 'current' && (
                       <Badge variant="outline" className="ml-2 text-[10px]">
                         Current
+                      </Badge>
+                    )}
+                    {rel === 'future' && (
+                      <Badge variant="outline" className="ml-2 text-[10px] text-muted-foreground">
+                        Future
                       </Badge>
                     )}
                   </TableCell>

@@ -247,29 +247,42 @@ export default function DebtPage() {
                           {splits.map((s) => {
                             const splitSettled = s.settled ?? tx.isSettled
                             return (
-                              <button
+                              <div
                                 key={s.debtorName}
-                                type="button"
-                                className={`block w-full text-muted-foreground hover:text-foreground text-left ${splitSettled ? 'line-through opacity-50' : ''}`}
-                                onClick={() =>
-                                  handleToggleSettle(tx.id, tx.isSettled, s.debtorName)
-                                }
+                                className="flex items-center justify-between gap-2"
                               >
-                                {s.debtorName}: {formatCurrency(s.amount)}
-                              </button>
+                                <span
+                                  className={`text-muted-foreground ${splitSettled ? 'line-through' : ''}`}
+                                >
+                                  {s.debtorName}: {formatCurrency(s.amount)}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-xs"
+                                  onClick={() =>
+                                    handleToggleSettle(tx.id, tx.isSettled, s.debtorName)
+                                  }
+                                  title={
+                                    splitSettled
+                                      ? `Unsettle ${s.debtorName}`
+                                      : `Settle ${s.debtorName}`
+                                  }
+                                  aria-label={
+                                    splitSettled
+                                      ? `Unsettle ${s.debtorName}`
+                                      : `Settle ${s.debtorName}`
+                                  }
+                                >
+                                  <CheckCircleIcon />
+                                </Button>
+                              </div>
                             )
                           })}
                         </div>
                       ) : splits.length === 1 ? (
-                        <button
-                          type="button"
-                          className={`text-xs ${(splits[0].settled ?? tx.isSettled) ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}
-                          onClick={() =>
-                            handleToggleSettle(tx.id, tx.isSettled, splits[0].debtorName)
-                          }
-                        >
+                        <span className="text-xs text-muted-foreground">
                           {(splits[0].settled ?? tx.isSettled) ? 'Settled' : '100%'}
-                        </button>
+                        </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}

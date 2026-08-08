@@ -372,7 +372,7 @@ export default function TransactionTable() {
               return (
                 <TableRow
                   key={tx.id}
-                  className={`cursor-pointer ${isFullSettled ? 'opacity-50' : ''}`}
+                  className="cursor-pointer"
                   onClick={() => !tx.parentId && handleEdit(tx)}
                 >
                   <TableCell className="text-xs text-muted-foreground">
@@ -387,12 +387,22 @@ export default function TransactionTable() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <div className="max-w-48 truncate">
-                      {tx.description}
-                      {tx.parentId && (
-                        <span className="text-muted-foreground ml-1 text-[10px]">
-                          (installment)
-                        </span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="max-w-48 truncate">
+                        {tx.description}
+                        {tx.parentId && (
+                          <span className="text-muted-foreground ml-1 text-[10px]">
+                            (installment)
+                          </span>
+                        )}
+                      </div>
+                      {isFullSettled && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] text-green-600 bg-green-50 dark:bg-green-900/20"
+                        >
+                          Paid
+                        </Badge>
                       )}
                     </div>
                   </TableCell>
@@ -423,17 +433,36 @@ export default function TransactionTable() {
                         {tx.debtSplits?.map((s) => {
                           const splitSettled = s.settled ?? tx.isSettled
                           return (
-                            <button
+                            <div
                               key={s.debtorName}
-                              type="button"
-                              className={`block w-full text-muted-foreground hover:text-foreground text-left ${splitSettled ? 'line-through opacity-50' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleSettle(tx.id, tx.isSettled, s.debtorName)
-                              }}
+                              className="flex items-center justify-between gap-2"
                             >
-                              {s.debtorName}: {formatCurrency(s.amount)}
-                            </button>
+                              <span
+                                className={`text-muted-foreground ${splitSettled ? 'line-through' : ''}`}
+                              >
+                                {s.debtorName}: {formatCurrency(s.amount)}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleSettle(tx.id, tx.isSettled, s.debtorName)
+                                }}
+                                title={
+                                  splitSettled
+                                    ? `Unsettle ${s.debtorName}`
+                                    : `Settle ${s.debtorName}`
+                                }
+                                aria-label={
+                                  splitSettled
+                                    ? `Unsettle ${s.debtorName}`
+                                    : `Settle ${s.debtorName}`
+                                }
+                              >
+                                <CheckCircleIcon />
+                              </Button>
+                            </div>
                           )
                         })}
                       </div>
