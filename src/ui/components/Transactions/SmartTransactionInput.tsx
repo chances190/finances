@@ -3,12 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { localYMD } from '@/domain/calculations'
-import {
-  DEFAULT_CATEGORIES,
-  INCOME_PAYMENT_METHODS,
-  PAYMENT_METHOD_LABELS,
-  PAYMENT_METHODS,
-} from '@/domain/constants'
+import { INCOME_PAYMENT_METHODS, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/domain/constants'
 import { parseCurrency } from '@/lib/currency'
 import { parseNaturalDate } from '@/lib/parseDate'
 
@@ -60,7 +55,7 @@ function getSuggestionsForToken(
   }
   if (tokenIndex === 1) return []
   if (tokenIndex === 2) {
-    const all = Array.from(new Set([...DEFAULT_CATEGORIES, ...allDescs]))
+    const all = allDescs
     if (!prefix) return all.slice(0, 10)
     return all.filter((c) => c.toLowerCase().includes(lower)).slice(0, 10)
   }
