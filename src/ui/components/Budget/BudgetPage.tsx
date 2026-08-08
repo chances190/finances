@@ -58,7 +58,7 @@ export default function BudgetPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Budgets</h2>
+        <h2 className="text-lg font-semibold text-foreground">Budgets</h2>
         <Button
           size="sm"
           onClick={() => {

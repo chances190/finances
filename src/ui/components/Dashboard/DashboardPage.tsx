@@ -148,7 +148,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Monthly Dashboard</h2>
+        <h2 className="text-lg font-semibold text-foreground">Monthly Dashboard</h2>
         <Select value={selectedMonth} onValueChange={(v) => v && setSelectedMonth(v)}>
           <SelectTrigger className="w-36">
             <SelectValue />
@@ -292,33 +292,34 @@ export default function DashboardPage() {
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={pace.daily}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis
                     dataKey="day"
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v: number) => `R$${v}`}
                   />
                   <Tooltip
                     contentStyle={{
-                      background: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
+                      background: 'var(--popover)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--foreground)',
                       borderRadius: '8px',
                       fontSize: '12px',
                     }}
                     formatter={(value: number) => formatCurrency(value)}
                   />
-                  <Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--foreground))' }} />
+                  <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--foreground)' }} />
                   <Bar
                     dataKey="actual"
                     name="Actual"
-                    fill="hsl(var(--primary))"
+                    fill="var(--primary)"
                     opacity={0.6}
                     radius={[2, 2, 0, 0]}
                   />
@@ -361,33 +362,34 @@ export default function DashboardPage() {
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={pace.cumulative}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis
                     dataKey="day"
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v: number) => `R$${v}`}
                   />
                   <Tooltip
                     contentStyle={{
-                      background: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
+                      background: 'var(--popover)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--foreground)',
                       borderRadius: '8px',
                       fontSize: '12px',
                     }}
                     formatter={(value: number) => formatCurrency(value)}
                   />
-                  <Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--foreground))' }} />
+                  <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--foreground)' }} />
                   <Bar
                     dataKey="actual"
                     name="Actual"
-                    fill="hsl(var(--primary))"
+                    fill="var(--primary)"
                     opacity={0.6}
                     radius={[2, 2, 0, 0]}
                   />
@@ -438,29 +440,30 @@ export default function DashboardPage() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={budgetVsActualData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis
                     dataKey="category"
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v: number) => `R$${v}`}
                   />
                   <Tooltip
                     contentStyle={{
-                      background: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
+                      background: 'var(--popover)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--foreground)',
                       borderRadius: '8px',
                       fontSize: '12px',
                     }}
                     formatter={(value: number) => formatCurrency(value)}
                   />
-                  <Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--foreground))' }} />
+                  <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--foreground)' }} />
                   <Bar
                     dataKey="budgeted"
                     name="Budgeted"
@@ -505,8 +508,9 @@ export default function DashboardPage() {
                     </Pie>
                     <Tooltip
                       contentStyle={{
-                        background: 'hsl(var(--popover))',
-                        border: '1px solid hsl(var(--border))',
+                        background: 'var(--popover)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--foreground)',
                         borderRadius: '8px',
                         fontSize: '12px',
                       }}

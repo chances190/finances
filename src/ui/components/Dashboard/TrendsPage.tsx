@@ -104,7 +104,7 @@ export default function TrendsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Trends</h2>
+        <h2 className="text-lg font-semibold text-foreground">Trends</h2>
         <Select value={selectedYear} onValueChange={(v) => v && setSelectedYear(v)}>
           <SelectTrigger className="w-28">
             <SelectValue />
@@ -165,31 +165,32 @@ export default function TrendsPage() {
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={yearData.months}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis
                 dataKey="referenceMonth"
-                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v: string) => v.slice(5)}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v: number) => `R$${v}`}
               />
               <Tooltip
                 contentStyle={{
-                  background: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
+                  background: 'var(--popover)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--foreground)',
                   borderRadius: '8px',
                   fontSize: '12px',
                 }}
                 formatter={(value: number) => formatCurrency(value)}
                 labelFormatter={(label: string) => label}
               />
-              <Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--foreground))' }} />
+              <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--foreground)' }} />
               <Bar
                 dataKey="income"
                 name="Income"
@@ -218,29 +219,30 @@ export default function TrendsPage() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={timeSeriesData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis
                     dataKey="month"
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v: number) => `R$${v}`}
                   />
                   <Tooltip
                     contentStyle={{
-                      background: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
+                      background: 'var(--popover)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--foreground)',
                       borderRadius: '8px',
                       fontSize: '12px',
                     }}
                     formatter={(value: number) => formatCurrency(value)}
                   />
-                  <Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--foreground))' }} />
+                  <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--foreground)' }} />
                   {topCategories.map((cat, i) => (
                     <Line
                       key={cat}
@@ -269,15 +271,15 @@ export default function TrendsPage() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={commitmentsData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis
                     dataKey="referenceMonth"
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v: number) => `R$${v}`}
@@ -286,8 +288,9 @@ export default function TrendsPage() {
                   />
                   <Tooltip
                     contentStyle={{
-                      background: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
+                      background: 'var(--popover)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--foreground)',
                       borderRadius: '8px',
                       fontSize: '12px',
                     }}
@@ -316,29 +319,30 @@ export default function TrendsPage() {
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={yearlyBudgetVsActual}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
                   dataKey="category"
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                   tickLine={false}
                   axisLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(v: number) => `R$${v}`}
                 />
                 <Tooltip
                   contentStyle={{
-                    background: 'hsl(var(--popover))',
-                    border: '1px solid hsl(var(--border))',
+                    background: 'var(--popover)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--foreground)',
                     borderRadius: '8px',
                     fontSize: '12px',
                   }}
                   formatter={(value: number) => formatCurrency(value)}
                 />
-                <Legend wrapperStyle={{ fontSize: '10px', color: 'hsl(var(--foreground))' }} />
+                <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--foreground)' }} />
                 <Bar
                   dataKey="budgeted"
                   name="Budgeted"

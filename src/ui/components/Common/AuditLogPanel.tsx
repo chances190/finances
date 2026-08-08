@@ -21,7 +21,7 @@ export default function AuditLogPanel() {
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-lg font-semibold flex items-center gap-1">
+        <h2 className="text-lg font-semibold text-foreground flex items-center gap-1">
           <ClockIcon /> Actions
         </h2>
         <div className="flex gap-2">
