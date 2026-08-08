@@ -91,7 +91,6 @@ export default function SmartTransactionInput({
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [activeSuggestion, setActiveSuggestion] = useState(-1)
-  const inputRef = useRef<HTMLInputElement>(null)
   const suggestionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -100,7 +99,7 @@ export default function SmartTransactionInput({
     const last = parts.length > 0 ? parts[parts.length - 1] || '' : ''
     const matches = getSuggestionsForToken(idx, last, knownDescriptions, categories)
     setSuggestions(matches)
-    setShowSuggestions(matches.length > 0 && idx <= 4)
+    setShowSuggestions(matches.length > 0 && idx <= 4 && last.length > 0)
     setActiveSuggestion(-1)
   }, [raw, knownDescriptions, categories])
 
@@ -144,7 +143,6 @@ export default function SmartTransactionInput({
     onAdd(parsed)
     setRaw('')
     setShowSuggestions(false)
-    inputRef.current?.focus()
   }
 
   function applySuggestion() {
@@ -189,7 +187,6 @@ export default function SmartTransactionInput({
       <div className="flex items-stretch gap-2">
         <div className="relative flex-1">
           <Input
-            ref={inputRef}
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -220,7 +217,6 @@ export default function SmartTransactionInput({
                     const built = buildSuggestionText(s, parts, idx)
                     setRaw(built)
                     setShowSuggestions(false)
-                    inputRef.current?.focus()
                   }}
                   onFocus={() => setActiveSuggestion(i)}
                 >
