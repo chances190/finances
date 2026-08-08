@@ -28,6 +28,7 @@ import {
 } from '@/domain/calculations'
 import { CATEGORY_COLORS, CHART_COLORS } from '@/domain/constants'
 import { formatCurrency } from '@/lib/currency'
+import StatCard from '@/ui/components/Common/StatCard'
 import { useFinance } from '@/ui/context'
 
 export default function TrendsPage() {
@@ -135,46 +136,31 @@ export default function TrendsPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="border bg-card p-4 space-y-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <ArrowUp className="size-3 text-green-500" />
-            Total Income
-          </div>
-          <div className="text-xl font-bold text-foreground">
-            {formatCurrency(yearData.totalIncome)}
-          </div>
-        </div>
-        <div className="border bg-card p-4 space-y-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <ArrowDown className="size-3 text-red-500" />
-            Total Expenses
-          </div>
-          <div className="text-xl font-bold text-foreground">
-            {formatCurrency(yearData.totalExpenses)}
-          </div>
-        </div>
-        <div className="border bg-card p-4 space-y-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <PiggyBank className="size-3 text-blue-500" />
-            Net Balance
-          </div>
-          <div
-            className={`text-xl font-bold ${yearData.totalBalance >= 0 ? 'text-green-500' : 'text-red-500'}`}
-          >
-            {formatCurrency(yearData.totalBalance)}
-          </div>
-        </div>
-        <div className="border bg-card p-4 space-y-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <TrendUp className="size-3 text-cyan-500" />
-            Savings Rate
-          </div>
-          <div className="text-xl font-bold text-foreground">
-            {yearData.totalIncome > 0
+        <StatCard
+          label="Total Income"
+          icon={<ArrowUp className="size-3 text-green-500" />}
+          value={formatCurrency(yearData.totalIncome)}
+        />
+        <StatCard
+          label="Total Expenses"
+          icon={<ArrowDown className="size-3 text-red-500" />}
+          value={formatCurrency(yearData.totalExpenses)}
+        />
+        <StatCard
+          label="Net Balance"
+          icon={<PiggyBank className="size-3 text-blue-500" />}
+          value={formatCurrency(yearData.totalBalance)}
+          valueClassName={yearData.totalBalance >= 0 ? 'text-green-500' : 'text-red-500'}
+        />
+        <StatCard
+          label="Savings Rate"
+          icon={<TrendUp className="size-3 text-cyan-500" />}
+          value={
+            yearData.totalIncome > 0
               ? `${((yearData.totalBalance / yearData.totalIncome) * 100).toFixed(1)}%`
-              : '—'}
-          </div>
-        </div>
+              : '—'
+          }
+        />
       </div>
 
       <div className="border bg-card p-4 space-y-3">

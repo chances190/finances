@@ -52,22 +52,8 @@ import {
   PAYMENT_METHOD_LABELS,
 } from '@/domain/constants'
 import { formatCurrency } from '@/lib/currency'
+import StatCard from '@/ui/components/Common/StatCard'
 import { useFinance } from '@/ui/context'
-
-interface PaceKpiProps {
-  label: string
-  value: string
-  color: string
-}
-
-function PaceKpi({ label, value, color }: PaceKpiProps) {
-  return (
-    <div className="flex flex-col items-center p-3 rounded-lg bg-muted/50">
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
-      <span className={`text-lg font-bold ${color}`}>{value}</span>
-    </div>
-  )
-}
 
 export default function DashboardPage() {
   const { state } = useFinance()
@@ -200,64 +186,38 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="border bg-card p-4 space-y-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <TrendUp className="size-3 text-green-500" />
-            Income
-          </div>
-          <div className="text-xl font-bold text-foreground">
-            {formatCurrency(monthData.income)}
-          </div>
-        </div>
-        <div className="border bg-card p-4 space-y-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <TrendDown className="size-3 text-red-500" />
-            Expenses
-          </div>
-          <div className="text-xl font-bold text-foreground">
-            {formatCurrency(monthData.expenses)}
-          </div>
-        </div>
-        <div className="border bg-card p-4 space-y-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <PiggyBank className="size-3 text-blue-500" />
-            Balance
-          </div>
-          <div
-            className={`text-xl font-bold ${monthData.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}
-          >
-            {formatCurrency(monthData.balance)}
-          </div>
-        </div>
-        <div className="border bg-card p-4 space-y-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <CreditCard className="size-3 text-orange-500" />
-            Credit card
-          </div>
-          <div className="text-xl font-bold text-foreground">
-            {formatCurrency(monthData.creditInvoice)}
-          </div>
-        </div>
-        <div className="border bg-card p-4 space-y-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <ForkKnife className="size-3 text-purple-500" />
-            Meal Voucher
-          </div>
-          <div
-            className={`text-xl font-bold ${monthData.mealVoucher >= 0 ? 'text-green-500' : 'text-red-500'}`}
-          >
-            {formatCurrency(monthData.mealVoucher)}
-          </div>
-        </div>
-        <div className="border bg-card p-4 space-y-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <CurrencyDollar className="size-3 text-cyan-500" />
-            Cash spent
-          </div>
-          <div className="text-xl font-bold text-foreground">
-            {formatCurrency(monthData.cashExpenses)}
-          </div>
-        </div>
+        <StatCard
+          label="Income"
+          icon={<TrendUp className="size-3 text-green-500" />}
+          value={formatCurrency(monthData.income)}
+        />
+        <StatCard
+          label="Expenses"
+          icon={<TrendDown className="size-3 text-red-500" />}
+          value={formatCurrency(monthData.expenses)}
+        />
+        <StatCard
+          label="Balance"
+          icon={<PiggyBank className="size-3 text-blue-500" />}
+          value={formatCurrency(monthData.balance)}
+          valueClassName={monthData.balance >= 0 ? 'text-green-500' : 'text-red-500'}
+        />
+        <StatCard
+          label="Credit card"
+          icon={<CreditCard className="size-3 text-orange-500" />}
+          value={formatCurrency(monthData.creditInvoice)}
+        />
+        <StatCard
+          label="Meal Voucher"
+          icon={<ForkKnife className="size-3 text-purple-500" />}
+          value={formatCurrency(monthData.mealVoucher)}
+          valueClassName={monthData.mealVoucher >= 0 ? 'text-green-500' : 'text-red-500'}
+        />
+        <StatCard
+          label="Cash spent"
+          icon={<CurrencyDollar className="size-3 text-cyan-500" />}
+          value={formatCurrency(monthData.cashExpenses)}
+        />
       </div>
 
       {monthData.income > 0 && Object.keys(monthData.incomeByMethod).length > 0 && (
@@ -304,26 +264,37 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <PaceKpi label="Daily quota" value={formatCurrency(dailyQuota)} color="text-blue-500" />
-            <PaceKpi
+            <StatCard
+              label="Daily quota"
+              value={formatCurrency(dailyQuota)}
+              valueClassName="text-lg text-blue-500"
+              className="p-3"
+            />
+            <StatCard
               label="Avg / day"
               value={formatCurrency(dailyAvg)}
-              color={dailyAvg <= dailyQuota * 1.05 ? 'text-green-500' : 'text-red-500'}
+              valueClassName={
+                dailyAvg <= dailyQuota * 1.05 ? 'text-lg text-green-500' : 'text-lg text-red-500'
+              }
+              className="p-3"
             />
-            <PaceKpi
+            <StatCard
               label="Remaining"
               value={formatCurrency(pace.limit - spentSoFar)}
-              color="text-blue-500"
+              valueClassName="text-lg text-blue-500"
+              className="p-3"
             />
-            <PaceKpi
+            <StatCard
               label="Suggestion"
               value={formatCurrency(pace.suggestionPerDay)}
-              color="text-green-500"
+              valueClassName="text-lg text-green-500"
+              className="p-3"
             />
-            <PaceKpi
+            <StatCard
               label="Total limit"
               value={formatCurrency(pace.limit)}
-              color="text-muted-foreground"
+              valueClassName="text-lg text-muted-foreground"
+              className="p-3"
             />
           </div>
 
