@@ -9,6 +9,7 @@ import { addMonths } from '@/domain/calculations'
 import { DEFAULT_CATEGORIES } from '@/domain/constants'
 import type { Budget, Budget as BudgetType } from '@/domain/entities'
 import { parseCurrency } from '@/lib/currency'
+import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
 
@@ -192,7 +193,7 @@ export default function BudgetFormDialog({
             : 'Remove budgets?'
       setPendingConflict({
         title,
-        message: `This will ${parts.join(' and ')}. Continue?`,
+        message: `This will ${parts.join(' and ')}.`,
         newMonths,
         toDelete,
         budget,
@@ -218,69 +219,55 @@ export default function BudgetFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        {pendingConflict ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>{pendingConflict.title}</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-muted-foreground">{pendingConflict.message}</p>
-            <div className="flex gap-2 justify-end pt-2">
-              <Button variant="outline" onClick={() => setPendingConflict(null)}>
-                Back
-              </Button>
-              <Button
-                onClick={() => {
-                  commitSave(
-                    pendingConflict.newMonths,
-                    pendingConflict.toDelete,
-                    pendingConflict.budget,
-                  )
-                  setPendingConflict(null)
-                }}
-              >
-                Continue
-              </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            <DialogHeader>
-              <DialogTitle>
-                {editingMonth
-                  ? editingRange && editingRange.endMonth > editingRange.startMonth
-                    ? `Edit Budget: ${editingRange.startMonth} – ${editingRange.endMonth}`
-                    : `Edit Budget: ${editingMonth}`
-                  : 'New Budget'}
-              </DialogTitle>
-            </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editingMonth
+                ? editingRange && editingRange.endMonth > editingRange.startMonth
+                  ? `Edit Budget: ${editingRange.startMonth} – ${editingRange.endMonth}`
+                  : `Edit Budget: ${editingMonth}`
+                : 'New Budget'}
+            </DialogTitle>
+          </DialogHeader>
 
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Period</Label>
-                <SegmentedControl
-                  aria-label="Budget period"
-                  className="w-full"
-                  value={isRange ? 'range' : 'single'}
-                  onValueChange={(v) => {
-                    const next = v === 'range'
-                    setIsRange(next)
-                    setRangeEnd((prev) =>
-                      next && prev <= form.referenceMonth
-                        ? addMonths(form.referenceMonth, 1)
-                        : prev,
-                    )
-                  }}
-                  options={[
-                    { value: 'single', label: 'Single month' },
-                    { value: 'range', label: 'Range of months' },
-                  ]}
-                />
-                {!isRange ? (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Period</Label>
+              <SegmentedControl
+                aria-label="Budget period"
+                className="w-full"
+                value={isRange ? 'range' : 'single'}
+                onValueChange={(v) => {
+                  const next = v === 'range'
+                  setIsRange(next)
+                  setRangeEnd((prev) =>
+                    next && prev <= form.referenceMonth ? addMonths(form.referenceMonth, 1) : prev,
+                  )
+                }}
+                options={[
+                  { value: 'single', label: 'Single month' },
+                  { value: 'range', label: 'Range of months' },
+                ]}
+              />
+              {!isRange ? (
+                <div className="space-y-1">
+                  <Label htmlFor="budget-month-from" className="text-xs">
+                    Reference Month
+                  </Label>
+                  <Input
+                    id="budget-month-from"
+                    type="month"
+                    value={form.referenceMonth}
+                    onChange={(e) => setForm((f) => ({ ...f, referenceMonth: e.target.value }))}
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label htmlFor="budget-month-from" className="text-xs">
-                      Reference Month
+                      From
                     </Label>
                     <Input
                       id="budget-month-from"
@@ -289,182 +276,179 @@ export default function BudgetFormDialog({
                       onChange={(e) => setForm((f) => ({ ...f, referenceMonth: e.target.value }))}
                     />
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label htmlFor="budget-month-from" className="text-xs">
-                        From
-                      </Label>
-                      <Input
-                        id="budget-month-from"
-                        type="month"
-                        value={form.referenceMonth}
-                        onChange={(e) => setForm((f) => ({ ...f, referenceMonth: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="budget-month-to" className="text-xs">
-                        To
-                      </Label>
-                      <Input
-                        id="budget-month-to"
-                        type="month"
-                        value={rangeEnd}
-                        min={form.referenceMonth}
-                        onChange={(e) => setRangeEnd(e.target.value)}
-                      />
-                    </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="budget-month-to" className="text-xs">
+                      To
+                    </Label>
+                    <Input
+                      id="budget-month-to"
+                      type="month"
+                      value={rangeEnd}
+                      min={form.referenceMonth}
+                      onChange={(e) => setRangeEnd(e.target.value)}
+                    />
                   </div>
-                )}
-                {isRange && (
-                  <div className="text-xs text-muted-foreground">
-                    {rangeEnd > form.referenceMonth ? (
-                      <span>
-                        {editingMonth ? 'Editing' : 'Creating'} budget for{' '}
-                        <span className="font-medium text-foreground">
-                          {monthsBetween(form.referenceMonth, rangeEnd).length} months
-                        </span>{' '}
-                        ({form.referenceMonth} – {rangeEnd})
-                      </span>
-                    ) : (
-                      'Set To a later month to create budgets for a range.'
-                    )}
-                  </div>
-                )}
-                <div className="flex">
-                  <Button variant="outline" size="sm" onClick={handleClone}>
-                    <CopyIcon /> Clone from prev
+                </div>
+              )}
+              {isRange && (
+                <div className="text-xs text-muted-foreground">
+                  {rangeEnd > form.referenceMonth ? (
+                    <span>
+                      {editingMonth ? 'Editing' : 'Creating'} budget for{' '}
+                      <span className="font-medium text-foreground">
+                        {monthsBetween(form.referenceMonth, rangeEnd).length} months
+                      </span>{' '}
+                      ({form.referenceMonth} – {rangeEnd})
+                    </span>
+                  ) : (
+                    'Set To a later month to create budgets for a range.'
+                  )}
+                </div>
+              )}
+              <div className="flex">
+                <Button variant="outline" size="sm" onClick={handleClone}>
+                  <CopyIcon /> Clone from prev
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label htmlFor="budget-income" className="text-xs">
+                  Planned Income (R$)
+                </Label>
+                <Input
+                  id="budget-income"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.plannedIncome}
+                  onChange={(e) => setForm((f) => ({ ...f, plannedIncome: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="budget-mealvoucher" className="text-xs">
+                  Meal Voucher (R$)
+                </Label>
+                <Input
+                  id="budget-mealvoucher"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.plannedMealVoucher}
+                  onChange={(e) => setForm((f) => ({ ...f, plannedMealVoucher: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-xs font-medium">Category Limits</Label>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="xs" onClick={() => setShowAllCategories((s) => !s)}>
+                    {showAllCategories ? 'Hide empty' : 'Show all'}
+                  </Button>
+                  <Button variant="ghost" size="xs" onClick={() => setShowAddCategory(true)}>
+                    <PlusIcon className="size-3" /> Add Category
                   </Button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor="budget-income" className="text-xs">
-                    Planned Income (R$)
-                  </Label>
+              {showAddCategory && (
+                <div className="flex gap-1 mb-2">
                   <Input
-                    id="budget-income"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={form.plannedIncome}
-                    onChange={(e) => setForm((f) => ({ ...f, plannedIncome: e.target.value }))}
+                    placeholder="Category name"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                    autoFocus
+                    className="flex-1"
                   />
+                  <Button size="sm" onClick={handleAddCategory}>
+                    Add
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowAddCategory(false)
+                      setNewCategoryName('')
+                    }}
+                  >
+                    Cancel
+                  </Button>
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="budget-mealvoucher" className="text-xs">
-                    Meal Voucher (R$)
-                  </Label>
-                  <Input
-                    id="budget-mealvoucher"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={form.plannedMealVoucher}
-                    onChange={(e) => setForm((f) => ({ ...f, plannedMealVoucher: e.target.value }))}
-                  />
-                </div>
-              </div>
+              )}
 
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label className="text-xs font-medium">Category Limits</Label>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => setShowAllCategories((s) => !s)}
-                    >
-                      {showAllCategories ? 'Hide empty' : 'Show all'}
-                    </Button>
-                    <Button variant="ghost" size="xs" onClick={() => setShowAddCategory(true)}>
-                      <PlusIcon className="size-3" /> Add Category
-                    </Button>
-                  </div>
-                </div>
-
-                {showAddCategory && (
-                  <div className="flex gap-1 mb-2">
-                    <Input
-                      placeholder="Category name"
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
-                      autoFocus
-                      className="flex-1"
-                    />
-                    <Button size="sm" onClick={handleAddCategory}>
-                      Add
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setShowAddCategory(false)
-                        setNewCategoryName('')
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                  {Object.keys(form.categoryLimits)
-                    .filter((cat) => showAllCategories || form.categoryLimits[cat] !== '')
-                    .map((cat) => {
-                      const catId = `budget-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`
-                      return (
-                        <div key={cat} className="space-y-0.5 flex items-end gap-1">
-                          <div className="flex-1">
-                            <Label htmlFor={catId} className="text-[10px] text-muted-foreground">
-                              {cat}
-                            </Label>
-                            <Input
-                              id={catId}
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder="0"
-                              value={form.categoryLimits[cat]}
-                              onChange={(e) =>
-                                setForm((f) => ({
-                                  ...f,
-                                  categoryLimits: { ...f.categoryLimits, [cat]: e.target.value },
-                                }))
-                              }
-                            />
-                          </div>
-                          {!(DEFAULT_CATEGORIES as readonly string[]).includes(cat) && (
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              onClick={() => {
-                                const { [cat]: _, ...rest } = form.categoryLimits
-                                setForm((f) => ({ ...f, categoryLimits: rest }))
-                              }}
-                              aria-label={`Remove category ${cat}`}
-                            >
-                              <TrashIcon className="size-3" />
-                            </Button>
-                          )}
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                {Object.keys(form.categoryLimits)
+                  .filter((cat) => showAllCategories || form.categoryLimits[cat] !== '')
+                  .map((cat) => {
+                    const catId = `budget-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`
+                    return (
+                      <div key={cat} className="space-y-0.5 flex items-end gap-1">
+                        <div className="flex-1">
+                          <Label htmlFor={catId} className="text-[10px] text-muted-foreground">
+                            {cat}
+                          </Label>
+                          <Input
+                            id={catId}
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0"
+                            value={form.categoryLimits[cat]}
+                            onChange={(e) =>
+                              setForm((f) => ({
+                                ...f,
+                                categoryLimits: { ...f.categoryLimits, [cat]: e.target.value },
+                              }))
+                            }
+                          />
                         </div>
-                      )
-                    })}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => onOpenChange(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSave}>Save Budget</Button>
+                        {!(DEFAULT_CATEGORIES as readonly string[]).includes(cat) && (
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => {
+                              const { [cat]: _, ...rest } = form.categoryLimits
+                              setForm((f) => ({ ...f, categoryLimits: rest }))
+                            }}
+                            aria-label={`Remove category ${cat}`}
+                          >
+                            <TrashIcon className="size-3" />
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  })}
               </div>
             </div>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave}>Save Budget</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={pendingConflict !== null}
+        title={pendingConflict?.title ?? ''}
+        message={pendingConflict?.message ?? ''}
+        confirmLabel="Continue"
+        onConfirm={() => {
+          if (pendingConflict) {
+            commitSave(pendingConflict.newMonths, pendingConflict.toDelete, pendingConflict.budget)
+          }
+        }}
+        onOpenChange={(o) => {
+          if (!o) setPendingConflict(null)
+        }}
+      />
+    </>
   )
 }
