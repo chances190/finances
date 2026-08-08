@@ -17,9 +17,9 @@ import type { Transaction } from '@/domain/entities'
 import { formatCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
 
-const BADGE_GREEN = 'text-green-600 bg-green-50 dark:bg-green-900/20'
-const BADGE_AMBER = 'text-amber-600 bg-amber-50 dark:bg-amber-900/20'
-const BADGE_RED = 'text-red-600 bg-red-50 dark:bg-red-900/20'
+const BADGE_GREEN = 'text-green-600 bg-green-50 '
+const BADGE_AMBER = 'text-amber-600 bg-amber-50 '
+const BADGE_RED = 'text-red-600 bg-red-50 '
 
 function DebtUrgency({ days }: { days: number }) {
   const urgency =

@@ -390,7 +390,7 @@ export default function TransactionTable() {
                       {isFullSettled && (
                         <Badge
                           variant="outline"
-                          className="text-[10px] text-green-600 bg-green-50 dark:bg-green-900/20"
+                          className="text-[10px] text-green-600 bg-green-50 "
                         >
                           Paid
                         </Badge>

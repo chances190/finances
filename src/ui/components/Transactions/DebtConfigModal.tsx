@@ -205,10 +205,10 @@ export default function DebtConfigModal({
           <div
             className={`flex items-center justify-between text-xs p-2 border ${
               totalAmount === 0
-                ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400'
+                ? 'bg-blue-50 border-blue-200 text-blue-700'
                 : isBalanced
-                  ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400'
-                  : 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-400'
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-yellow-50 border-yellow-200 text-yellow-700'
             }`}
           >
             <span>{totalAmount === 0 ? 'Amount will be set to:' : 'Balance:'}</span>

@@ -32,14 +32,14 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
 }
 
 export const PAYMENT_METHOD_BADGE_COLORS: Record<string, string> = {
-  CREDIT: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-  DEBIT: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  PIX: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  CASH: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-  MEAL_VOUCHER: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400',
-  SALARY: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
-  TRANSFER: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400',
-  VOUCHER: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  CREDIT: 'bg-amber-100 text-amber-800  ',
+  DEBIT: 'bg-blue-100 text-blue-800  ',
+  PIX: 'bg-green-100 text-green-800  ',
+  CASH: 'bg-purple-100 text-purple-800  ',
+  MEAL_VOUCHER: 'bg-teal-100 text-teal-800  ',
+  SALARY: 'bg-emerald-100 text-emerald-800  ',
+  TRANSFER: 'bg-sky-100 text-sky-800  ',
+  VOUCHER: 'bg-orange-100 text-orange-800  ',
 }
 
 export const PAYMENT_METHOD_CHART_COLORS: Record<string, string> = {
