@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import {
   Table,
   TableBody,
@@ -105,24 +106,23 @@ export default function DebtPage() {
           {showSettled ? 'All Debts' : 'Active Debts (who owes me)'}
         </h2>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 border p-0.5">
-            <button
-              type="button"
-              className={`px-2 py-0.5 text-xs ${viewMode === 'transaction' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
-              onClick={() => setViewMode('transaction')}
-            >
-              <UserIcon className="size-3 inline mr-1" />
-              Per-Tx
-            </button>
-            <button
-              type="button"
-              className={`px-2 py-0.5 text-xs ${viewMode === 'person' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
-              onClick={() => setViewMode('person')}
-            >
-              <UsersIcon className="size-3 inline mr-1" />
-              Per-Person
-            </button>
-          </div>
+          <SegmentedControl
+            aria-label="Debt view"
+            value={viewMode}
+            onValueChange={(v) => setViewMode(v as ViewMode)}
+            options={[
+              {
+                value: 'transaction',
+                label: 'Per-Tx',
+                icon: <UserIcon className="size-3" />,
+              },
+              {
+                value: 'person',
+                label: 'Per-Person',
+                icon: <UsersIcon className="size-3" />,
+              },
+            ]}
+          />
           <span className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
             <Checkbox
               id="show-settled"

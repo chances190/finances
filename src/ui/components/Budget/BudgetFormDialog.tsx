@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { addMonths } from '@/domain/calculations'
 import { DEFAULT_CATEGORIES } from '@/domain/constants'
 import type { Budget, Budget as BudgetType } from '@/domain/entities'
@@ -259,7 +259,9 @@ export default function BudgetFormDialog({
             <div className="space-y-3">
               <div className="space-y-2">
                 <Label className="text-xs font-medium">Period</Label>
-                <Tabs
+                <SegmentedControl
+                  aria-label="Budget period"
+                  className="w-full"
                   value={isRange ? 'range' : 'single'}
                   onValueChange={(v) => {
                     const next = v === 'range'
@@ -270,16 +272,11 @@ export default function BudgetFormDialog({
                         : prev,
                     )
                   }}
-                >
-                  <TabsList className="w-full">
-                    <TabsTrigger value="single" className="flex-1">
-                      Single month
-                    </TabsTrigger>
-                    <TabsTrigger value="range" className="flex-1">
-                      Range of months
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                  options={[
+                    { value: 'single', label: 'Single month' },
+                    { value: 'range', label: 'Range of months' },
+                  ]}
+                />
                 {!isRange ? (
                   <div className="space-y-1">
                     <Label htmlFor="budget-month-from" className="text-xs">

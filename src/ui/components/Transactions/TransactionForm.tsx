@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import {
   Select,
   SelectContent,
@@ -18,7 +19,6 @@ import {
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
 } from '@/domain/constants'
-
 import type { DebtConfig, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { formatCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
@@ -183,38 +183,25 @@ export default function TransactionForm({
           </DialogHeader>
 
           <div className="space-y-3">
-            <div className="flex gap-1">
-              <button
-                type="button"
-                className={`flex-1 py-1.5 text-xs font-medium transition-colors border ${
-                  form.type === 'EXPENSE'
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-transparent text-muted-foreground border-input hover:text-foreground'
-                }`}
-                onClick={() => {
-                  setForm((f) => ({ ...f, type: 'EXPENSE' }))
-                  setIsDebt(false)
-                  setDebtConfig({ userShare: 0, splits: [] })
-                }}
-              >
-                Expense
-              </button>
-              <button
-                type="button"
-                className={`flex-1 py-1.5 text-xs font-medium transition-colors border ${
-                  form.type === 'INCOME'
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-transparent text-muted-foreground border-input hover:text-foreground'
-                }`}
-                onClick={() => {
-                  setForm((f) => ({ ...f, type: 'INCOME', installmentTotal: 1 }))
-                  setIsDebt(false)
-                  setDebtConfig({ userShare: 0, splits: [] })
-                }}
-              >
-                Income
-              </button>
-            </div>
+            <SegmentedControl
+              aria-label="Transaction type"
+              className="w-full"
+              value={form.type}
+              onValueChange={(v) => {
+                const type = v as TransactionType
+                setForm((f) => ({
+                  ...f,
+                  type,
+                  ...(type === 'INCOME' ? { installmentTotal: 1 } : {}),
+                }))
+                setIsDebt(false)
+                setDebtConfig({ userShare: 0, splits: [] })
+              }}
+              options={[
+                { value: 'EXPENSE', label: 'Expense' },
+                { value: 'INCOME', label: 'Income' },
+              ]}
+            />
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
