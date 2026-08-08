@@ -194,10 +194,6 @@ export default function DebtPage() {
             </TableBody>
           </Table>
         </div>
-      ) : debts.length === 0 ? (
-        <div className="border border-border p-8 text-center text-muted-foreground text-sm">
-          No {showSettled ? 'debts' : 'active debts'}.
-        </div>
       ) : (
         <div className="border border-border">
           <Table>
@@ -213,6 +209,13 @@ export default function DebtPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {debts.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    No {showSettled ? 'debts' : 'active debts'}.
+                  </TableCell>
+                </TableRow>
+              )}
               {debts.map((tx) => {
                 const days = daysSince(tx.date)
                 const splits = tx.debtSplits?.filter((s) => s.amount > 0) ?? []

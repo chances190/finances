@@ -52,6 +52,7 @@ import {
   PAYMENT_METHOD_LABELS,
 } from '@/domain/constants'
 import { formatCurrency } from '@/lib/currency'
+import EmptyState from '@/ui/components/Common/EmptyState'
 import StatCard from '@/ui/components/Common/StatCard'
 import { useFinance } from '@/ui/context'
 
@@ -147,11 +148,7 @@ export default function DashboardPage() {
   const dailyQuota = pace.totalSalary > 0 ? pace.limit / DAYS_IN_MONTH : 0
 
   if (!monthData) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
-        No transaction data available.
-      </div>
-    )
+    return <EmptyState message="No transaction data available." />
   }
 
   return (

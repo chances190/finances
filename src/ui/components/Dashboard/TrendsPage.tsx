@@ -28,6 +28,7 @@ import {
 } from '@/domain/calculations'
 import { CATEGORY_COLORS, CHART_COLORS } from '@/domain/constants'
 import { formatCurrency } from '@/lib/currency'
+import EmptyState from '@/ui/components/Common/EmptyState'
 import StatCard from '@/ui/components/Common/StatCard'
 import { useFinance } from '@/ui/context'
 
@@ -97,11 +98,7 @@ export default function TrendsPage() {
   }, [timeSeriesData])
 
   if (years.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
-        No data available.
-      </div>
-    )
+    return <EmptyState message="No data available." />
   }
 
   return (
