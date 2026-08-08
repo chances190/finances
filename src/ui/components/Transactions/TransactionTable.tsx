@@ -311,22 +311,16 @@ export default function TransactionTable() {
           <TableHeader>
             <TableRow>
               <TableHead
-                className="w-20 cursor-pointer select-none"
-                onClick={() => handleSort('referenceMonth')}
+                className="w-24 cursor-pointer select-none"
+                onClick={() => handleSort('paymentMethod')}
               >
-                Period{sortIndicator('referenceMonth')}
+                Payment{sortIndicator('paymentMethod')}
               </TableHead>
               <TableHead
-                className="w-20 cursor-pointer select-none"
-                onClick={() => handleSort('date')}
+                className="text-right w-24 cursor-pointer select-none"
+                onClick={() => handleSort('amount')}
               >
-                Date{sortIndicator('date')}
-              </TableHead>
-              <TableHead
-                className="w-14 cursor-pointer select-none"
-                onClick={() => handleSort('type')}
-              >
-                Type{sortIndicator('type')}
+                Amount{sortIndicator('amount')}
               </TableHead>
               <TableHead
                 className="flex-1 cursor-pointer select-none"
@@ -341,16 +335,16 @@ export default function TransactionTable() {
                 Category{sortIndicator('category')}
               </TableHead>
               <TableHead
-                className="text-right w-24 cursor-pointer select-none"
-                onClick={() => handleSort('amount')}
+                className="w-24 cursor-pointer select-none"
+                onClick={() => handleSort('date')}
               >
-                Amount{sortIndicator('amount')}
+                Date{sortIndicator('date')}
               </TableHead>
               <TableHead
                 className="w-20 cursor-pointer select-none"
-                onClick={() => handleSort('paymentMethod')}
+                onClick={() => handleSort('referenceMonth')}
               >
-                Payment{sortIndicator('paymentMethod')}
+                Period{sortIndicator('referenceMonth')}
               </TableHead>
               <TableHead className="w-16 text-center">Install</TableHead>
               <TableHead className="w-32">Details</TableHead>
@@ -360,7 +354,7 @@ export default function TransactionTable() {
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                   No transactions yet. Add one using the row above or import a CSV file.
                 </TableCell>
               </TableRow>
@@ -375,16 +369,13 @@ export default function TransactionTable() {
                   className="cursor-pointer"
                   onClick={() => !tx.parentId && handleEdit(tx)}
                 >
-                  <TableCell className="text-xs text-muted-foreground">
-                    {tx.referenceMonth}
+                  <TableCell>
+                    <PaymentBadge method={tx.paymentMethod} />
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{tx.date}</TableCell>
-                  <TableCell className="text-xs">
-                    {tx.type === 'INCOME' ? (
-                      <span className="text-green-600 font-medium">+</span>
-                    ) : (
-                      <span className="text-red-600 font-medium">−</span>
-                    )}
+                  <TableCell
+                    className={`text-right font-mono text-xs ${tx.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}
+                  >
+                    {formatCurrency(tx.amount)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
@@ -407,13 +398,9 @@ export default function TransactionTable() {
                     </div>
                   </TableCell>
                   <TableCell className="text-xs">{tx.category}</TableCell>
-                  <TableCell
-                    className={`text-right font-mono text-xs ${tx.type === 'INCOME' ? 'text-green-600' : ''}`}
-                  >
-                    {formatCurrency(tx.amount)}
-                  </TableCell>
-                  <TableCell>
-                    <PaymentBadge method={tx.paymentMethod} />
+                  <TableCell className="text-xs text-muted-foreground">{tx.date}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {tx.referenceMonth}
                   </TableCell>
                   <TableCell className="text-center text-xs">
                     {tx.installment ? (
