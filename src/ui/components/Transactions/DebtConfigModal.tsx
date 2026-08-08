@@ -38,30 +38,30 @@ export default function DebtConfigModal({
   const isBalanced = remaining < 0.01
 
   function handleAddPerson() {
-    setTempConfig((c) => ({
-      ...c,
-      splits: [...c.splits, { id: uuid(), name: '', amount: 0 }],
+    setTempConfig((cfg) => ({
+      ...cfg,
+      splits: [...cfg.splits, { id: uuid(), name: '', amount: 0 }],
     }))
   }
 
   function handleUpdateSplit(id: string, patch: Partial<DebtSplitUI>) {
-    setTempConfig((c) => ({
-      ...c,
-      splits: c.splits.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+    setTempConfig((cfg) => ({
+      ...cfg,
+      splits: cfg.splits.map((s) => (s.id === id ? { ...s, ...patch } : s)),
     }))
   }
 
   function handleRemoveSplit(id: string) {
-    setTempConfig((c) => ({
-      ...c,
-      splits: c.splits.filter((s) => s.id !== id),
+    setTempConfig((cfg) => ({
+      ...cfg,
+      splits: cfg.splits.filter((s) => s.id !== id),
     }))
   }
 
   function handleFillRemainder(id: string) {
-    setTempConfig((c) => ({
-      ...c,
-      splits: c.splits.map((s) => (s.id === id ? { ...s, amount: remaining } : s)),
+    setTempConfig((cfg) => ({
+      ...cfg,
+      splits: cfg.splits.map((s) => (s.id === id ? { ...s, amount: remaining } : s)),
     }))
   }
 
@@ -70,10 +70,10 @@ export default function DebtConfigModal({
     if (count <= 1) return
     const perPerson = c(totalAmount).divide(count).value
     const remainder = Math.round((totalAmount - perPerson * count) * 100) / 100
-    setTempConfig((c) => ({
-      ...c,
+    setTempConfig((cfg) => ({
+      ...cfg,
       userShare: perPerson + remainder,
-      splits: c.splits.map((s) => ({
+      splits: cfg.splits.map((s) => ({
         ...s,
         amount: perPerson,
       })),
@@ -121,8 +121,8 @@ export default function DebtConfigModal({
                 min="0"
                 value={tempConfig.userShare || ''}
                 onChange={(e) =>
-                  setTempConfig((c) => ({
-                    ...c,
+                  setTempConfig((cfg) => ({
+                    ...cfg,
                     userShare: parseCurrency(e.target.value),
                   }))
                 }

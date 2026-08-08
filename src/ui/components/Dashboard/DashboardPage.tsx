@@ -105,7 +105,7 @@ export default function DashboardPage() {
   }, [state.transactions, selectedMonth])
 
   const today = new Date()
-  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  const currentMonth = currentYM(today)
   const currentDay =
     selectedMonth === currentMonth
       ? Math.min(today.getDate(), DAYS_IN_MONTH)
@@ -118,21 +118,7 @@ export default function DashboardPage() {
     [state.transactions, budget, currentDay],
   )
 
-  const paceStatus = useMemo(() => {
-    if (currentDay === 0) return { label: 'No data', color: 'text-muted-foreground' }
-    const totalSpent = state.transactions
-      .filter(
-        (t) =>
-          t.referenceMonth === selectedMonth && !t.isSettled && t.type === 'EXPENSE' && !t.isDebt,
-      )
-      .reduce((s, t) => s + t.amount, 0)
-    const avgDay = totalSpent / currentDay
-    const dailyQuota = pace.totalSalary > 0 ? pace.limit / DAYS_IN_MONTH : 0
-    if (dailyQuota === 0) return { label: 'No budget set', color: 'text-muted-foreground' }
-    if (avgDay <= dailyQuota * 1.05) return { label: 'On track', color: 'text-green-500' }
-    if (avgDay <= dailyQuota * 1.2) return { label: 'Caution', color: 'text-yellow-500' }
-    return { label: 'Over budget', color: 'text-red-500' }
-  }, [state.transactions, selectedMonth, currentDay, pace])
+  const dailyQuota = pace.totalSalary > 0 ? pace.limit / DAYS_IN_MONTH : 0
 
   const spentSoFar = useMemo(() => {
     if (!selectedMonth) return 0
@@ -144,8 +130,16 @@ export default function DashboardPage() {
       .reduce((s, t) => s + t.amount, 0)
   }, [state.transactions, selectedMonth])
 
+  const paceStatus = useMemo(() => {
+    if (currentDay === 0) return { label: 'No data', color: 'text-muted-foreground' }
+    const avgDay = spentSoFar / currentDay
+    if (dailyQuota === 0) return { label: 'No budget set', color: 'text-muted-foreground' }
+    if (avgDay <= dailyQuota * 1.05) return { label: 'On track', color: 'text-green-500' }
+    if (avgDay <= dailyQuota * 1.2) return { label: 'Caution', color: 'text-yellow-500' }
+    return { label: 'Over budget', color: 'text-red-500' }
+  }, [currentDay, spentSoFar, dailyQuota])
+
   const dailyAvg = currentDay > 0 ? spentSoFar / currentDay : 0
-  const dailyQuota = pace.totalSalary > 0 ? pace.limit / DAYS_IN_MONTH : 0
 
   if (!monthData) {
     return <EmptyState message="No transaction data available." />

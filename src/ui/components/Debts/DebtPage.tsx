@@ -17,13 +17,17 @@ import type { Transaction } from '@/domain/entities'
 import { formatCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
 
+const BADGE_GREEN = 'text-green-600 bg-green-50 dark:bg-green-900/20'
+const BADGE_AMBER = 'text-amber-600 bg-amber-50 dark:bg-amber-900/20'
+const BADGE_RED = 'text-red-600 bg-red-50 dark:bg-red-900/20'
+
 function DebtUrgency({ days }: { days: number }) {
   const urgency =
     days > 30
-      ? { label: 'Overdue', color: 'text-red-600 bg-red-50 dark:bg-red-900/20' }
+      ? { label: 'Overdue', color: BADGE_RED }
       : days > 15
-        ? { label: 'Aging', color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' }
-        : { label: 'Recent', color: 'text-green-600 bg-green-50 dark:bg-green-900/20' }
+        ? { label: 'Aging', color: BADGE_AMBER }
+        : { label: 'Recent', color: BADGE_GREEN }
   return (
     <Badge variant="outline" className={urgency.color}>
       {urgency.label} ({days}d)
@@ -164,24 +168,15 @@ export default function DebtPage() {
                   </TableCell>
                   <TableCell>
                     {p.allSettled ? (
-                      <Badge
-                        variant="outline"
-                        className="text-green-600 bg-green-50 dark:bg-green-900/20"
-                      >
+                      <Badge variant="outline" className={BADGE_GREEN}>
                         All paid
                       </Badge>
                     ) : p.anySettled ? (
-                      <Badge
-                        variant="outline"
-                        className="text-amber-600 bg-amber-50 dark:bg-amber-900/20"
-                      >
+                      <Badge variant="outline" className={BADGE_AMBER}>
                         Partial
                       </Badge>
                     ) : (
-                      <Badge
-                        variant="outline"
-                        className="text-red-600 bg-red-50 dark:bg-red-900/20"
-                      >
+                      <Badge variant="outline" className={BADGE_RED}>
                         Pending
                       </Badge>
                     )}
@@ -233,10 +228,7 @@ export default function DebtPage() {
                     </TableCell>
                     <TableCell>
                       {tx.isSettled ? (
-                        <Badge
-                          variant="outline"
-                          className="text-green-600 bg-green-50 dark:bg-green-900/20"
-                        >
+                        <Badge variant="outline" className={BADGE_GREEN}>
                           Paid
                         </Badge>
                       ) : (
