@@ -92,6 +92,7 @@ export default function SmartTransactionInput({
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [activeSuggestion, setActiveSuggestion] = useState(-1)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [focused, setFocused] = useState(false)
   const suggestionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -193,11 +194,11 @@ export default function SmartTransactionInput({
     }
   }
 
-  const parsed = raw ? parseInput(raw) : null
+  const parsed = parseInput(raw)
 
   return (
     <div className="relative">
-      {!showSuggestions && !submitError && parsed && !parsed.error && (
+      {focused && (
         <div className="mb-0.5 text-[10px] text-muted-foreground bg-muted/50 px-2 py-1 flex flex-wrap gap-x-4 gap-y-0.5">
           <span>
             Pay:{' '}
@@ -209,16 +210,16 @@ export default function SmartTransactionInput({
           </span>
           <span>
             Amt:{' '}
-            <span className="font-medium font-mono">{parseCurrency(parsed.amount).toFixed(2)}</span>
+            <span className="font-medium font-mono">
+              {parsed.amount ? parseCurrency(parsed.amount).toFixed(2) : '—'}
+            </span>
           </span>
           <span>
-            Desc: <span className="font-medium">{parsed.description}</span>
+            Desc: <span className="font-medium">{parsed.description || '—'}</span>
           </span>
-          {parsed.category && (
-            <span>
-              Cat: <span className="font-medium">{parsed.category}</span>
-            </span>
-          )}
+          <span>
+            Cat: <span className="font-medium">{parsed.category || '—'}</span>
+          </span>
           <span>
             Date: <span className="font-medium">{parsed.date}</span>
           </span>
@@ -234,8 +235,12 @@ export default function SmartTransactionInput({
               setSubmitError(null)
             }}
             onKeyDown={handleKeyDown}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            onBlur={() => {
+              setFocused(false)
+              setTimeout(() => setShowSuggestions(false), 200)
+            }}
             onFocus={() => {
+              setFocused(true)
               if (suggestions.length > 0) setShowSuggestions(true)
             }}
             placeholder="debit, 25,90, Lunch, Food, today"
