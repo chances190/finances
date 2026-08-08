@@ -20,7 +20,7 @@ import {
   PAYMENT_METHODS,
 } from '@/domain/constants'
 import type { DebtConfig, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
-import { formatCurrency, parseCurrency } from '@/lib/currency'
+import { formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
@@ -72,7 +72,7 @@ export default function TransactionForm({
       setForm({
         type: editTransaction.type,
         date: editTransaction.date,
-        amount: String(editTransaction.amount),
+        amount: formatPlainCurrency(editTransaction.amount),
         description: editTransaction.description,
         category: editTransaction.category,
         paymentMethod: editTransaction.paymentMethod,
@@ -221,9 +221,8 @@ export default function TransactionForm({
                 </Label>
                 <Input
                   id="tx-amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   value={form.amount}
                   onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
                 />
@@ -331,7 +330,7 @@ export default function TransactionForm({
                   <Button
                     size="xs"
                     variant={isDebt ? 'default' : 'outline'}
-                    disabled={!isDebt && !(parseFloat(form.amount) > 0)}
+                    disabled={!isDebt && !(parseCurrency(form.amount) > 0)}
                     onClick={() => setShowDebtConfig(true)}
                   >
                     {isDebt

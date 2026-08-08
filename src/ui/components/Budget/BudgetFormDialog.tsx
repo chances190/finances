@@ -8,7 +8,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { addMonths } from '@/domain/calculations'
 import { DEFAULT_CATEGORIES } from '@/domain/constants'
 import type { Budget, Budget as BudgetType } from '@/domain/entities'
-import { parseCurrency } from '@/lib/currency'
+import { formatPlainCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
@@ -46,17 +46,18 @@ function toBudget(data: BudgetFormData): BudgetType {
 function formFromBudget(b: Budget): BudgetFormData {
   const limits: Record<string, string> = {}
   for (const cat of DEFAULT_CATEGORIES) {
-    limits[cat] = b.categoryLimits[cat] !== undefined ? String(b.categoryLimits[cat]) : ''
+    limits[cat] =
+      b.categoryLimits[cat] !== undefined ? formatPlainCurrency(b.categoryLimits[cat]) : ''
   }
   for (const [k, v] of Object.entries(b.categoryLimits)) {
     if (!(DEFAULT_CATEGORIES as readonly string[]).includes(k)) {
-      limits[k] = String(v)
+      limits[k] = formatPlainCurrency(v)
     }
   }
   return {
     referenceMonth: b.referenceMonth,
-    plannedIncome: String(b.plannedIncome),
-    plannedMealVoucher: String(b.plannedMealVoucher),
+    plannedIncome: formatPlainCurrency(b.plannedIncome),
+    plannedMealVoucher: formatPlainCurrency(b.plannedMealVoucher),
     categoryLimits: limits,
   }
 }
@@ -319,9 +320,8 @@ export default function BudgetFormDialog({
                 </Label>
                 <Input
                   id="budget-income"
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   value={form.plannedIncome}
                   onChange={(e) => setForm((f) => ({ ...f, plannedIncome: e.target.value }))}
                 />
@@ -332,9 +332,8 @@ export default function BudgetFormDialog({
                 </Label>
                 <Input
                   id="budget-mealvoucher"
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   value={form.plannedMealVoucher}
                   onChange={(e) => setForm((f) => ({ ...f, plannedMealVoucher: e.target.value }))}
                 />
@@ -393,9 +392,8 @@ export default function BudgetFormDialog({
                           </Label>
                           <Input
                             id={catId}
-                            type="number"
-                            step="0.01"
-                            min="0"
+                            type="text"
+                            inputMode="decimal"
                             placeholder="0"
                             value={form.categoryLimits[cat]}
                             onChange={(e) =>

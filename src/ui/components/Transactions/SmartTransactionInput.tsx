@@ -9,6 +9,7 @@ import {
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
 } from '@/domain/constants'
+import { parseCurrency } from '@/lib/currency'
 import { parseNaturalDate } from '@/lib/parseDate'
 
 type ParsedRow = {
@@ -18,6 +19,19 @@ type ParsedRow = {
   paymentMethod: string | null
   date: string
   error: string | null
+}
+
+function splitAmountTokens(parts: string[]): { amount: string; rest: string[] } {
+  const isPureInt = (s: string) => /^\d+$/.test(s)
+  const looksLikeThousands = (s: string) => /^\d{1,3}(\.\d{3})+$/.test(s)
+  if (
+    parts.length >= 3 &&
+    isPureInt(parts[2]) &&
+    (isPureInt(parts[1]) || looksLikeThousands(parts[1]))
+  ) {
+    return { amount: `${parts[1]},${parts[2]}`, rest: parts.slice(3) }
+  }
+  return { amount: parts[1] || '', rest: parts.slice(2) }
 }
 
 interface SmartInputProps {
@@ -91,10 +105,10 @@ export default function SmartTransactionInput({
   function parseInput(text: string): ParsedRow {
     const parts = text.split(',').map((t) => t.trim())
     const paymentMethod = parts[0] || null
-    const amount = parts[1] || ''
-    const description = parts[2] || ''
-    const category = parts[3] || null
-    const dateText = parts[4] || null
+    const { amount, rest } = splitAmountTokens(parts)
+    const description = rest[0] || ''
+    const category = rest[1] || null
+    const dateText = rest[2] || null
 
     let date = localYMD()
     let error: string | null = null
@@ -105,8 +119,10 @@ export default function SmartTransactionInput({
         )?.[0] ?? null)
       : null
 
+    const amountValue = parseCurrency(amount)
+
     if (paymentMethod && !pmCode) error = `Unknown payment method: "${paymentMethod}"`
-    else if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0)
+    else if (!amount || Number.isNaN(amountValue) || amountValue <= 0)
       error = 'Amount must be a positive number'
     else if (!description) error = 'Description is required'
     else {
@@ -179,7 +195,7 @@ export default function SmartTransactionInput({
             onFocus={() => {
               if (suggestions.length > 0) setShowSuggestions(true)
             }}
-            placeholder="debit, 25.90, Lunch, Food, today"
+            placeholder="debit, 25,90, Lunch, Food, today"
             className="h-7 text-xs font-mono"
             aria-label="Quick add transaction"
           />
@@ -242,7 +258,8 @@ export default function SmartTransactionInput({
             </span>
           </span>
           <span>
-            Amt: <span className="font-medium font-mono">{Number(parsed.amount).toFixed(2)}</span>
+            Amt:{' '}
+            <span className="font-medium font-mono">{parseCurrency(parsed.amount).toFixed(2)}</span>
           </span>
           <span>
             Desc: <span className="font-medium">{parsed.description}</span>
