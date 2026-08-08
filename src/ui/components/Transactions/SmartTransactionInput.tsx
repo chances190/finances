@@ -29,17 +29,6 @@ function splitAmountTokens(parts: string[]): { amount: string; rest: string[] } 
   return { amount: parts[1] || '', rest: parts.slice(2) }
 }
 
-function nextFieldHint(raw: string): string {
-  if (!raw.trim()) return 'payment method'
-  const parts = raw.split(',').map((t) => t.trim())
-  const { amount, rest } = splitAmountTokens(parts)
-  if (!parts[0] || !amount) return 'amount'
-  if (rest.length === 0 || !rest[0]) return 'description'
-  if (rest.length === 1 || !rest[1]) return 'category'
-  if (rest.length === 2 || !rest[2]) return 'date'
-  return ''
-}
-
 interface SmartInputProps {
   onAdd: (parsed: ParsedRow) => void
   onOpenModal: () => void
@@ -102,6 +91,7 @@ export default function SmartTransactionInput({
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [activeSuggestion, setActiveSuggestion] = useState(-1)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const suggestionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -154,12 +144,17 @@ export default function SmartTransactionInput({
     return { description, amount, category, paymentMethod: pmCode, date, error }
   }
 
-  function handleSubmit(text: string) {
-    const parsed = parseInput(text)
-    if (parsed.error) return
+  function attemptSubmit() {
+    if (!raw.trim()) return
+    const parsed = parseInput(raw)
+    if (parsed.error) {
+      setSubmitError(parsed.error)
+      return
+    }
     onAdd(parsed)
     setRaw('')
     setShowSuggestions(false)
+    setSubmitError(null)
   }
 
   function applySuggestion() {
@@ -179,7 +174,7 @@ export default function SmartTransactionInput({
       if (showSuggestions && activeSuggestion >= 0 && suggestions[activeSuggestion]) {
         applySuggestion()
       } else {
-        handleSubmit(raw)
+        attemptSubmit()
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -189,6 +184,7 @@ export default function SmartTransactionInput({
       setActiveSuggestion((prev) => Math.max(prev - 1, 0))
     } else if (e.key === 'Escape') {
       setShowSuggestions(false)
+      setSubmitError(null)
     } else if (e.key === 'Tab') {
       if (showSuggestions && activeSuggestion >= 0 && suggestions[activeSuggestion]) {
         e.preventDefault()
@@ -198,15 +194,45 @@ export default function SmartTransactionInput({
   }
 
   const parsed = raw ? parseInput(raw) : null
-  const hint = nextFieldHint(raw)
 
   return (
     <div className="relative">
+      {!showSuggestions && !submitError && parsed && !parsed.error && (
+        <div className="mb-0.5 text-[10px] text-muted-foreground bg-muted/50 px-2 py-1 flex flex-wrap gap-x-4 gap-y-0.5">
+          <span>
+            Pay:{' '}
+            <span className="font-medium">
+              {parsed.paymentMethod
+                ? (PAYMENT_METHOD_LABELS[parsed.paymentMethod] ?? parsed.paymentMethod)
+                : '—'}
+            </span>
+          </span>
+          <span>
+            Amt:{' '}
+            <span className="font-medium font-mono">{parseCurrency(parsed.amount).toFixed(2)}</span>
+          </span>
+          <span>
+            Desc: <span className="font-medium">{parsed.description}</span>
+          </span>
+          {parsed.category && (
+            <span>
+              Cat: <span className="font-medium">{parsed.category}</span>
+            </span>
+          )}
+          <span>
+            Date: <span className="font-medium">{parsed.date}</span>
+          </span>
+        </div>
+      )}
+
       <div className="flex items-stretch gap-2">
         <div className="relative flex-1">
           <Input
             value={raw}
-            onChange={(e) => setRaw(e.target.value)}
+            onChange={(e) => {
+              setRaw(e.target.value)
+              setSubmitError(null)
+            }}
             onKeyDown={handleKeyDown}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             onFocus={() => {
@@ -246,12 +272,7 @@ export default function SmartTransactionInput({
         </div>
 
         <div className="flex items-center gap-1">
-          <Button
-            size="icon-xs"
-            onClick={() => handleSubmit(raw)}
-            disabled={!parsed || !!parsed.error}
-            aria-label="Add transaction from input"
-          >
+          <Button size="icon-xs" onClick={attemptSubmit} aria-label="Add transaction from input">
             <PlusIcon />
           </Button>
           <Button variant="outline" size="xs" className="h-7 text-xs" onClick={onOpenModal}>
@@ -263,43 +284,9 @@ export default function SmartTransactionInput({
         </div>
       </div>
 
-      {raw && !parsed?.error && hint && (
-        <div className="mt-0.5 text-[10px] text-muted-foreground">
-          Next: <span className="font-medium">{hint}</span>
-        </div>
-      )}
-
-      {parsed && !parsed.error && (
-        <div className="mt-0.5 text-[10px] text-muted-foreground bg-muted/50 px-2 py-1 flex flex-wrap gap-x-4 gap-y-0.5">
-          <span>
-            Pay:{' '}
-            <span className="font-medium">
-              {parsed.paymentMethod
-                ? (PAYMENT_METHOD_LABELS[parsed.paymentMethod] ?? parsed.paymentMethod)
-                : '—'}
-            </span>
-          </span>
-          <span>
-            Amt:{' '}
-            <span className="font-medium font-mono">{parseCurrency(parsed.amount).toFixed(2)}</span>
-          </span>
-          <span>
-            Desc: <span className="font-medium">{parsed.description}</span>
-          </span>
-          {parsed.category && (
-            <span>
-              Cat: <span className="font-medium">{parsed.category}</span>
-            </span>
-          )}
-          <span>
-            Date: <span className="font-medium">{parsed.date}</span>
-          </span>
-        </div>
-      )}
-
-      {parsed?.error && (
+      {!showSuggestions && submitError && (
         <div className="mt-0.5 text-[10px] text-destructive bg-destructive/10 px-2 py-1">
-          {parsed.error}
+          {submitError}
         </div>
       )}
     </div>
