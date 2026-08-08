@@ -157,7 +157,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Monthly Dashboard</h2>
+        <h2 className="text-lg font-semibold">Monthly Dashboard</h2>
         <Select value={selectedMonth} onValueChange={(v) => v && setSelectedMonth(v)}>
           <SelectTrigger className="w-36">
             <SelectValue />
@@ -222,9 +222,7 @@ export default function DashboardPage() {
 
       {monthData.income > 0 && Object.keys(monthData.incomeByMethod).length > 0 && (
         <div className="border bg-card p-4">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Income by Account
-          </h3>
+          <h3 className="text-sm font-semibold mb-2">Income by Account</h3>
           <div className="flex flex-wrap gap-4">
             {Object.entries(monthData.incomeByMethod).map(([method, amount]) => (
               <div key={method} className="flex items-center gap-2 text-sm">

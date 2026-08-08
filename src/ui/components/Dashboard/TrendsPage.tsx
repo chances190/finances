@@ -107,7 +107,7 @@ export default function TrendsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Yearly Trends</h2>
+        <h2 className="text-lg font-semibold">Trends</h2>
         <Select value={selectedYear} onValueChange={(v) => v && setSelectedYear(v)}>
           <SelectTrigger className="w-28">
             <SelectValue />

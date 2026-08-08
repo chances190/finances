@@ -102,7 +102,7 @@ export default function DebtPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">
+        <h2 className="text-lg font-semibold">
           {showSettled ? 'All Debts' : 'Active Debts (who owes me)'}
         </h2>
         <div className="flex items-center gap-3">

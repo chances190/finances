@@ -66,7 +66,7 @@ function AppShell() {
         {activeTab === 'transactions' && <TransactionTable />}
         {activeTab === 'budgets' && <BudgetPage />}
         {activeTab === 'debts' && <DebtPage />}
-        {activeTab === 'history' && <AuditLogPanel standalone />}
+        {activeTab === 'history' && <AuditLogPanel />}
         {activeTab === 'dashboard' && <DashboardPage />}
         {activeTab === 'yearly' && <TrendsPage />}
       </main>

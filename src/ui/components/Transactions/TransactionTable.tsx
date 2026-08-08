@@ -206,6 +206,7 @@ export default function TransactionTable() {
 
   return (
     <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Transactions</h2>
       <SmartTransactionInput
         onAdd={handleSmartAdd}
         onOpenModal={() => setShowAddForm(true)}

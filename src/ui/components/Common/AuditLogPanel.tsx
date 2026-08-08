@@ -3,17 +3,11 @@ import {
   ArrowCounterClockwiseIcon,
   ClockIcon,
   TrashIcon,
-  XIcon,
 } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { useFinance } from '@/ui/context'
 
-interface AuditLogPanelProps {
-  onClose?: () => void
-  standalone?: boolean
-}
-
-export default function AuditLogPanel({ onClose, standalone }: AuditLogPanelProps) {
+export default function AuditLogPanel() {
   const { state, dispatch } = useFinance()
 
   function handleUndo(entryId: string) {
@@ -25,11 +19,11 @@ export default function AuditLogPanel({ onClose, standalone }: AuditLogPanelProp
   }
 
   return (
-    <div className={standalone ? '' : 'border border-border bg-card p-3'}>
+    <div>
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-semibold flex items-center gap-1">
-          <ClockIcon /> Action History
-        </h3>
+        <h2 className="text-lg font-semibold flex items-center gap-1">
+          <ClockIcon /> Actions
+        </h2>
         <div className="flex gap-2">
           <Button
             variant="ghost"
@@ -48,11 +42,6 @@ export default function AuditLogPanel({ onClose, standalone }: AuditLogPanelProp
               aria-label="Clear history"
             >
               <TrashIcon /> Clear
-            </Button>
-          )}
-          {onClose && (
-            <Button variant="ghost" size="icon-xs" onClick={onClose} aria-label="Close panel">
-              <XIcon />
             </Button>
           )}
         </div>
