@@ -26,7 +26,7 @@ export function SegmentedControl({
   return (
     <div
       role="radiogroup"
-      className={cn('inline-flex items-center gap-1 rounded-md bg-muted p-1', className)}
+      className={cn('inline-flex items-center gap-1 rounded-none bg-muted p-1', className)}
       {...props}
     >
       {options.map((option) => {
@@ -39,7 +39,7 @@ export function SegmentedControl({
             aria-checked={selected}
             onClick={() => onValueChange(option.value)}
             className={cn(
-              'flex flex-1 items-center justify-center gap-1.5 rounded-sm px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors',
+              'flex flex-1 items-center justify-center gap-1.5 rounded-none px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors',
               selected
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground',

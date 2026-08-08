@@ -250,7 +250,7 @@ export default function TransactionTable() {
           </SelectContent>
         </Select>
         <Popover>
-          <PopoverTrigger className="group inline-flex shrink-0 items-center justify-center h-7 gap-1 rounded-none px-2 text-xs font-medium whitespace-nowrap transition-all outline-none select-none border border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3">
+          <PopoverTrigger render={<Button variant="outline" size="sm" />}>
             <FunnelIcon className="size-3" />
             Category{filterCategories.length > 0 && ` (${filterCategories.length})`}
           </PopoverTrigger>
@@ -276,7 +276,7 @@ export default function TransactionTable() {
           </PopoverContent>
         </Popover>
         <Popover>
-          <PopoverTrigger className="group inline-flex shrink-0 items-center justify-center h-7 gap-1 rounded-none px-2 text-xs font-medium whitespace-nowrap transition-all outline-none select-none border border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3">
+          <PopoverTrigger render={<Button variant="outline" size="sm" />}>
             <FunnelIcon className="size-3" />
             Payment{filterPayments.length > 0 && ` (${filterPayments.length})`}
           </PopoverTrigger>
