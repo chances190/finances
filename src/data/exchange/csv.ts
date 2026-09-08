@@ -172,7 +172,10 @@ export function importCSV(csv: string): Transaction[] {
 
     // Single-row: standalone, installment head, or installment child
     const t: Transaction = {
-      id: uuid(),
+      id:
+        first.installmentTotal && !first.installmentRef
+          ? (headRefToId.get(first.ref) ?? uuid())
+          : uuid(),
       type: parseType(first.type),
       date: first.date,
       referenceMonth: first.referenceMonth || first.date.slice(0, 7),
