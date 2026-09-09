@@ -9,45 +9,35 @@ export type PaymentMethod =
   | 'TRANSFER'
   | 'VOUCHER'
 
-export interface InstallmentConfig {
-  current: number
-  total: number
-}
-
-interface DebtSplit {
-  debtorName: string
-  amount: number
-  settled?: boolean
-}
-
-export interface DebtSplitUI {
-  id: string
+export interface Debt {
   name: string
   amount: number
-}
-
-export interface DebtConfig {
-  userShare: number
-  splits: DebtSplitUI[]
+  settled: boolean
 }
 
 export interface Transaction {
   id: string
   type: TransactionType
   date: string
-  referenceMonth: string
   description: string
   amount: number
   category: string
   paymentMethod: PaymentMethod
-  installment?: InstallmentConfig
-  parentId?: string
-  groupId?: string
-  isDebt: boolean
-  debtorName?: string
-  debtSplits?: DebtSplit[]
-  debtUserShare?: number
-  isSettled: boolean
+  installments?: number
+  debts?: Debt[]
+}
+
+export interface MonthlyFlow {
+  id: string
+  type: TransactionType
+  date: string
+  description: string
+  amount: number
+  category: string
+  paymentMethod: PaymentMethod
+  referenceMonth: string
+  installmentIndex?: number
+  installmentTotal?: number
 }
 
 export interface Budget {
@@ -69,4 +59,50 @@ export interface AuditEntry {
   snapshot: { transactions: Transaction[]; budgets: Budget[] }
   forwardSnapshot?: { transactions: Transaction[]; budgets: Budget[] }
   actionType: string
+}
+
+export function addMonths(ym: string, n: number): string {
+  const [y, m] = ym.split('-').map(Number)
+  const total = y * 12 + m - 1 + n
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`
+}
+
+function dateToYM(dateStr: string): string {
+  return dateStr.slice(0, 7)
+}
+
+export function monthlyFlows(tx: Transaction): MonthlyFlow[] {
+  const ym = dateToYM(tx.date)
+
+  if (tx.type === 'INCOME' || !tx.installments || tx.installments <= 1) {
+    return [
+      {
+        id: tx.id,
+        type: tx.type,
+        date: tx.date,
+        description: tx.description,
+        amount: tx.amount,
+        category: tx.category,
+        paymentMethod: tx.paymentMethod,
+        referenceMonth: ym,
+      },
+    ]
+  }
+
+  const n = tx.installments
+  const base = Math.floor(tx.amount / n)
+  const remainder = tx.amount - base * n
+
+  return Array.from({ length: n }, (_, i) => ({
+    id: tx.id,
+    type: tx.type,
+    date: tx.date,
+    description: tx.description,
+    amount: i === 0 ? base + remainder : base,
+    category: tx.category,
+    paymentMethod: tx.paymentMethod,
+    referenceMonth: addMonths(ym, i),
+    installmentIndex: i,
+    installmentTotal: n,
+  }))
 }

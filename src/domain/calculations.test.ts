@@ -34,13 +34,10 @@ function tx(overrides: Partial<Transaction> & { id: string }): Transaction {
   return {
     type: 'EXPENSE',
     date: '2026-07-01',
-    referenceMonth: '2026-07',
     description: '',
     amount: 100,
     category: 'Other',
     paymentMethod: 'DEBIT',
-    isDebt: false,
-    isSettled: false,
     ...overrides,
   }
 }
@@ -73,44 +70,37 @@ describe('parseDate', () => {
 })
 
 const sampleTransactions: Transaction[] = [
-  tx({ id: '1', amount: 100, referenceMonth: '2026-07', category: 'Food', paymentMethod: 'PIX' }),
-  tx({ id: '2', amount: 200, referenceMonth: '2026-07', category: 'Rent', paymentMethod: 'DEBIT' }),
+  tx({ id: '1', amount: 100, category: 'Food', paymentMethod: 'PIX' }),
+  tx({ id: '2', amount: 200, category: 'Rent', paymentMethod: 'DEBIT' }),
   tx({
     id: '3',
     amount: 50,
-    referenceMonth: '2026-07',
     category: 'Food',
     paymentMethod: 'MEAL_VOUCHER',
-    isSettled: true,
   }),
   tx({
     id: '4',
     amount: 5000,
-    referenceMonth: '2026-07',
     type: 'INCOME',
     category: 'Salary',
     paymentMethod: 'DEBIT',
   }),
-  tx({ id: '5', amount: 300, referenceMonth: '2026-08', category: 'Food', paymentMethod: 'PIX' }),
+  tx({ id: '5', amount: 300, date: '2026-08-01', category: 'Food', paymentMethod: 'PIX' }),
   tx({
     id: '6',
     amount: 150,
-    referenceMonth: '2026-07',
     category: 'Leisure',
     paymentMethod: 'CREDIT',
   }),
   tx({
     id: '7',
     amount: 80,
-    referenceMonth: '2026-07',
     category: 'Food',
     paymentMethod: 'PIX',
-    isDebt: true,
   }),
   tx({
     id: '8',
     amount: 800,
-    referenceMonth: '2026-07',
     type: 'INCOME',
     category: 'Salary',
     paymentMethod: 'MEAL_VOUCHER',
@@ -118,13 +108,11 @@ const sampleTransactions: Transaction[] = [
 ]
 
 describe('byMonth', () => {
-  test('filters expenses for given month, excluding settled and debts', () => {
+  test('filters expenses for given month', () => {
     const result = byMonth(sampleTransactions, '2026-07')
-    expect(result).toHaveLength(3) // tx 1, 2, 6 (excludes settled-3, income-4, debt-7, other month-5, income-8)
+    expect(result).toHaveLength(5) // tx 1,2,3,6,7
     expect(result.every((t) => t.referenceMonth === '2026-07')).toBe(true)
     expect(result.every((t) => t.type === 'EXPENSE')).toBe(true)
-    expect(result.every((t) => !t.isSettled)).toBe(true)
-    expect(result.every((t) => !t.isDebt)).toBe(true)
   })
 })
 
@@ -144,35 +132,36 @@ describe('totalByMonth', () => {
 
 describe('expensesByMonth', () => {
   test('sums expenses for month', () => {
-    expect(expensesByMonth(sampleTransactions, '2026-07')).toBe(450) // 100 + 200 + 150
+    expect(expensesByMonth(sampleTransactions, '2026-07')).toBe(580) // 100+200+50+150+80
   })
 })
 
 describe('balance', () => {
   test('income minus expenses', () => {
-    expect(balance(sampleTransactions, '2026-07')).toBe(5800 - 450)
+    expect(balance(sampleTransactions, '2026-07')).toBe(5800 - 580)
   })
 })
 
 describe('byCategory', () => {
   test('sums expenses by category', () => {
     const result = byCategory(sampleTransactions, '2026-07')
-    expect(result).toEqual({ Food: 100, Rent: 200, Leisure: 150 })
+    expect(result).toEqual({ Food: 230, Rent: 200, Leisure: 150 }) // Food: 100+50+80
   })
 })
 
 describe('groupedByPaymentMethod', () => {
   test('sums expenses by payment method', () => {
     const result = groupedByPaymentMethod(sampleTransactions, '2026-07')
-    expect(result.PIX).toBe(100)
+    expect(result.PIX).toBe(180) // 100+80
     expect(result.DEBIT).toBe(200)
+    expect(result.MEAL_VOUCHER).toBe(50)
     expect(result.CREDIT).toBe(150)
   })
 })
 
 describe('cashExpenses', () => {
   test('excludes MEAL_VOUCHER and CREDIT', () => {
-    expect(cashExpenses(sampleTransactions, '2026-07')).toBe(300) // 100 PIX + 200 DEBIT
+    expect(cashExpenses(sampleTransactions, '2026-07')).toBe(380) // 100 PIX + 200 DEBIT + 80 PIX
   })
 })
 
@@ -189,12 +178,11 @@ describe('mealVoucherExpenses', () => {
       tx({
         id: '9',
         amount: 30,
-        referenceMonth: '2026-07',
         category: 'Food',
         paymentMethod: 'MEAL_VOUCHER',
       }),
     ]
-    expect(mealVoucherExpenses(withMv, '2026-07')).toBe(30)
+    expect(mealVoucherExpenses(withMv, '2026-07')).toBe(80) // 50 (tx3) + 30 (tx9)
   })
 })
 
@@ -205,12 +193,11 @@ describe('mealVoucherBalance', () => {
       tx({
         id: '9',
         amount: 30,
-        referenceMonth: '2026-07',
         category: 'Food',
         paymentMethod: 'MEAL_VOUCHER',
       }),
     ]
-    expect(mealVoucherBalance(withMv, '2026-07')).toBe(770)
+    expect(mealVoucherBalance(withMv, '2026-07')).toBe(720) // 800 income - 80 expenses
   })
 })
 
@@ -270,7 +257,7 @@ describe('budgetVsActual', () => {
     const result = budgetVsActual(sampleTransactions, budget)
     const food = result.find((r) => r.category === 'Food')
     expect(food?.budgeted).toBe(200)
-    expect(food?.actual).toBe(100)
+    expect(food?.actual).toBe(230) // 100+50+80
   })
 
   test('returns empty array for missing budget', () => {
@@ -279,20 +266,37 @@ describe('budgetVsActual', () => {
 })
 
 describe('futureCommitments', () => {
-  test('returns commitments for installment children', () => {
-    const installments: Transaction[] = Array.from({ length: 3 }, (_, i) =>
-      tx({
-        id: `i${i}`,
-        amount: 100,
-        referenceMonth: `2026-${String(8 + i).padStart(2, '0')}`,
-        parentId: 'parent-1',
+  const RealDate = Date
+
+  function mockDate(ymd: string) {
+    const fake = new RealDate(`${ymd}T12:00:00Z`)
+    // @ts-expect-error mocking Date for deterministic test
+    globalThis.Date = class extends RealDate {
+      constructor(...args: unknown[]) {
+        if (args.length === 0) super(fake)
+        else super(...(args as ConstructorParameters<typeof RealDate>))
+      }
+      static now = () => fake.getTime()
+    } as typeof Date
+  }
+
+  test('returns commitments for installment purchase', () => {
+    mockDate('2026-09-01')
+    try {
+      const installmentTx: Transaction = tx({
+        id: 'i1',
+        amount: 300,
+        date: '2026-09-15',
         paymentMethod: 'CREDIT',
-      }),
-    )
-    const result = futureCommitments([...sampleTransactions, ...installments], 6)
-    expect(result.length).toBeGreaterThan(0)
-    const aug = result.find((r) => r.referenceMonth === '2026-08')
-    expect(aug?.total).toBe(100)
+        installments: 3,
+      })
+      const result = futureCommitments([...sampleTransactions, installmentTx], 6)
+      expect(result.length).toBeGreaterThan(0)
+      const sep = result.find((r) => r.referenceMonth === '2026-09')
+      expect(sep?.total).toBe(100)
+    } finally {
+      globalThis.Date = RealDate
+    }
   })
 
   test('handles empty transactions', () => {
@@ -316,9 +320,9 @@ describe('yearSummary', () => {
     expect(result.months).toHaveLength(12)
     const jul = result.months.find((m) => m.referenceMonth === '2026-07')
     expect(jul?.income).toBe(5800)
-    expect(jul?.expenses).toBe(450)
+    expect(jul?.expenses).toBe(580)
     expect(result.totalIncome).toBe(5800)
-    expect(result.totalExpenses).toBe(750)
+    expect(result.totalExpenses).toBe(880) // 580 (Jul) + 300 (Aug)
   })
 })
 

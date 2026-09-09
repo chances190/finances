@@ -1,5 +1,8 @@
 import { DAYS_IN_MONTH, SES_ALPHA } from './constants'
-import type { Budget, Transaction } from './entities'
+import type { Budget, MonthlyFlow, Transaction } from './entities'
+import { addMonths, monthlyFlows } from './entities'
+
+export { addMonths }
 
 export function compareTransactions(
   a: Transaction,
@@ -12,12 +15,6 @@ export function compareTransactions(
       ? a.amount - b.amount
       : String(a[key] ?? '').localeCompare(String(b[key] ?? ''))
   return dir === 'asc' ? cmp : -cmp
-}
-
-export function addMonths(ym: string, n: number): string {
-  const [y, m] = ym.split('-').map(Number)
-  const total = y * 12 + m - 1 + n
-  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`
 }
 
 export function monthDiff(a: string, b: string): number {
@@ -35,7 +32,7 @@ export function daysSince(date: string): number {
 }
 
 export function availableMonths(tx: Transaction[]): string[] {
-  return Array.from(new Set(tx.map((t) => t.referenceMonth)))
+  return Array.from(new Set(tx.flatMap((t) => monthlyFlows(t)).map((f) => f.referenceMonth)))
     .sort()
     .reverse()
 }
@@ -62,14 +59,16 @@ export function yearRelation(y: string): 'past' | 'current' | 'future' {
   return 'current'
 }
 
-export function byMonth(tx: Transaction[], refMonth: string): Transaction[] {
-  return tx.filter(
-    (t) => t.referenceMonth === refMonth && !t.isSettled && t.type === 'EXPENSE' && !t.isDebt,
-  )
+export function byMonth(tx: Transaction[], refMonth: string): MonthlyFlow[] {
+  return tx
+    .flatMap((t) => monthlyFlows(t))
+    .filter((f) => f.referenceMonth === refMonth && f.type === 'EXPENSE')
 }
 
-export function incomeByMonth(tx: Transaction[], refMonth: string): Transaction[] {
-  return tx.filter((t) => t.referenceMonth === refMonth && !t.isSettled && t.type === 'INCOME')
+export function incomeByMonth(tx: Transaction[], refMonth: string): MonthlyFlow[] {
+  return tx
+    .flatMap((t) => monthlyFlows(t))
+    .filter((f) => f.referenceMonth === refMonth && f.type === 'INCOME')
 }
 
 export function totalByMonth(tx: Transaction[], refMonth: string): number {
@@ -269,15 +268,15 @@ export function futureCommitments(tx: Transaction[], months: number = 12): Futur
     commitments[ym] = { referenceMonth: ym, total: 0, transactions: [] }
   }
 
-  const installmentChildren = tx.filter(
-    (t) => t.parentId && !t.isSettled && t.paymentMethod === 'CREDIT',
-  )
-
-  for (const t of installmentChildren) {
-    const diff = monthDiff(t.referenceMonth, currentYM)
-    if (diff >= 0 && diff < months) {
-      commitments[t.referenceMonth].total += t.amount
-      commitments[t.referenceMonth].transactions.push(t)
+  for (const t of tx) {
+    if (t.type !== 'EXPENSE' || !t.installments || t.installments <= 1) continue
+    const flows = monthlyFlows(t)
+    for (const f of flows) {
+      const diff = monthDiff(f.referenceMonth, currentYM)
+      if (diff >= 0 && diff < months) {
+        commitments[f.referenceMonth].total += f.amount
+        commitments[f.referenceMonth].transactions.push(t)
+      }
     }
   }
 
