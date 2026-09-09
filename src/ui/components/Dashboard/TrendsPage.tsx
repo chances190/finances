@@ -27,6 +27,7 @@ import {
   yearSummary,
 } from '@/domain/calculations'
 import { CATEGORY_COLORS, CHART_COLORS } from '@/domain/constants'
+import { monthlyFlows } from '@/domain/entities'
 import { formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import StatCard from '@/ui/components/Common/StatCard'
@@ -38,7 +39,10 @@ export default function TrendsPage() {
   const years = useMemo(() => {
     const y = new Set<string>()
     for (const t of state.transactions) {
-      y.add(t.referenceMonth.slice(0, 4))
+      const flows = monthlyFlows(t)
+      for (const f of flows) {
+        y.add(f.referenceMonth.slice(0, 4))
+      }
     }
     for (const b of state.budgets) {
       y.add(b.referenceMonth.slice(0, 4))

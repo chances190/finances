@@ -6,13 +6,10 @@ function tx(refYear: number, refMonth: string, overrides: Partial<Transaction>):
     id: uuid(),
     type: 'EXPENSE',
     date: `${refYear}-${refMonth}-01`,
-    referenceMonth: `${refYear}-${refMonth}`,
     description: '',
     amount: 0,
     category: 'Other',
     paymentMethod: 'DEBIT',
-    isDebt: false,
-    isSettled: false,
     ...overrides,
   }
 }
@@ -30,7 +27,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     tx(currentYear, currentMonth, {
       type: 'INCOME',
       date: `${ym}-05`,
-      referenceMonth: ym,
       description: 'Salary',
       amount: 5000,
       category: 'Salary',
@@ -39,7 +35,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     tx(currentYear, currentMonth, {
       type: 'INCOME',
       date: `${ym}-05`,
-      referenceMonth: ym,
       description: 'Meal Voucher',
       amount: 800,
       category: 'Salary',
@@ -48,7 +43,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
 
     tx(currentYear, currentMonth, {
       date: `${ym}-03`,
-      referenceMonth: ym,
       description: 'Rent',
       amount: 1200,
       category: 'Rent',
@@ -56,7 +50,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-02`,
-      referenceMonth: ym,
       description: 'Supermarket',
       amount: 350,
       category: 'Food',
@@ -64,7 +57,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-08`,
-      referenceMonth: ym,
       description: 'Supermarket',
       amount: 120,
       category: 'Food',
@@ -72,7 +64,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-15`,
-      referenceMonth: ym,
       description: 'Supermarket',
       amount: 200,
       category: 'Food',
@@ -80,7 +71,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-22`,
-      referenceMonth: ym,
       description: 'Supermarket',
       amount: 180,
       category: 'Food',
@@ -88,7 +78,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-04`,
-      referenceMonth: ym,
       description: 'Bus pass',
       amount: 50,
       category: 'Transport',
@@ -96,7 +85,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-10`,
-      referenceMonth: ym,
       description: 'Gas',
       amount: 35,
       category: 'Transport',
@@ -104,7 +92,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-17`,
-      referenceMonth: ym,
       description: 'Gas',
       amount: 40,
       category: 'Transport',
@@ -112,7 +99,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-23`,
-      referenceMonth: ym,
       description: 'Uber',
       amount: 25,
       category: 'Transport',
@@ -120,7 +106,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-06`,
-      referenceMonth: ym,
       description: 'Dinner out',
       amount: 150,
       category: 'Leisure',
@@ -128,7 +113,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-13`,
-      referenceMonth: ym,
       description: 'Cinema',
       amount: 80,
       category: 'Leisure',
@@ -136,7 +120,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-20`,
-      referenceMonth: ym,
       description: 'Restaurant',
       amount: 200,
       category: 'Leisure',
@@ -144,7 +127,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-10`,
-      referenceMonth: ym,
       description: 'Electricity bill',
       amount: 150,
       category: 'Utilities',
@@ -152,7 +134,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-15`,
-      referenceMonth: ym,
       description: 'Water bill',
       amount: 80,
       category: 'Utilities',
@@ -160,7 +141,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-12`,
-      referenceMonth: ym,
       description: 'Pharmacy',
       amount: 200,
       category: 'Health',
@@ -168,7 +148,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-18`,
-      referenceMonth: ym,
       description: 'Clothes',
       amount: 350,
       category: 'Shopping',
@@ -176,7 +155,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-25`,
-      referenceMonth: ym,
       description: 'Online course',
       amount: 180,
       category: 'Education',
@@ -184,7 +162,6 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
     }),
     tx(currentYear, currentMonth, {
       date: `${ym}-28`,
-      referenceMonth: ym,
       description: 'Internet',
       amount: 120,
       category: 'Utilities',
@@ -193,42 +170,22 @@ export function generateSeed(now: Date = new Date('2026-07-01')): FinanceData {
 
     tx(currentYear, currentMonth, {
       date: `${ym}-20`,
-      referenceMonth: ym,
       description: 'Loan to João',
       amount: 200,
       category: 'Other',
       paymentMethod: 'PIX',
-      isDebt: true,
-      debtorName: 'João',
-      debtSplits: [{ debtorName: 'João', amount: 200 }],
-      isSettled: false,
+      debts: [{ name: 'João', amount: 200, settled: false }],
     }),
 
     // CREDIT INSTALLMENT: TV 12x R$300
-    ...(() => {
-      const installmentGroupId = uuid()
-      const installments: Transaction[] = []
-      for (let i = 1; i <= 12; i++) {
-        const refMonthNum = now.getMonth() + 1 + i
-        const refY = currentYear + Math.floor((refMonthNum - 1) / 12)
-        const refM = String(((refMonthNum - 1) % 12) + 1).padStart(2, '0')
-        installments.push(
-          tx(currentYear, currentMonth, {
-            date: `${ym}-15`,
-            referenceMonth: `${refY}-${refM}`,
-            description: `TV - ${i}/${12}`,
-            amount: 300,
-            category: 'Shopping',
-            paymentMethod: 'CREDIT',
-            parentId: installmentGroupId,
-            groupId: installmentGroupId,
-            installment: { current: i, total: 12 },
-            isSettled: false,
-          }),
-        )
-      }
-      return installments
-    })(),
+    tx(currentYear, currentMonth, {
+      date: `${ym}-15`,
+      description: 'TV 12x',
+      amount: 3600,
+      category: 'Shopping',
+      paymentMethod: 'CREDIT',
+      installments: 12,
+    }),
   ]
 
   const budgets: Budget[] = [

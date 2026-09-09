@@ -12,11 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { currentYM, localYMD } from '@/domain/calculations'
+import { localYMD } from '@/domain/calculations'
 import { getAllCategories } from '@/domain/categories'
 import { INCOME_PAYMENT_METHODS, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/domain/constants'
-import type { DebtConfig, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
-import { formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
+import type { Debt, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
+import { parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
@@ -29,7 +29,6 @@ interface EditFormState {
   description: string
   category: string
   paymentMethod: PaymentMethod
-  referenceMonth: string
   installmentTotal: number
 }
 
@@ -52,6 +51,11 @@ export default function TransactionForm({
     [state.budgets, state.transactions],
   )
 
+  const isEditingInstallment = useMemo(() => {
+    if (!editTransaction) return false
+    return editTransaction.installments != null && editTransaction.installments > 1
+  }, [editTransaction])
+
   const [form, setForm] = useState<EditFormState>({
     type: 'EXPENSE',
     date: '',
@@ -59,12 +63,10 @@ export default function TransactionForm({
     description: '',
     category: 'Other',
     paymentMethod: 'DEBIT',
-    referenceMonth: '',
     installmentTotal: 1,
   })
 
-  const [isDebt, setIsDebt] = useState(false)
-  const [debtConfig, setDebtConfig] = useState<DebtConfig>({ userShare: 0, splits: [] })
+  const [debts, setDebts] = useState<Debt[]>([])
   const [showDebtConfig, setShowDebtConfig] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
 
@@ -73,27 +75,13 @@ export default function TransactionForm({
       setForm({
         type: editTransaction.type,
         date: editTransaction.date,
-        amount: formatPlainCurrency(editTransaction.amount),
+        amount: String(editTransaction.amount),
         description: editTransaction.description,
         category: editTransaction.category,
         paymentMethod: editTransaction.paymentMethod,
-        referenceMonth: editTransaction.referenceMonth,
-        installmentTotal: editTransaction.installment?.total ?? 1,
+        installmentTotal: editTransaction.installments ?? 1,
       })
-
-      setIsDebt(editTransaction.isDebt)
-      if (editTransaction.isDebt && editTransaction.debtSplits) {
-        setDebtConfig({
-          userShare: editTransaction.debtUserShare ?? 0,
-          splits: editTransaction.debtSplits.map((s) => ({
-            id: uuid(),
-            name: s.debtorName,
-            amount: s.amount,
-          })),
-        })
-      } else {
-        setDebtConfig({ userShare: 0, splits: [] })
-      }
+      setDebts(editTransaction.debts ? [...editTransaction.debts] : [])
     } else if (open) {
       setForm({
         type: 'EXPENSE',
@@ -102,11 +90,9 @@ export default function TransactionForm({
         description: '',
         category: 'Other',
         paymentMethod: 'DEBIT',
-        referenceMonth: currentYM(),
         installmentTotal: 1,
       })
-      setIsDebt(false)
-      setDebtConfig({ userShare: 0, splits: [] })
+      setDebts([])
     }
   }, [editTransaction, open])
 
@@ -120,26 +106,27 @@ export default function TransactionForm({
       toast('Description is required', 'error')
       return
     }
+    if (form.type === 'EXPENSE' && form.paymentMethod === 'CREDIT' && debts.length > 0) {
+      const debtTotal = debts.reduce((s, d) => s + d.amount, 0)
+      if (debtTotal > amount) {
+        toast('Total debts cannot exceed purchase amount', 'error')
+        return
+      }
+    }
 
     if (!editTransaction) {
       const created: Transaction = {
         id: uuid(),
         type: form.type,
         date: form.date,
-        referenceMonth: form.referenceMonth,
         description: form.description,
         amount,
         category: form.category,
         paymentMethod: form.paymentMethod,
-        installment:
-          form.installmentTotal > 1 ? { current: 1, total: form.installmentTotal } : undefined,
-        isDebt,
-        debtUserShare: isDebt ? debtConfig.userShare : undefined,
-        debtSplits:
-          isDebt && debtConfig.splits.length > 0
-            ? debtConfig.splits.map((s) => ({ debtorName: s.name, amount: s.amount }))
-            : undefined,
-        isSettled: false,
+        ...(form.installmentTotal > 1 && form.paymentMethod === 'CREDIT'
+          ? { installments: form.installmentTotal }
+          : {}),
+        ...(debts.length > 0 ? { debts } : {}),
       }
 
       dispatch({ type: 'ADD_TRANSACTIONS', payload: [created] })
@@ -156,17 +143,10 @@ export default function TransactionForm({
       description: form.description,
       category: form.category,
       paymentMethod: form.paymentMethod,
-      referenceMonth: form.referenceMonth,
-      installment:
-        form.installmentTotal > 1
-          ? { current: editTransaction.installment?.current ?? 1, total: form.installmentTotal }
-          : undefined,
-      isDebt,
-      debtUserShare: isDebt ? debtConfig.userShare : undefined,
-      debtSplits:
-        isDebt && debtConfig.splits.length > 0
-          ? debtConfig.splits.map((s) => ({ debtorName: s.name, amount: s.amount }))
-          : undefined,
+      ...(isEditingInstallment
+        ? {}
+        : { installments: form.installmentTotal > 1 ? form.installmentTotal : undefined }),
+      ...(debts.length > 0 ? { debts } : {}),
     }
 
     dispatch({ type: 'UPDATE_TRANSACTION', payload: updated })
@@ -195,8 +175,7 @@ export default function TransactionForm({
                   type,
                   ...(type === 'INCOME' ? { installmentTotal: 1 } : {}),
                 }))
-                setIsDebt(false)
-                setDebtConfig({ userShare: 0, splits: [] })
+                setDebts([])
               }}
               options={[
                 { value: 'EXPENSE', label: 'Expense' },
@@ -292,53 +271,43 @@ export default function TransactionForm({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="tx-refmonth" className="text-xs">
-                Reference Month
-              </Label>
-              <Input
-                id="tx-refmonth"
-                type="month"
-                value={form.referenceMonth}
-                onChange={(e) => setForm((f) => ({ ...f, referenceMonth: e.target.value }))}
-              />
-            </div>
-
-            {form.type === 'EXPENSE' && form.paymentMethod === 'CREDIT' && (
-              <div className="space-y-1">
-                <Label htmlFor="tx-installments" className="text-xs">
-                  Installments
-                </Label>
-                <Input
-                  id="tx-installments"
-                  type="number"
-                  min="1"
-                  max="48"
-                  value={form.installmentTotal}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      installmentTotal: Math.max(1, parseInt(e.target.value, 10) || 1),
-                    }))
-                  }
-                />
-              </div>
-            )}
+            {form.type === 'EXPENSE' &&
+              form.paymentMethod === 'CREDIT' &&
+              !isEditingInstallment && (
+                <div className="space-y-1">
+                  <Label htmlFor="tx-installments" className="text-xs">
+                    Installments
+                  </Label>
+                  <Input
+                    id="tx-installments"
+                    type="number"
+                    min="1"
+                    max="48"
+                    value={form.installmentTotal}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        installmentTotal: Math.max(1, parseInt(e.target.value, 10) || 1),
+                      }))
+                    }
+                  />
+                </div>
+              )}
 
             {form.type === 'EXPENSE' && form.paymentMethod !== 'MEAL_VOUCHER' && (
               <div className="border-t pt-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <Button
                     size="xs"
-                    variant={isDebt ? 'default' : 'outline'}
-                    disabled={!isDebt && !(parseCurrency(form.amount) > 0)}
+                    variant={debts.length > 0 ? 'default' : 'outline'}
+                    disabled={!(parseCurrency(form.amount) > 0)}
                     onClick={() => setShowDebtConfig(true)}
                   >
-                    {isDebt
-                      ? `Debt (${debtConfig.splits.length} debtor${debtConfig.splits.length !== 1 ? 's' : ''}, Me: ${formatCurrency(debtConfig.userShare)})`
+                    {debts.length > 0
+                      ? `Debt (${debts.length} debtor${debts.length !== 1 ? 's' : ''})`
                       : 'Debt'}
                   </Button>
-                  {isDebt && (
+                  {debts.length > 0 && (
                     <button
                       type="button"
                       className="text-xs text-destructive hover:text-destructive/80 underline"
@@ -356,7 +325,7 @@ export default function TransactionForm({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>Update</Button>
+            <Button onClick={handleSave}>{editTransaction ? 'Update' : 'Add'}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -364,10 +333,9 @@ export default function TransactionForm({
       <DebtConfigModal
         open={showDebtConfig}
         onOpenChange={setShowDebtConfig}
-        config={debtConfig}
-        onConfigChange={(config) => {
-          setDebtConfig(config)
-          setIsDebt(config.splits.length > 0 || config.userShare > 0)
+        debts={debts}
+        onDebtsChange={(d) => {
+          setDebts(d)
           setShowDebtConfig(false)
         }}
         totalAmount={amount}
@@ -382,8 +350,7 @@ export default function TransactionForm({
         message="This will remove all debt configuration from this transaction."
         confirmLabel="Remove"
         onConfirm={() => {
-          setIsDebt(false)
-          setDebtConfig({ userShare: 0, splits: [] })
+          setDebts([])
           setShowRemoveConfirm(false)
         }}
       />

@@ -25,10 +25,8 @@ export type FinanceAction =
   | { type: 'UPDATE_TRANSACTION'; payload: Transaction; description?: string }
   | { type: 'DELETE_TRANSACTION'; payload: string; description?: string }
   | {
-      type: 'SETTLE_TRANSACTION'
-      payload: string
-      settled?: boolean
-      debtorName?: string
+      type: 'SETTLE_DEBT'
+      payload: { transactionId: string; debtName: string }
       description?: string
     }
   | { type: 'UPSERT_BUDGET'; payload: Budget; description?: string }
@@ -51,17 +49,8 @@ function describeAction(action: FinanceAction): string {
       return action.description ?? `Updated transaction "${action.payload.description}"`
     case 'DELETE_TRANSACTION':
       return action.description ?? `Deleted transaction`
-    case 'SETTLE_TRANSACTION':
-      return (
-        action.description ??
-        (action.debtorName
-          ? action.settled === false
-            ? `Unsettled ${action.debtorName}`
-            : `Settled ${action.debtorName}`
-          : action.settled === false
-            ? 'Unsettled transaction'
-            : 'Settled transaction')
-      )
+    case 'SETTLE_DEBT':
+      return action.description ?? `Settled debt "${action.payload.debtName}"`
     case 'UPSERT_BUDGET':
       return action.description ?? `Saved budget for ${action.payload.referenceMonth}`
     case 'DELETE_BUDGET':
@@ -101,50 +90,24 @@ function withAudit(
     }
 
     case 'DELETE_TRANSACTION': {
-      const target = state.transactions.find((t) => t.id === action.payload)
-      const idsToDelete = new Set<string>()
-      if (target) {
-        idsToDelete.add(target.id)
-        if (target.groupId) {
-          for (const t of state.transactions) {
-            if (t.groupId === target.groupId) idsToDelete.add(t.id)
-          }
-        }
-      }
       next = {
         ...state,
-        transactions: state.transactions.filter((t) => !idsToDelete.has(t.id)),
+        transactions: state.transactions.filter((t) => t.id !== action.payload),
       }
       break
     }
 
-    case 'SETTLE_TRANSACTION': {
-      if (action.debtorName) {
-        next = {
-          ...state,
-          transactions: state.transactions.map((t) => {
-            if (t.id !== action.payload && t.parentId !== action.payload) return t
-            const splits = t.debtSplits?.map((s) =>
-              s.debtorName === action.debtorName ? { ...s, settled: !s.settled } : s,
-            )
-            const allSettled = splits?.every((s) => s.settled) ?? true
-            return { ...t, debtSplits: splits, isSettled: allSettled }
-          }),
-        }
-      } else {
-        const settled = action.settled ?? true
-        next = {
-          ...state,
-          transactions: state.transactions.map((t) =>
-            t.id === action.payload || t.parentId === action.payload
-              ? {
-                  ...t,
-                  isSettled: settled,
-                  debtSplits: t.debtSplits?.map((s) => ({ ...s, settled })) ?? t.debtSplits,
-                }
-              : t,
-          ),
-        }
+    case 'SETTLE_DEBT': {
+      const { transactionId, debtName } = action.payload
+      next = {
+        ...state,
+        transactions: state.transactions.map((t) => {
+          if (t.id !== transactionId || !t.debts) return t
+          return {
+            ...t,
+            debts: t.debts.map((d) => (d.name === debtName ? { ...d, settled: !d.settled } : d)),
+          }
+        }),
       }
       break
     }
@@ -237,7 +200,7 @@ function reducer(state: FinanceState, action: FinanceAction): FinanceState {
     case 'ADD_TRANSACTIONS':
     case 'UPDATE_TRANSACTION':
     case 'DELETE_TRANSACTION':
-    case 'SETTLE_TRANSACTION':
+    case 'SETTLE_DEBT':
     case 'UPSERT_BUDGET':
     case 'DELETE_BUDGET':
     case 'IMPORT':

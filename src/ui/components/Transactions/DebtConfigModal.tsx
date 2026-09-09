@@ -6,78 +6,69 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import type { DebtConfig, DebtSplitUI } from '@/domain/entities'
+import type { Debt } from '@/domain/entities'
 import { formatCurrency, parseCurrency } from '@/lib/currency'
 import { useToast } from '@/ui/context/ToastContext'
+
+interface DebtSplitUI {
+  id: string
+  name: string
+  amount: number
+}
 
 interface DebtConfigModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  config: DebtConfig
-  onConfigChange: (config: DebtConfig) => void
+  debts: Debt[]
+  onDebtsChange: (debts: Debt[]) => void
   totalAmount: number
 }
 
 export default function DebtConfigModal({
   open,
   onOpenChange,
-  config,
-  onConfigChange,
+  debts,
+  onDebtsChange,
   totalAmount,
 }: DebtConfigModalProps) {
-  const [tempConfig, setTempConfig] = useState<DebtConfig>(config)
+  const [splits, setSplits] = useState<DebtSplitUI[]>([])
   const { toast } = useToast()
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: open is intentional to reset on dialog open
   useEffect(() => {
-    setTempConfig(config)
-  }, [config])
+    setSplits(debts.map((d) => ({ id: uuid(), name: d.name, amount: d.amount })))
+  }, [debts, open])
 
-  const assignedDebtors = tempConfig.splits.reduce((s, d) => s + d.amount, 0)
-  const assignedTotal = tempConfig.userShare + assignedDebtors
+  const assignedTotal = splits.reduce((s, d) => s + d.amount, 0)
   const remaining = Math.max(0, totalAmount - assignedTotal)
   const isBalanced = remaining < 0.01
 
   function handleAddPerson() {
-    setTempConfig((cfg) => ({
-      ...cfg,
-      splits: [...cfg.splits, { id: uuid(), name: '', amount: 0 }],
-    }))
+    setSplits((prev) => [...prev, { id: uuid(), name: '', amount: 0 }])
   }
 
   function handleUpdateSplit(id: string, patch: Partial<DebtSplitUI>) {
-    setTempConfig((cfg) => ({
-      ...cfg,
-      splits: cfg.splits.map((s) => (s.id === id ? { ...s, ...patch } : s)),
-    }))
+    setSplits((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)))
   }
 
   function handleRemoveSplit(id: string) {
-    setTempConfig((cfg) => ({
-      ...cfg,
-      splits: cfg.splits.filter((s) => s.id !== id),
-    }))
+    setSplits((prev) => prev.filter((s) => s.id !== id))
   }
 
   function handleFillRemainder(id: string) {
-    setTempConfig((cfg) => ({
-      ...cfg,
-      splits: cfg.splits.map((s) => (s.id === id ? { ...s, amount: remaining } : s)),
-    }))
+    setSplits((prev) => prev.map((s) => (s.id === id ? { ...s, amount: remaining } : s)))
   }
 
   function handleSplitEvenly() {
-    const count = tempConfig.splits.length + 1
-    if (count <= 1) return
-    const perPerson = c(totalAmount).divide(count).value
-    const remainder = Math.round((totalAmount - perPerson * count) * 100) / 100
-    setTempConfig((cfg) => ({
-      ...cfg,
-      userShare: perPerson + remainder,
-      splits: cfg.splits.map((s) => ({
+    if (splits.length === 0) return
+    const perPerson = c(totalAmount).divide(splits.length).value
+    const remainder = Math.round((totalAmount - perPerson * splits.length) * 100) / 100
+    setSplits((prev) =>
+      prev.map((s, i) => ({
         ...s,
-        amount: perPerson,
+        amount: i === 0 ? perPerson + remainder : perPerson,
       })),
-    }))
+    )
   }
 
   function handleSave() {
@@ -88,12 +79,12 @@ export default function DebtConfigModal({
       )
       return
     }
-    onConfigChange(tempConfig)
+    onDebtsChange(splits.map((s) => ({ name: s.name, amount: s.amount, settled: false })))
     onOpenChange(false)
   }
 
   function handleCancel() {
-    setTempConfig(config)
+    setSplits(debts.map((d) => ({ id: uuid(), name: d.name, amount: d.amount })))
     onOpenChange(false)
   }
 
@@ -101,36 +92,10 @@ export default function DebtConfigModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>
-            Configure Debt Split
-            {totalAmount === 0 ? ' (will set amount)' : null}
-          </DialogTitle>
+          <DialogTitle>Configure Debt Split</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="border-b pb-3">
-            <Label htmlFor="debt-usershare" className="text-xs font-medium mb-2 block">
-              Your share (R$)
-            </Label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium flex-1">Me</span>
-              <Input
-                id="debt-usershare"
-                type="number"
-                step="0.01"
-                min="0"
-                value={tempConfig.userShare || ''}
-                onChange={(e) =>
-                  setTempConfig((cfg) => ({
-                    ...cfg,
-                    userShare: parseCurrency(e.target.value),
-                  }))
-                }
-                className="w-28"
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-medium" id="debtors-label">
@@ -141,13 +106,13 @@ export default function DebtConfigModal({
               </Button>
             </div>
 
-            {tempConfig.splits.length === 0 ? (
+            {splits.length === 0 ? (
               <div className="text-xs text-muted-foreground py-4 text-center border border-dashed p-2">
                 No debtors yet. Click "Add person" to get started.
               </div>
             ) : (
               <>
-                {tempConfig.splits.map((split) => (
+                {splits.map((split) => (
                   <div key={split.id} className="flex gap-2 items-center">
                     <Input
                       placeholder="Name"
@@ -187,15 +152,14 @@ export default function DebtConfigModal({
                   </div>
                 ))}
 
-                {tempConfig.splits.length > 0 && (
+                {splits.length > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
                     className="w-full"
                     onClick={handleSplitEvenly}
                   >
-                    Split evenly (you + {tempConfig.splits.length} other
-                    {tempConfig.splits.length !== 1 ? 's' : ''})
+                    Split evenly ({splits.length} debtor{splits.length !== 1 ? 's' : ''})
                   </Button>
                 )}
               </>
@@ -214,10 +178,8 @@ export default function DebtConfigModal({
             <span>{totalAmount === 0 ? 'Amount will be set to:' : 'Balance:'}</span>
             <span className="font-mono font-medium">
               {totalAmount === 0
-                ? formatCurrency(
-                    tempConfig.userShare + tempConfig.splits.reduce((s, d) => s + d.amount, 0),
-                  )
-                : `${formatCurrency(tempConfig.userShare)} + ${formatCurrency(assignedDebtors)} = ${formatCurrency(assignedTotal)} / ${formatCurrency(totalAmount)}`}
+                ? formatCurrency(assignedTotal)
+                : `${formatCurrency(assignedTotal)} / ${formatCurrency(totalAmount)}`}
             </span>
           </div>
 
@@ -233,7 +195,7 @@ export default function DebtConfigModal({
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={totalAmount > 0 && !isBalanced}>
-            {totalAmount === 0 ? 'Set Amount & Continue' : 'Save'}
+            Save
           </Button>
         </div>
       </DialogContent>

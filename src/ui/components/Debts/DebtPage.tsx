@@ -49,10 +49,9 @@ interface PersonData {
 function aggregatePersonData(transactions: Transaction[]): PersonData[] {
   const map = new Map<string, Omit<PersonData, 'name'>>()
   for (const tx of transactions) {
-    const splits = tx.debtSplits?.filter((s) => s.amount > 0) ?? []
-    for (const s of splits) {
-      const settled = s.settled ?? tx.isSettled
-      let entry = map.get(s.debtorName)
+    const debts = tx.debts?.filter((d) => d.amount > 0) ?? []
+    for (const d of debts) {
+      let entry = map.get(d.name)
       if (!entry) {
         entry = {
           unsettledAmount: 0,
@@ -61,16 +60,16 @@ function aggregatePersonData(transactions: Transaction[]): PersonData[] {
           anySettled: false,
           allSettled: true,
         }
-        map.set(s.debtorName, entry)
+        map.set(d.name, entry)
       }
-      entry.totalAmount += s.amount
-      entry.anySettled ||= settled
-      if (!settled) {
-        entry.unsettledAmount += s.amount
+      entry.totalAmount += d.amount
+      entry.anySettled ||= d.settled
+      if (!d.settled) {
+        entry.unsettledAmount += d.amount
         entry.allSettled = false
       }
     }
-    for (const name of new Set(splits.map((s) => s.debtorName))) {
+    for (const name of new Set(debts.map((d) => d.name))) {
       const entry = map.get(name)
       if (entry) entry.txCount++
     }
@@ -86,7 +85,10 @@ export default function DebtPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('transaction')
 
   const debts = useMemo(
-    () => state.transactions.filter((t) => t.isDebt && (showSettled || !t.isSettled)),
+    () =>
+      state.transactions.filter(
+        (t) => t.debts && t.debts.length > 0 && (showSettled || t.debts.some((d) => !d.settled)),
+      ),
     [state.transactions, showSettled],
   )
 
@@ -95,11 +97,17 @@ export default function DebtPage() {
     [debts, showSettled],
   )
 
-  function handleToggleSettle(id: string, settled: boolean, debtorName?: string) {
-    if (debtorName) {
-      dispatch({ type: 'SETTLE_TRANSACTION', payload: id, debtorName })
-    } else {
-      dispatch({ type: 'SETTLE_TRANSACTION', payload: id, settled: !settled })
+  function handleToggleSettle(id: string, debtName: string) {
+    dispatch({ type: 'SETTLE_DEBT', payload: { transactionId: id, debtName } })
+  }
+
+  function handleSettleAll(id: string) {
+    const tx = state.transactions.find((t) => t.id === id)
+    if (!tx?.debts) return
+    for (const d of tx.debts) {
+      if (!d.settled) {
+        dispatch({ type: 'SETTLE_DEBT', payload: { transactionId: id, debtName: d.name } })
+      }
     }
   }
 
@@ -199,7 +207,7 @@ export default function DebtPage() {
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Age</TableHead>
                 <TableHead>Date Lent</TableHead>
-                <TableHead>Splits</TableHead>
+                <TableHead>Debts</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -213,13 +221,14 @@ export default function DebtPage() {
               )}
               {debts.map((tx) => {
                 const days = daysSince(tx.date)
-                const splits = tx.debtSplits?.filter((s) => s.amount > 0) ?? []
+                const allSettled = tx.debts?.every((d) => d.settled) ?? true
+                const debtNames = [...new Set(tx.debts?.map((d) => d.name) ?? [])]
                 return (
-                  <TableRow key={tx.id} className={tx.isSettled ? 'opacity-50' : ''}>
+                  <TableRow key={tx.id} className={allSettled ? 'opacity-50' : ''}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-1">
                         <UserIcon className="size-3" />
-                        {splits.length === 1 ? splits[0].debtorName : tx.debtorName || 'Multiple'}
+                        {debtNames.length === 1 ? debtNames[0] : 'Multiple'}
                       </div>
                     </TableCell>
                     <TableCell>{tx.description}</TableCell>
@@ -227,7 +236,7 @@ export default function DebtPage() {
                       {formatCurrency(tx.amount)}
                     </TableCell>
                     <TableCell>
-                      {tx.isSettled ? (
+                      {allSettled ? (
                         <Badge variant="outline" className={BADGE_GREEN}>
                           Paid
                         </Badge>
@@ -237,46 +246,30 @@ export default function DebtPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{tx.date}</TableCell>
                     <TableCell>
-                      {splits.length > 1 ? (
+                      {(tx.debts?.length ?? 0) > 1 ? (
                         <div className="text-xs space-y-0.5">
-                          {splits.map((s) => {
-                            const splitSettled = s.settled ?? tx.isSettled
-                            return (
-                              <div
-                                key={s.debtorName}
-                                className="flex items-center justify-between gap-2"
+                          {tx.debts?.map((d) => (
+                            <div key={d.name} className="flex items-center justify-between gap-2">
+                              <span
+                                className={`text-muted-foreground ${d.settled ? 'line-through' : ''}`}
                               >
-                                <span
-                                  className={`text-muted-foreground ${splitSettled ? 'line-through' : ''}`}
-                                >
-                                  {s.debtorName}: {formatCurrency(s.amount)}
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon-xs"
-                                  onClick={() =>
-                                    handleToggleSettle(tx.id, tx.isSettled, s.debtorName)
-                                  }
-                                  title={
-                                    splitSettled
-                                      ? `Unsettle ${s.debtorName}`
-                                      : `Settle ${s.debtorName}`
-                                  }
-                                  aria-label={
-                                    splitSettled
-                                      ? `Unsettle ${s.debtorName}`
-                                      : `Settle ${s.debtorName}`
-                                  }
-                                >
-                                  <CheckCircleIcon />
-                                </Button>
-                              </div>
-                            )
-                          })}
+                                {d.name}: {formatCurrency(d.amount)}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={() => handleToggleSettle(tx.id, d.name)}
+                                title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
+                                aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
+                              >
+                                <CheckCircleIcon />
+                              </Button>
+                            </div>
+                          ))}
                         </div>
-                      ) : splits.length === 1 ? (
+                      ) : tx.debts?.length === 1 ? (
                         <span className="text-xs text-muted-foreground">
-                          {(splits[0].settled ?? tx.isSettled) ? 'Settled' : '100%'}
+                          {tx.debts[0].settled ? 'Settled' : '100%'}
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
@@ -286,9 +279,9 @@ export default function DebtPage() {
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        onClick={() => handleToggleSettle(tx.id, tx.isSettled)}
-                        title={tx.isSettled ? 'Unsettle all' : 'Settle all'}
-                        aria-label={tx.isSettled ? 'Unsettle all' : 'Settle all'}
+                        onClick={() => handleSettleAll(tx.id)}
+                        title={allSettled ? 'Unsettle all' : 'Settle all'}
+                        aria-label={allSettled ? 'Unsettle all' : 'Settle all'}
                       >
                         <CheckCircleIcon />
                       </Button>

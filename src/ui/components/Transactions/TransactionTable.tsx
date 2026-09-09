@@ -36,6 +36,7 @@ import {
   PAYMENT_METHODS,
 } from '@/domain/constants'
 import type { PaymentMethod, Transaction } from '@/domain/entities'
+import { monthlyFlows } from '@/domain/entities'
 import { formatCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import CSVImportDialog from '@/ui/components/Common/CSVImportDialog'
@@ -91,7 +92,7 @@ export default function TransactionTable() {
   const filtered = useMemo(() => {
     let txs = state.transactions
     if (filterMonth !== 'all') {
-      txs = txs.filter((t) => t.referenceMonth === filterMonth)
+      txs = txs.filter((t) => monthlyFlows(t).some((f) => f.referenceMonth === filterMonth))
     }
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase()
@@ -158,20 +159,17 @@ export default function TransactionTable() {
     const isIncome =
       row.paymentMethod && INCOME_PAYMENT_METHODS.includes(row.paymentMethod as PaymentMethod)
 
-    const refMonth = row.date.slice(0, 7)
-    const tx: Omit<Transaction, 'id'> = {
+    const tx: Transaction = {
+      id: uuid(),
       type: isIncome ? 'INCOME' : 'EXPENSE',
       date: row.date,
-      referenceMonth: refMonth,
       description: row.description,
       amount,
       category: row.category ?? 'Other',
       paymentMethod: (row.paymentMethod ?? 'DEBIT') as PaymentMethod,
-      isDebt: false,
-      isSettled: false,
     }
 
-    dispatch({ type: 'ADD_TRANSACTIONS', payload: [{ ...tx, id: uuid() }] })
+    dispatch({ type: 'ADD_TRANSACTIONS', payload: [tx] })
     toast('Transaction added', 'success')
   }
 
@@ -186,12 +184,8 @@ export default function TransactionTable() {
     }
   }
 
-  function handleSettle(id: string, currently: boolean, debtorName?: string) {
-    if (debtorName) {
-      dispatch({ type: 'SETTLE_TRANSACTION', payload: id, debtorName })
-    } else {
-      dispatch({ type: 'SETTLE_TRANSACTION', payload: id, settled: !currently })
-    }
+  function handleSettleDebt(id: string, debtName: string) {
+    dispatch({ type: 'SETTLE_DEBT', payload: { transactionId: id, debtName } })
   }
 
   function handleEdit(tx: Transaction) {
@@ -340,12 +334,6 @@ export default function TransactionTable() {
               >
                 Date{sortIndicator('date')}
               </TableHead>
-              <TableHead
-                className="w-20 cursor-pointer select-none"
-                onClick={() => handleSort('referenceMonth')}
-              >
-                Period{sortIndicator('referenceMonth')}
-              </TableHead>
               <TableHead className="w-16 text-center">Install</TableHead>
               <TableHead className="w-32">Details</TableHead>
               <TableHead className="text-right w-20">Actions</TableHead>
@@ -354,21 +342,16 @@ export default function TransactionTable() {
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                   No transactions yet. Add one using the row above or import a CSV file.
                 </TableCell>
               </TableRow>
             )}
 
             {filtered.map((tx) => {
-              const isFullSettled =
-                tx.isSettled && (tx.debtUserShare == null || tx.debtUserShare === 0)
+              const allDebtsSettled = tx.debts?.every((d) => d.settled) ?? true
               return (
-                <TableRow
-                  key={tx.id}
-                  className="cursor-pointer"
-                  onClick={() => !tx.parentId && handleEdit(tx)}
-                >
+                <TableRow key={tx.id} className="cursor-pointer" onClick={() => handleEdit(tx)}>
                   <TableCell>
                     <PaymentBadge method={tx.paymentMethod} />
                   </TableCell>
@@ -381,13 +364,13 @@ export default function TransactionTable() {
                     <div className="flex items-center gap-1.5">
                       <div className="max-w-48 truncate">
                         {tx.description}
-                        {tx.parentId && (
+                        {tx.installments && tx.installments > 1 && (
                           <span className="text-muted-foreground ml-1 text-[10px]">
                             (installment)
                           </span>
                         )}
                       </div>
-                      {isFullSettled && (
+                      {tx.debts && tx.debts.length > 0 && allDebtsSettled && (
                         <Badge
                           variant="outline"
                           className="text-[10px] text-green-600 bg-green-50 "
@@ -399,75 +382,42 @@ export default function TransactionTable() {
                   </TableCell>
                   <TableCell className="text-xs">{tx.category}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{tx.date}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {tx.referenceMonth}
-                  </TableCell>
                   <TableCell className="text-center text-xs">
-                    {tx.installment ? (
+                    {tx.installments && tx.installments > 1 ? (
                       <Badge variant="outline" className="text-xs">
-                        {tx.installment.current}/{tx.installment.total}
+                        {tx.installments}x
                       </Badge>
                     ) : null}
                   </TableCell>
                   <TableCell>
-                    {tx.isDebt ? (
+                    {tx.debts && tx.debts.length > 0 ? (
                       <div className="text-xs space-y-0.5">
-                        {tx.debtUserShare != null && tx.debtUserShare > 0 && (
-                          <div className="text-muted-foreground">
-                            Me: {formatCurrency(tx.debtUserShare)}
-                          </div>
-                        )}
-                        {tx.debtSplits?.map((s) => {
-                          const splitSettled = s.settled ?? tx.isSettled
-                          return (
-                            <div
-                              key={s.debtorName}
-                              className="flex items-center justify-between gap-2"
+                        {tx.debts.map((d) => (
+                          <div key={d.name} className="flex items-center justify-between gap-2">
+                            <span
+                              className={`text-muted-foreground ${d.settled ? 'line-through' : ''}`}
                             >
-                              <span
-                                className={`text-muted-foreground ${splitSettled ? 'line-through' : ''}`}
-                              >
-                                {s.debtorName}: {formatCurrency(s.amount)}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="icon-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleSettle(tx.id, tx.isSettled, s.debtorName)
-                                }}
-                                title={
-                                  splitSettled
-                                    ? `Unsettle ${s.debtorName}`
-                                    : `Settle ${s.debtorName}`
-                                }
-                                aria-label={
-                                  splitSettled
-                                    ? `Unsettle ${s.debtorName}`
-                                    : `Settle ${s.debtorName}`
-                                }
-                              >
-                                <CheckCircleIcon />
-                              </Button>
-                            </div>
-                          )
-                        })}
+                              {d.name}: {formatCurrency(d.amount)}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleSettleDebt(tx.id, d.name)
+                              }}
+                              title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
+                              aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
+                            >
+                              <CheckCircleIcon />
+                            </Button>
+                          </div>
+                        ))}
                       </div>
                     ) : null}
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <span className="flex gap-1 justify-end">
-                      {tx.isDebt && (
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => handleSettle(tx.id, tx.isSettled)}
-                          title={tx.isSettled ? 'Unsettle' : 'Settle debt'}
-                          aria-label={tx.isSettled ? 'Unsettle debt' : 'Settle debt'}
-                        >
-                          <CheckCircleIcon />
-                        </Button>
-                      )}
                       <Button
                         variant="ghost"
                         size="icon-xs"

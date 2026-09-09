@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
-import { exportCSV, exportJSON } from '@/data/exportImport'
+import { exportJSON } from '@/data/backup/json'
+import { exportCSV } from '@/data/exchange/csv'
 import { useFinance } from '@/ui/context'
 
 export default function ExportImport() {

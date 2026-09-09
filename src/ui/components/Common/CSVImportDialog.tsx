@@ -17,7 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { importCSV, importJSON } from '@/data/exportImport'
+import { importJSON } from '@/data/backup/json'
+import { importCSV } from '@/data/exchange/csv'
 import type { Budget, Transaction } from '@/domain/entities'
 import { formatCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'

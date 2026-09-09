@@ -7,13 +7,10 @@ const baseTx: Transaction = {
   id: '1',
   type: 'EXPENSE',
   date: '2026-08-01',
-  referenceMonth: '2026-08',
   description: 'x',
   amount: 10,
   category: 'Food',
   paymentMethod: 'DEBIT',
-  isDebt: false,
-  isSettled: false,
 }
 
 const budget = (categoryLimits: Record<string, number>): Budget => ({

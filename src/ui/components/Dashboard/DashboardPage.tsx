@@ -51,6 +51,7 @@ import {
   PAYMENT_METHOD_CHART_COLORS,
   PAYMENT_METHOD_LABELS,
 } from '@/domain/constants'
+import { monthlyFlows } from '@/domain/entities'
 import { formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import StatCard from '@/ui/components/Common/StatCard'
@@ -123,10 +124,12 @@ export default function DashboardPage() {
   const spentSoFar = useMemo(() => {
     if (!selectedMonth) return 0
     return state.transactions
-      .filter(
-        (t) =>
-          t.referenceMonth === selectedMonth && !t.isSettled && t.type === 'EXPENSE' && !t.isDebt,
-      )
+      .filter((t) => {
+        if (t.type !== 'EXPENSE') return false
+        const hasUnsettledDebt = t.debts?.some((d) => !d.settled) ?? false
+        const flows = monthlyFlows(t)
+        return flows.some((f) => f.referenceMonth === selectedMonth) && !hasUnsettledDebt
+      })
       .reduce((s, t) => s + t.amount, 0)
   }, [state.transactions, selectedMonth])
 

@@ -1,6 +1,6 @@
 # 0010. Purchase-Centric Transactions (Derived Installment Flows, Debts as Attachments)
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-08
 
 ## Context
