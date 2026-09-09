@@ -11,3 +11,4 @@
 | 0007 | [Every Action Undoable (Audit Snapshot Undo/Redo)](0007-every-action-undoable-audit-snapshots.md) | Accepted | 2026-08-06 |
 | 0008 | [Budget Ranges as Derived Grouping (Per-Month Documents)](0008-budget-ranges-derived-grouping.md) | Accepted | 2026-08-06 |
 | 0009 | [Data In/Out Boundaries — Exchange vs Backup vs Ingest](0009-data-in-out-boundaries.md) | Accepted | 2026-09-08 |
+| 0010 | [Purchase-Centric Transactions (Derived Installment Flows, Debts as Attachments)](0010-purchase-centric-transactions.md) | Proposed | 2026-09-08 |

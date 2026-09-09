@@ -2,46 +2,40 @@
 
 ## Macro Plan
 - **Current Milestone:** Bug-fix hardening (v0.1.x)
-- **Goal:** The finances app is a feature-complete single-user personal finance tracker (transactions, budgets, debts, dashboard, trends, CSV import/export, dark mode). Direction: budget ranges landed, then the six HIGH bug fixes + dead-code cleanup landed (2026-08-06); the UI/UX Consistency Pass is now active; then the MED data-integrity round (silent-loss/inconsistency paths), then the deferred debt/installment features before any move toward persistence or multi-user.
+- **Goal:** The finances app is a feature-complete single-user personal finance tracker (transactions, budgets, debts, dashboard, trends, CSV import/export, dark mode). Direction: the purchase-centric domain model rebuild (2026-09-08, ADR-0010) is active; then the UI/UX Consistency Pass, then the MED data-integrity round (silent-loss/inconsistency paths) before any move toward persistence or multi-user.
 
 ---
 
 ## Active Card
 > *There can only be ONE Active card at a time. Finish or push to Next before opening another.*
 
-### UI/UX Consistency Pass (2026-08-06, approved)
+### Purchase-centric domain model rebuild (2026-09-08, approved)
 
-- **Intent:** Make the app's UI/UX internally consistent — one toggle/segmented control vocabulary, one confirmation pattern, one money-entry convention, one category source of truth — and kill affordance lies (dimmed rows that are still clickable) and naming drift. Mirrors the bug sweep: audit → fix → verify per task.
-- **Audit findings:** [docs/ui-ux-audit-2026-08-06.md](docs/ui-ux-audit-2026-08-06.md) — evidence-backed inventory (A1-A8 inconsistencies, B1-B12 anti-patterns/glitches) referenced by the tasks below.
-- **Trade-offs / Risks:** Touches every page → commit per task, no mega-PR. Risk of scope-creeping into a visual redesign → DoD pins "consistency, not redesign". Money-input change touches validation paths (covered by existing tests).
+- **Intent:** Rebuild the transaction model so a transaction IS the purchase/receipt (ADR-0010): installment plans immutable (`installments?: number`, N derived monthly flows, remainder on the first flow), debts as attachments (`debts?: Debt[]`, `{name, amount, settled}`, full settlement only, always receivables), deleting `parentId`/`groupId`/`isDebt`/`debtorName`/`debtSplits`/`debtUserShare`/`isSettled`/stored `referenceMonth` in favor of derivation. Also redoes the data in/out work (CSV/JSON/validate) on the new shape; clean break, no migration.
+- **Trade-offs / Risks:** Breaking change — versioned storage key drops old local data and old JSON backups (accepted, v0.x local, reseed). Touches every layer (domain → data → ui) and all tests. Derived-flow month math (month add, remainder split) is the one new correctness surface — unit-test it.
 - **Acceptance Criteria (DoD):**
   - `bun run typecheck`, `bun test`, `bun run build` green; `bun run lint` clean.
-  - Exactly one segmented/toggle implementation remains (grep-verifiable).
-  - `450,50` and `1.234,56` enter correctly in smart input, Add/Edit Transaction, and New/Edit Budget; edit-prefill displays the same decimal style you saved.
-  - A custom category created in Budget appears in TransactionForm's Category select and smart-input category suggestions.
-  - No `rounded-none` on interactive elements (grep clean).
-  - No interactive row or control remains dimmed by opacity without a state indicator (badge/text).
-  - Toasts: normal font, dismissible, aria-live announced.
-- **Out of Scope:** mobile responsive reflow (own Next card), Ctrl+Z guard + MED data-integrity items (own MED card), PWA/native, theme/branding or icon redesign, chart-library changes, float-money refactor (ADR-0004), DAYS_IN_MONTH.
+  - Grep-clean: no `parentId`, `groupId`, `isDebt`, `debtorName`, `debtSplits`, `debtUserShare`, `isSettled`, or stored `referenceMonth` in `src/`.
+  - Editing a purchase cannot desync installments (siblings are derived, not stored); installment count immutable after creation.
+  - Debts: full-settle only; user share derived as `amount − Σdebts`; validation rejects `Σdebts > amount`, `installments` on non-CREDIT, `debts` on INCOME.
+  - Exchange CSV: derived flows head-anchored by `ref`, debts in 1NF, cells quoted only when needed; export → hand-edit → import round-trips (tests).
+  - JSON backup lossless on the new shape; old-format backups rejected with a clear message (never silently filtered).
+  - ADR-0010 flipped Proposed → Accepted.
+- **Out of Scope:** advance-pay (Next Cards — slots a `paidInstallments` marker into the model later), bank ingest parsers, mobile usability, UI/UX Consistency Pass, Ctrl+Z focus guard, float-money refactor (ADR-0004), DAYS_IN_MONTH.
 - **Atomic tasks (one commit each):**
-  1. Extract one `SegmentedControl`; replace TransactionForm type toggle + DebtPage Per-Tx/Per-Person (keep or replace BudgetFormDialog Tabs — pick ONE implementation app-wide).
-  2. Unify budget-conflict confirmation with the shared pattern (consistent Cancel/Continue verbs; reuse the component).
-  3. Money inputs → text + `parseCurrency` everywhere (TransactionForm, BudgetFormDialog incl. edit prefill `String()` formatting).
-  4. Category source of truth: TransactionForm Category select + smart-input suggestions + filter share one list incl. custom categories.
-  5. Split smart-input suggestions: token 2 = known descriptions, token 3 = DEFAULT_CATEGORIES (+custom).
-  6. Extract `StatCard`; replace 10 KPI-card copies; reconcile `PaceKpi` styling.
-  7. Standardize page h2 + section headers; fix naming drift (Trends tab vs "Yearly Trends" h2; "Actions" vs "Action History").
-  8. TransactionTable toolbar: replace hand-rolled PopoverTriggers with `Button variant="outline" size="xs"`; kill `rounded-none` leak on interactive elements.
-  9. Affordance-lies cleanup: future/settled rows show a state indicator and stay interactive, or interaction is gated; split-row "100%"/"Settled" label fix.
-  10. Unify empty states across pages.
-  11. Toast pass: normal font, dismissible, `role="status"`/`aria-live`.
-  12. Small cleanups: `currentYM()` reuse in DashboardPage, spending-filter dedupe, DebtPage badge-color constants, DebtConfigModal `c` shadow rename.
-
----
+  1. Entities + derivation: purchase-centric `Transaction` + `Debt`; delete dead fields; `monthlyFlows()` (month math + remainder-on-first) with unit tests.
+  2. Validation rewrite (installments⇒CREDIT, debts on EXPENSE only, Σdebts ≤ amount) + storage key version bump (drop old data, reseed) + tests.
+  3. Calculations rewrite over derived flows (rollups, future commitments, category series, debt aggregates) + tests.
+  4. FinanceContext: actions/reducers without parentId/groupId logic; undo/redo snapshots on the new shape.
+  5. UI rebuild: TransactionForm (installments immutable on edit), SmartTransactionInput, TransactionTable (derived flow rows), DebtConfigModal + DebtPage (full settle).
+  6. Exchange CSV redo: export flows (head-anchored, 1NF debts, minimal quoting), import groups rows → purchases; tests.
+  7. JSON backup/restore on the new shape (reject old format with a clear message); tests.
+  8. Flip ADR-0010 → Accepted; note the superseded format details in ADR-0005 if needed.
 
 ## Next Cards
 > *Direction-only one-liners for future work in this milestone.*
 
+- **UI/UX Consistency Pass (2026-08-07, PARTIALLY IMPLEMENTED):** pulled from Active into Next midway (2026-08-07) to make room for the data in/out card; remaining tasks carry the intent from docs/ui-ux-audit-2026-08-06.md — one segmented/toggle vocabulary, one confirmation pattern, money-entry via `parseCurrency`, one category source of truth, no `rounded-none` on interactive elements, no opacity-dimmed interactive rows without a state indicator, standardized h2/section headers, shared StatCard, unified empty states, toast pass (audit: docs/ui-ux-audit-2026-08-06.md).
 - **Mobile usability:** App must be 100% usable on mobile (intent: responsive-first via CSS — Tailwind v4 + shadcn are mobile-first, adapt Tabs → bottom nav, reflow the transactions table, bottom-sheet dialogs; no dedicated mobile UI unless PWA/native needs emerge).
 - **Skeleton loading states for Dashboard:** Add lightweight loading placeholders for Dashboard (carried over from the old UI/UX plan, Commit 9 — not yet implemented).
 - **Advance-pay for credit installments:** Let users pay the next N installments now and shift the remainder (deferred from the old Refactor Plan).
@@ -80,6 +74,7 @@
 ## Done Cards
 > *Completed cards with objective outcomes.*
 
+- **Data in/out organization — partial, superseded mid-card (Active Card, 2026-08-07):** Landed the module split (`exchange/csv.ts` + `backup/json.ts` + barrel), the new exchange CSV shape (ref scheme, 1NF debt rows, head-anchored installments; commits 793ef30, 736a3ed) and ADR-0009. JSON/backup, validation and imports were NOT redone: the card surfaced that the installment/debt data model itself had to be rebuilt first → replaced by the Active Card above, which redoes them on the new model (fold-in: quote CSV cells only when needed).
 - **Bug Fix Sweep — HIGH (Active Card, 2026-08-06):** Closed all six data-integrity/timezone bugs (add-modal no-op, JSON import dropping budgets, UTC month/day slicing, income payment-method validation bypass, lexicographic amount sort, invalid payment-method persistence) plus a dead-code pass (−410 lines, 7 dead tests removed; suite now 65 focused tests). Landed as commits 59d6302 → 380c687.
 - **Budget ranges (Active Card, 2026-08-06):** Replaced per-month navigation with From→To range creation and derived grouping (`groupBudgetsByRange` + 7 tests); create/edit/delete all range-aware with shrink/overlap confirm (ADR-0008), off-by-one clone fix. Landed as commits 066e59d → b2e31b1.
 - **Refactor plan (8 commits):** Core types/constants cleanup, type-safety patch, state-management fixes, non-blocking toast/ConfirmDialog UX, domain utility extraction, UI consistency & dark mode, original TODO bugs (isDebt toggle, negative validation), BudgetFormDialog extraction. Landed as commits 0a34bb1 → 007141d.
