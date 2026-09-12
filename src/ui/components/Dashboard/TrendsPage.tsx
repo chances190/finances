@@ -28,7 +28,7 @@ import {
 } from '@/domain/calculations'
 import { CATEGORY_COLORS, CHART_COLORS } from '@/domain/constants'
 import { monthlyFlows } from '@/domain/entities'
-import { formatCurrency } from '@/lib/currency'
+import { formatAxisCurrency, formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import StatCard from '@/ui/components/Common/StatCard'
 import { useFinance } from '@/ui/context'
@@ -181,7 +181,7 @@ export default function TrendsPage() {
                 tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(v: number) => `R$${v}`}
+                tickFormatter={(v: number) => formatAxisCurrency(v)}
               />
               <Tooltip
                 contentStyle={{
@@ -234,7 +234,7 @@ export default function TrendsPage() {
                     tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(v: number) => `R$${v}`}
+                    tickFormatter={(v: number) => formatAxisCurrency(v)}
                   />
                   <Tooltip
                     contentStyle={{
@@ -286,7 +286,7 @@ export default function TrendsPage() {
                     tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(v: number) => `R$${v}`}
+                    tickFormatter={(v: number) => formatAxisCurrency(v)}
                     domain={commitmentsMax > 0 ? [0, commitmentsMax] : undefined}
                     allowDataOverflow={true}
                   />
@@ -334,7 +334,7 @@ export default function TrendsPage() {
                   tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(v: number) => `R$${v}`}
+                  tickFormatter={(v: number) => formatAxisCurrency(v)}
                 />
                 <Tooltip
                   contentStyle={{

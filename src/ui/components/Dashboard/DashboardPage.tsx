@@ -52,7 +52,7 @@ import {
   PAYMENT_METHOD_LABELS,
 } from '@/domain/constants'
 import { monthlyFlows } from '@/domain/entities'
-import { formatCurrency } from '@/lib/currency'
+import { formatAxisCurrency, formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import StatCard from '@/ui/components/Common/StatCard'
 import { useFinance } from '@/ui/context'
@@ -307,7 +307,7 @@ export default function DashboardPage() {
                     tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(v: number) => `R$${v}`}
+                    tickFormatter={(v: number) => formatAxisCurrency(v)}
                   />
                   <Tooltip
                     contentStyle={{
@@ -377,7 +377,7 @@ export default function DashboardPage() {
                     tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(v: number) => `R$${v}`}
+                    tickFormatter={(v: number) => formatAxisCurrency(v)}
                   />
                   <Tooltip
                     contentStyle={{
@@ -455,7 +455,7 @@ export default function DashboardPage() {
                     tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(v: number) => `R$${v}`}
+                    tickFormatter={(v: number) => formatAxisCurrency(v)}
                   />
                   <Tooltip
                     contentStyle={{

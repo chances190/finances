@@ -21,6 +21,10 @@ export function formatPlainCurrency(value: number): string {
   return c(value, { ...brlOpts, symbol: '' }).format()
 }
 
+export function formatAxisCurrency(value: number): string {
+  return `R$ ${value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`
+}
+
 export function addCurrency(a: number, b: number): number {
   return c(a).add(b).value
 }

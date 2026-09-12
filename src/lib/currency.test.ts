@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { addCurrency, formatCurrency, formatPlainCurrency, parseCurrency } from './currency'
+import {
+  addCurrency,
+  formatAxisCurrency,
+  formatCurrency,
+  formatPlainCurrency,
+  parseCurrency,
+} from './currency'
 
 describe('parseCurrency', () => {
   test('parses string number', () => {
@@ -53,5 +59,14 @@ describe('addCurrency', () => {
   })
   test('sums with zero', () => {
     expect(addCurrency(0, 99.99)).toBe(99.99)
+  })
+})
+
+describe('formatAxisCurrency', () => {
+  test('formats compact BRL with thousands separator', () => {
+    expect(formatAxisCurrency(1234)).toContain('1.234')
+  })
+  test('drops cents for axis readability', () => {
+    expect(formatAxisCurrency(1500.5)).not.toContain(',')
   })
 })
