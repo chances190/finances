@@ -122,6 +122,21 @@ export default function TransactionTable() {
     sortDir,
   ])
 
+  const rows = useMemo(
+    () =>
+      filtered.flatMap((tx) =>
+        monthlyFlows(tx)
+          .filter((f) => filterMonth === 'all' || f.referenceMonth === filterMonth)
+          .map((flow) => ({ tx, flow }))
+          .sort(
+            (a, b) =>
+              b.flow.referenceMonth.localeCompare(a.flow.referenceMonth) ||
+              (a.flow.installmentIndex ?? 0) - (b.flow.installmentIndex ?? 0),
+          ),
+      ),
+    [filtered, filterMonth],
+  )
+
   function handleSort(key: string) {
     if (sortKey === key) {
       if (sortDir === 'desc') {
@@ -348,28 +363,26 @@ export default function TransactionTable() {
               </TableRow>
             )}
 
-            {filtered.map((tx) => {
+            {rows.map(({ tx, flow }) => {
               const allDebtsSettled = tx.debts?.every((d) => d.settled) ?? true
+              const isFuture = monthRelation(flow.referenceMonth) === 'future'
               return (
-                <TableRow key={tx.id} className="cursor-pointer" onClick={() => handleEdit(tx)}>
+                <TableRow
+                  key={`${tx.id}-${flow.referenceMonth}-${flow.installmentIndex ?? 0}`}
+                  className={`cursor-pointer ${isFuture ? 'opacity-70' : ''}`}
+                  onClick={() => handleEdit(tx)}
+                >
                   <TableCell>
                     <PaymentBadge method={tx.paymentMethod} />
                   </TableCell>
                   <TableCell
                     className={`text-right font-mono text-xs ${tx.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}
                   >
-                    {formatCurrency(tx.amount)}
+                    {formatCurrency(flow.amount)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
-                      <div className="max-w-48 truncate">
-                        {tx.description}
-                        {tx.installments && tx.installments > 1 && (
-                          <span className="text-muted-foreground ml-1 text-[10px]">
-                            (installment)
-                          </span>
-                        )}
-                      </div>
+                      <div className="max-w-48 truncate">{tx.description}</div>
                       {tx.debts && tx.debts.length > 0 && allDebtsSettled && (
                         <Badge
                           variant="outline"
@@ -381,11 +394,18 @@ export default function TransactionTable() {
                     </div>
                   </TableCell>
                   <TableCell className="text-xs">{tx.category}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{tx.date}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {tx.date}
+                    {isFuture && (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground ml-1">
+                        Future
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="text-center text-xs">
-                    {tx.installments && tx.installments > 1 ? (
-                      <Badge variant="outline" className="text-xs">
-                        {tx.installments}x
+                    {flow.installmentIndex != null ? (
+                      <Badge variant="outline" className="text-xs whitespace-nowrap">
+                        {flow.installmentIndex + 1}/{flow.installmentTotal}
                       </Badge>
                     ) : null}
                   </TableCell>
