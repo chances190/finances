@@ -11,12 +11,18 @@ export default function ExportImport() {
       <Button
         variant="outline"
         size="xs"
+        title="Backup all data (transactions + budgets)"
         onClick={() => exportJSON({ transactions: state.transactions, budgets: state.budgets })}
       >
-        Export JSON
+        Backup (.json)
       </Button>
-      <Button variant="outline" size="xs" onClick={() => exportCSV(state.transactions)}>
-        Export CSV
+      <Button
+        variant="outline"
+        size="xs"
+        title="Export transactions only (exchange format)"
+        onClick={() => exportCSV(state.transactions)}
+      >
+        Export (.csv)
       </Button>
     </div>
   )

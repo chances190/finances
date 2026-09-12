@@ -284,7 +284,7 @@ export default function SmartTransactionInput({
             Add
           </Button>
           <Button variant="outline" size="xs" className="h-7 text-xs" onClick={onOpenImport}>
-            Import CSV
+            Import
           </Button>
         </div>
       </div>

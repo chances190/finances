@@ -121,8 +121,11 @@ export default function CSVImportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Import Transactions</DialogTitle>
-          <DialogDescription>Upload a .json or .csv file to import transactions.</DialogDescription>
+          <DialogTitle>Import Data</DialogTitle>
+          <DialogDescription>
+            Drop a .json backup (transactions + budgets) or a .csv exchange file (transactions
+            only).
+          </DialogDescription>
         </DialogHeader>
 
         {!preview && !error && (
