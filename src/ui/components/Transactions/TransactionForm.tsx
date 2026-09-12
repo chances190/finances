@@ -106,7 +106,7 @@ export default function TransactionForm({
       toast('Description is required', 'error')
       return
     }
-    if (form.type === 'EXPENSE' && form.paymentMethod === 'CREDIT' && debts.length > 0) {
+    if (form.type === 'EXPENSE' && debts.length > 0) {
       const debtTotal = debts.reduce((s, d) => s + d.amount, 0)
       if (debtTotal > amount) {
         toast('Total debts cannot exceed purchase amount', 'error')

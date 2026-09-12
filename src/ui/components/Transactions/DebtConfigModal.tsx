@@ -40,8 +40,9 @@ export default function DebtConfigModal({
   }, [debts, open])
 
   const assignedTotal = splits.reduce((s, d) => s + d.amount, 0)
-  const remaining = Math.max(0, totalAmount - assignedTotal)
-  const isBalanced = remaining < 0.01
+  const delta = totalAmount - assignedTotal
+  const remaining = Math.max(0, delta)
+  const isBalanced = Math.abs(delta) < 0.01
 
   function handleAddPerson() {
     setSplits((prev) => [...prev, { id: uuid(), name: '', amount: 0 }])
@@ -121,9 +122,8 @@ export default function DebtConfigModal({
                       className="flex-1"
                     />
                     <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
+                      type="text"
+                      inputMode="decimal"
                       placeholder="Amount"
                       value={split.amount || ''}
                       onChange={(e) =>
@@ -172,7 +172,9 @@ export default function DebtConfigModal({
                 ? 'bg-blue-50 border-blue-200 text-blue-700'
                 : isBalanced
                   ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                  : delta < 0
+                    ? 'bg-red-50 border-red-200 text-red-700'
+                    : 'bg-yellow-50 border-yellow-200 text-yellow-700'
             }`}
           >
             <span>{totalAmount === 0 ? 'Amount will be set to:' : 'Balance:'}</span>
@@ -183,9 +185,22 @@ export default function DebtConfigModal({
             </span>
           </div>
 
+          {totalAmount > 0 && (
+            <div className="flex items-center justify-between text-xs border p-2">
+              <span>Your share:</span>
+              <span className="font-mono font-medium">{formatCurrency(remaining)}</span>
+            </div>
+          )}
+
           {!isBalanced && remaining !== 0 && (
             <div className="text-xs text-muted-foreground">
               Remaining: {formatCurrency(remaining)}
+            </div>
+          )}
+
+          {totalAmount > 0 && delta < 0 && (
+            <div className="text-xs text-destructive">
+              Over by {formatCurrency(-delta)} — reduce split amounts.
             </div>
           )}
         </div>
