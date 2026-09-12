@@ -36,6 +36,7 @@ import {
   cashExpenses,
   creditInvoice,
   currentYM,
+  daysInMonth,
   expensesByMonth,
   groupedByPaymentMethod,
   incomeByMonth,
@@ -47,7 +48,6 @@ import {
 } from '@/domain/calculations'
 import {
   CHART_COLORS,
-  DAYS_IN_MONTH,
   PAYMENT_METHOD_CHART_COLORS,
   PAYMENT_METHOD_LABELS,
 } from '@/domain/constants'
@@ -107,11 +107,12 @@ export default function DashboardPage() {
 
   const today = new Date()
   const currentMonth = currentYM(today)
+  const monthDays = daysInMonth(selectedMonth || currentMonth)
   const currentDay =
     selectedMonth === currentMonth
-      ? Math.min(today.getDate(), DAYS_IN_MONTH)
+      ? Math.min(today.getDate(), monthDays)
       : selectedMonth < currentMonth
-        ? DAYS_IN_MONTH
+        ? monthDays
         : 0
 
   const pace = useMemo(
@@ -119,7 +120,7 @@ export default function DashboardPage() {
     [state.transactions, budget, currentDay],
   )
 
-  const dailyQuota = pace.totalSalary > 0 ? pace.limit / DAYS_IN_MONTH : 0
+  const dailyQuota = pace.totalSalary > 0 ? pace.limit / monthDays : 0
 
   const spentSoFar = useMemo(() => {
     if (!selectedMonth) return 0
@@ -248,7 +249,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <TrendDown className="size-4" />
-              Spending Pace — Day {currentDay}/{DAYS_IN_MONTH}
+              Spending Pace — Day {currentDay}/{monthDays}
             </h3>
             <Badge variant="outline" className={paceStatus.color}>
               {paceStatus.label}

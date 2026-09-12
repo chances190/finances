@@ -1,5 +1,5 @@
 import { addCurrency } from '../lib/currency'
-import { DAYS_IN_MONTH, SES_ALPHA } from './constants'
+import { SES_ALPHA } from './constants'
 import type { Budget, MonthlyFlow, Transaction } from './entities'
 import { addMonths, monthlyFlows } from './entities'
 
@@ -40,6 +40,12 @@ export function availableMonths(tx: Transaction[]): string[] {
 
 export function currentYM(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+export function daysInMonth(ym: string): number {
+  const [y, m] = ym.split('-').map(Number)
+  if (!y || !m || m < 1 || m > 12) return 30
+  return new Date(y, m, 0).getDate()
 }
 
 export function localYMD(d = new Date()): string {
@@ -172,10 +178,11 @@ export function spendingPace(
 ): SpendingPaceResult {
   const totalSalary = (budget?.plannedIncome ?? 0) + (budget?.plannedMealVoucher ?? 0)
   const limit = totalSalary * 0.8
-  const referencePerDay = totalSalary / DAYS_IN_MONTH
+  const monthDays = daysInMonth(budget?.referenceMonth ?? currentYM())
+  const referencePerDay = totalSalary / monthDays
 
   const dailyActual: number[] = []
-  for (let d = 1; d <= DAYS_IN_MONTH; d++) {
+  for (let d = 1; d <= monthDays; d++) {
     dailyActual.push(
       byMonth(tx, budget?.referenceMonth ?? '')
         .filter((t) => {
@@ -190,7 +197,7 @@ export function spendingPace(
   const lastSes = sesResult.length > 0 ? sesResult[sesResult.length - 1] : 0
 
   const accumulatedSpent = dailyActual.slice(0, currentDay).reduce((s, v) => addCurrency(s, v), 0)
-  const remainingDays = DAYS_IN_MONTH - currentDay
+  const remainingDays = monthDays - currentDay
   const suggestionPerDay =
     remainingDays > 0 ? Math.max(0, (limit - accumulatedSpent) / remainingDays) : 0
 
@@ -200,7 +207,7 @@ export function spendingPace(
   let cumProjection = accumulatedSpent
   let cumSuggestion = accumulatedSpent
 
-  for (let d = 1; d <= DAYS_IN_MONTH; d++) {
+  for (let d = 1; d <= monthDays; d++) {
     const idx = d - 1
     cumActual = addCurrency(cumActual, dailyActual[idx])
 

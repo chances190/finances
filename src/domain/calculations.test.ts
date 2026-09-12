@@ -11,6 +11,7 @@ import {
   compareTransactions,
   creditInvoice,
   currentYM,
+  daysInMonth,
   daysSince,
   expensesByMonth,
   futureCommitments,
@@ -222,6 +223,21 @@ describe('ses', () => {
   })
 })
 
+describe('daysInMonth', () => {
+  test('returns 31 for 31-day months', () => {
+    expect(daysInMonth('2026-07')).toBe(31)
+  })
+  test('returns 28 for non-leap February', () => {
+    expect(daysInMonth('2026-02')).toBe(28)
+  })
+  test('returns 29 for leap February', () => {
+    expect(daysInMonth('2028-02')).toBe(29)
+  })
+  test('falls back to 30 for malformed input', () => {
+    expect(daysInMonth('')).toBe(30)
+  })
+})
+
 describe('spendingPace', () => {
   const budget: Budget = {
     referenceMonth: '2026-07',
@@ -230,10 +246,10 @@ describe('spendingPace', () => {
     categoryLimits: {},
   }
 
-  test('returns expected structure', () => {
+  test('returns expected structure using actual month length', () => {
     const result = spendingPace(sampleTransactions, budget, 15)
-    expect(result.daily).toHaveLength(30)
-    expect(result.cumulative).toHaveLength(30)
+    expect(result.daily).toHaveLength(31)
+    expect(result.cumulative).toHaveLength(31)
     expect(result.limit).toBe(5500 * 0.8)
     expect(result.totalSalary).toBe(5500)
     expect(result.suggestionPerDay).toBeGreaterThan(0)

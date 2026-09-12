@@ -1,6 +1,5 @@
 import type { PaymentMethod } from './entities'
 
-export const DAYS_IN_MONTH = 30
 export const SES_ALPHA = 0.3
 
 export const DEFAULT_CATEGORIES = [
