@@ -219,7 +219,7 @@ export default function TransactionTable() {
         />
         <Select value={filterMonth} onValueChange={(v) => setFilterMonth(v ?? 'all')}>
           <SelectTrigger className="h-7 w-28 text-xs">
-            <SelectValue />
+            <SelectValue>{filterMonth === 'all' ? 'All months' : filterMonth}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All months</SelectItem>
@@ -335,7 +335,7 @@ export default function TransactionTable() {
                 Date{sortIndicator('date')}
               </TableHead>
               <TableHead className="w-16 text-center">Install</TableHead>
-              <TableHead className="w-32">Details</TableHead>
+              <TableHead className="w-32">Debts</TableHead>
               <TableHead className="text-right w-20">Actions</TableHead>
             </TableRow>
           </TableHeader>

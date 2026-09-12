@@ -257,7 +257,9 @@ export default function TransactionForm({
                   }
                 >
                   <SelectTrigger id="tx-payment">
-                    <SelectValue />
+                    <SelectValue>
+                      {PAYMENT_METHOD_LABELS[form.paymentMethod] ?? form.paymentMethod}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {(form.type === 'INCOME' ? INCOME_PAYMENT_METHODS : PAYMENT_METHODS).map(
@@ -299,7 +301,7 @@ export default function TransactionForm({
               <div className="border-t pt-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <Button
-                    size="xs"
+                    size="sm"
                     variant={debts.length > 0 ? 'default' : 'outline'}
                     disabled={!(parseCurrency(form.amount) > 0)}
                     onClick={() => setShowDebtConfig(true)}
