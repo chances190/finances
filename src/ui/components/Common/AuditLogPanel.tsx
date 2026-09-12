@@ -4,11 +4,15 @@ import {
   ClockIcon,
   TrashIcon,
 } from '@phosphor-icons/react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import CSVImportDialog from '@/ui/components/Common/CSVImportDialog'
+import ExportImport from '@/ui/components/Common/ExportImport'
 import { useFinance } from '@/ui/context'
 
 export default function AuditLogPanel() {
   const { state, dispatch } = useFinance()
+  const [showImport, setShowImport] = useState(false)
 
   function handleUndo(entryId: string) {
     dispatch({ type: 'UNDO', payload: entryId })
@@ -81,6 +85,22 @@ export default function AuditLogPanel() {
           ))}
         </div>
       )}
+
+      <div className="mt-6 border-t pt-4">
+        <h3 className="text-sm font-semibold text-foreground mb-2">Data</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportImport />
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => setShowImport(true)}
+            aria-label="Import backup"
+          >
+            Import backup
+          </Button>
+        </div>
+        <CSVImportDialog open={showImport} onOpenChange={setShowImport} mode="all" />
+      </div>
     </div>
   )
 }

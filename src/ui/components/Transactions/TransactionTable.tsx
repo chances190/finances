@@ -39,7 +39,6 @@ import type { PaymentMethod, Transaction } from '@/domain/entities'
 import { monthlyFlows } from '@/domain/entities'
 import { formatCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
-import CSVImportDialog from '@/ui/components/Common/CSVImportDialog'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
 import SmartTransactionInput from './SmartTransactionInput'
@@ -70,7 +69,6 @@ export default function TransactionTable() {
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
   const [showEditForm, setShowEditForm] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [showImportCsv, setShowImportCsv] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const { toast } = useToast()
 
@@ -219,7 +217,6 @@ export default function TransactionTable() {
       <SmartTransactionInput
         onAdd={handleSmartAdd}
         onOpenModal={() => setShowAddForm(true)}
-        onOpenImport={() => setShowImportCsv(true)}
         knownDescriptions={knownDescriptions}
         categories={allCategories}
       />
@@ -457,8 +454,6 @@ export default function TransactionTable() {
       />
 
       <TransactionForm open={showAddForm} onOpenChange={setShowAddForm} />
-
-      <CSVImportDialog open={showImportCsv} onOpenChange={setShowImportCsv} />
 
       <ConfirmDialog
         open={confirmDeleteId !== null}

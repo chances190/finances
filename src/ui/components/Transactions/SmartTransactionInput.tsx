@@ -32,7 +32,6 @@ function splitAmountTokens(parts: string[]): { amount: string; rest: string[] } 
 interface SmartInputProps {
   onAdd: (parsed: ParsedRow) => void
   onOpenModal: () => void
-  onOpenImport: () => void
   knownDescriptions: string[]
   categories: string[]
 }
@@ -83,7 +82,6 @@ function buildSuggestionText(suggestion: string, tokens: string[], tokenIndex: n
 export default function SmartTransactionInput({
   onAdd,
   onOpenModal,
-  onOpenImport,
   knownDescriptions,
   categories,
 }: SmartInputProps) {
@@ -282,9 +280,6 @@ export default function SmartTransactionInput({
           </Button>
           <Button variant="outline" size="xs" className="h-7 text-xs" onClick={onOpenModal}>
             Add
-          </Button>
-          <Button variant="outline" size="xs" className="h-7 text-xs" onClick={onOpenImport}>
-            Import
           </Button>
         </div>
       </div>

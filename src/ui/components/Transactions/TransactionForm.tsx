@@ -18,6 +18,7 @@ import { INCOME_PAYMENT_METHODS, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '
 import type { Debt, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
+import CSVImportDialog from '@/ui/components/Common/CSVImportDialog'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
 import DebtConfigModal from './DebtConfigModal'
@@ -64,6 +65,7 @@ export default function TransactionForm({
   const [debts, setDebts] = useState<Debt[]>([])
   const [showDebtConfig, setShowDebtConfig] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
+  const [showCsvImport, setShowCsvImport] = useState(false)
 
   useEffect(() => {
     if (editTransaction) {
@@ -319,6 +321,16 @@ export default function TransactionForm({
           </div>
 
           <div className="flex gap-2 justify-end pt-4">
+            {!editTransaction && (
+              <Button
+                variant="ghost"
+                size="xs"
+                className="mr-auto h-7 text-xs"
+                onClick={() => setShowCsvImport(true)}
+              >
+                Import from CSV
+              </Button>
+            )}
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
@@ -336,6 +348,13 @@ export default function TransactionForm({
           setShowDebtConfig(false)
         }}
         totalAmount={amount}
+      />
+
+      <CSVImportDialog
+        open={showCsvImport}
+        onOpenChange={setShowCsvImport}
+        mode="csv"
+        onImported={() => onOpenChange(false)}
       />
 
       <ConfirmDialog

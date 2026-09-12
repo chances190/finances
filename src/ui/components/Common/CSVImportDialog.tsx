@@ -39,9 +39,13 @@ type PreviewData = {
 export default function CSVImportDialog({
   open,
   onOpenChange,
+  mode = 'all',
+  onImported,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  mode?: 'csv' | 'all'
+  onImported?: () => void
 }) {
   const { dispatch } = useFinance()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -63,7 +67,17 @@ export default function CSVImportDialog({
     reader.onload = () => {
       try {
         const content = reader.result as string
-        if (file.name.endsWith('.json')) {
+        const isJson = file.name.toLowerCase().endsWith('.json')
+        const isCsv = file.name.toLowerCase().endsWith('.csv')
+        if (mode === 'csv' && !isCsv) {
+          setError(
+            isJson
+              ? 'Backup (.json) imports live on the Actions tab'
+              : 'Unsupported file format. Use .csv',
+          )
+          return
+        }
+        if (isJson) {
           const { data, skippedTransactions, skippedBudgets } = importJSON(content)
           setPreview({
             type: 'json',
@@ -82,7 +96,11 @@ export default function CSVImportDialog({
             filename: file.name,
           })
         } else {
-          setError('Unsupported file format. Use .json or .csv')
+          setError(
+            mode === 'csv'
+              ? 'Unsupported file format. Use .csv'
+              : 'Unsupported file format. Use .json or .csv',
+          )
         }
       } catch (err) {
         const msg = (err as Error).message
@@ -109,6 +127,7 @@ export default function CSVImportDialog({
     }
     setPreview(null)
     onOpenChange(false)
+    onImported?.()
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -121,10 +140,11 @@ export default function CSVImportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Import Data</DialogTitle>
+          <DialogTitle>{mode === 'csv' ? 'Import from CSV' : 'Import Data'}</DialogTitle>
           <DialogDescription>
-            Drop a .json backup (transactions + budgets) or a .csv exchange file (transactions
-            only).
+            {mode === 'csv'
+              ? 'Drop a .csv exchange file here to import transactions.'
+              : 'Drop a .json backup (transactions + budgets) or a .csv exchange file (transactions only).'}
           </DialogDescription>
         </DialogHeader>
 
@@ -137,16 +157,24 @@ export default function CSVImportDialog({
             onClick={() => fileRef.current?.click()}
           >
             <div className="flex justify-center gap-2 text-muted-foreground">
-              <FileCsvIcon size={24} />
-              <FileTextIcon size={24} />
+              {mode === 'csv' ? (
+                <FileCsvIcon size={24} />
+              ) : (
+                <>
+                  <FileCsvIcon size={24} />
+                  <FileTextIcon size={24} />
+                </>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">
-              Drop a .json or .csv file here, or click to browse
+              {mode === 'csv'
+                ? 'Drop a .csv file here, or click to browse'
+                : 'Drop a .json or .csv file here, or click to browse'}
             </p>
             <input
               ref={fileRef}
               type="file"
-              accept=".json,.csv"
+              accept={mode === 'csv' ? '.csv' : '.json,.csv'}
               onChange={(e) => {
                 const f = e.target.files?.[0]
                 if (f) handleFile(f)
