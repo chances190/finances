@@ -4,7 +4,6 @@ import { validateFinanceData } from './validation'
 describe('validateFinanceData', () => {
   test('returns valid v2 data as-is', () => {
     const input = {
-      _version: 2,
       transactions: [
         {
           id: '1',
@@ -25,28 +24,8 @@ describe('validateFinanceData', () => {
     expect(result.skippedBudgets).toBe(0)
   })
 
-  test('rejects old v1 format', () => {
-    const input = {
-      transactions: [
-        {
-          id: '1',
-          type: 'EXPENSE',
-          date: '2026-07-01',
-          referenceMonth: '2026-07',
-          description: 'Test',
-          amount: 100,
-          category: 'Food',
-          paymentMethod: 'DEBIT',
-        },
-      ],
-      budgets: [],
-    }
-    expect(() => validateFinanceData(input)).toThrow('Incompatible data format')
-  })
-
   test('strips invalid transactions', () => {
     const input = {
-      _version: 2,
       transactions: [
         {
           id: '1',
@@ -67,7 +46,6 @@ describe('validateFinanceData', () => {
 
   test('strips expense transactions with income payment methods', () => {
     const input = {
-      _version: 2,
       transactions: [
         {
           id: '1',
@@ -88,7 +66,6 @@ describe('validateFinanceData', () => {
 
   test('accepts income transactions with income payment methods only', () => {
     const input = {
-      _version: 2,
       transactions: [
         {
           id: '1',

@@ -56,12 +56,6 @@ export function validateFinanceData(value: unknown): ValidationResult {
     throw new Error('Invalid data: budgets must be an array')
   }
 
-  if (data._version !== 2) {
-    throw new Error(
-      'Incompatible data format. This version requires v2 data. Please export your old data first, then reimport after upgrading.',
-    )
-  }
-
   const validTransactions = data.transactions.filter(isValidTransaction)
   const validBudgets = data.budgets.filter(isValidBudget)
 

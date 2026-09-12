@@ -4,7 +4,7 @@ import type { ValidationResult } from '../validation'
 import { validateFinanceData } from '../validation'
 
 export function exportJSON(data: FinanceData): void {
-  const blob = new Blob([JSON.stringify({ ...data, _version: 2 }, null, 2)], {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
     type: 'application/json',
   })
   downloadBlob(blob, `finances-${new Date().toISOString().slice(0, 10)}.json`)

@@ -70,7 +70,6 @@ describe('CSV round-trip', () => {
 describe('importJSON', () => {
   test('round-trips transactions and budgets', () => {
     const data = {
-      _version: 2,
       transactions: [
         {
           id: 'tx-1',
@@ -100,7 +99,6 @@ describe('importJSON', () => {
 
   test('surfaces skipped rows for invalid entries', () => {
     const data = {
-      _version: 2,
       transactions: [
         {
           id: 'tx-1',
@@ -118,24 +116,5 @@ describe('importJSON', () => {
     expect(result.data.transactions).toHaveLength(0)
     expect(result.skippedTransactions).toBe(1)
     expect(result.skippedBudgets).toBe(1)
-  })
-
-  test('rejects old format without _version', () => {
-    const data = {
-      transactions: [
-        {
-          id: 'tx-1',
-          type: 'EXPENSE',
-          date: '2026-07-01',
-          referenceMonth: '2026-07',
-          description: 'Groceries',
-          amount: 120.5,
-          category: 'Food',
-          paymentMethod: 'DEBIT',
-        },
-      ],
-      budgets: [],
-    }
-    expect(() => importJSON(JSON.stringify(data))).toThrow('Incompatible data format')
   })
 })
