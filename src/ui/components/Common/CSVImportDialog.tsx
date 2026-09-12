@@ -106,7 +106,9 @@ export default function CSVImportDialog({
         const msg = (err as Error).message
         if (msg.includes('Unexpected token') || msg.includes('JSON')) {
           setError(
-            'The file format is invalid. Make sure your .json or .csv file has the correct structure: columns like date, description, amount, category, paymentMethod, type.',
+            mode === 'csv'
+              ? 'The file format is invalid. Make sure your .csv file has the correct structure: columns like date, description, amount, category, paymentMethod, type.'
+              : 'The file format is invalid. Make sure your .json or .csv file has the correct structure: columns like date, description, amount, category, paymentMethod, type.',
           )
         } else {
           setError(msg)
