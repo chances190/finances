@@ -23,12 +23,17 @@ import type { Budget, Transaction } from '@/domain/entities'
 import { formatCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
 
+type SkippedInfo = {
+  lines: number[]
+  count: number
+}
+
 type PreviewData = {
   type: 'json' | 'csv'
   transactions: Transaction[]
   budgets: Budget[]
   filename: string
-  skipped: number
+  skipped: SkippedInfo
 }
 
 export default function CSVImportDialog({
@@ -64,7 +69,7 @@ export default function CSVImportDialog({
             type: 'json',
             transactions: data.transactions,
             budgets: data.budgets,
-            skipped: skippedTransactions + skippedBudgets,
+            skipped: { lines: [], count: skippedTransactions + skippedBudgets },
             filename: file.name,
           })
         } else if (file.name.endsWith('.csv')) {
@@ -73,7 +78,7 @@ export default function CSVImportDialog({
             type: 'csv',
             transactions,
             budgets: [],
-            skipped: skippedRows,
+            skipped: { lines: skippedRows, count: skippedRows.length },
             filename: file.name,
           })
         } else {
@@ -169,8 +174,12 @@ export default function CSVImportDialog({
               {preview.filename} — {preview.transactions.length} transaction
               {preview.transactions.length !== 1 ? 's' : ''} and {preview.budgets.length} budget
               {preview.budgets.length !== 1 ? 's' : ''} found
-              {preview.skipped > 0 &&
-                ` — ${preview.skipped} row${preview.skipped !== 1 ? 's' : ''} skipped (invalid or malformed)`}
+              {preview.skipped.count > 0 &&
+                preview.skipped.lines.length > 0 &&
+                ` — ${preview.skipped.count} row${preview.skipped.count !== 1 ? 's' : ''} skipped (malformed): line${preview.skipped.lines.length !== 1 ? 's' : ''} ${preview.skipped.lines.join(', ')}`}
+              {preview.skipped.count > 0 &&
+                preview.skipped.lines.length === 0 &&
+                ` — ${preview.skipped.count} entr${preview.skipped.count !== 1 ? 'ies' : 'y'} skipped (invalid format)`}
             </p>
             <div className="max-h-60 overflow-y-auto border border-border">
               <Table>

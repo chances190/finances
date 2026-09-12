@@ -113,7 +113,7 @@ export function exportCSV(transactions: Transaction[]): void {
 
 export interface CSVImportResult {
   transactions: Transaction[]
-  skippedRows: number
+  skippedRows: number[]
 }
 
 export function importCSV(csv: string): CSVImportResult {
@@ -127,13 +127,13 @@ export function importCSV(csv: string): CSVImportResult {
   }
 
   const rowObjects: Record<string, string>[] = []
-  let skippedRows = 0
+  const skippedRows: number[] = []
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim()
     if (!line) continue
     const values = parseCSVLine(line)
     if (values.length !== headers.length) {
-      skippedRows++
+      skippedRows.push(i + 1)
       continue
     }
     rowObjects.push(Object.fromEntries(headers.map((h, idx) => [h, values[idx]])))

@@ -10,7 +10,7 @@ describe('importCSV', () => {
     const csv = `${H}\nr001,2026-07-05,INCOME,5000,Salary,DEBIT,Salary,,,,,`
     const { transactions, skippedRows } = importCSV(csv)
     expect(transactions).toHaveLength(1)
-    expect(skippedRows).toBe(0)
+    expect(skippedRows).toEqual([])
     expect(transactions[0].amount).toBe(5000)
     expect(transactions[0].type).toBe('INCOME')
     expect(transactions[0].paymentMethod).toBe('DEBIT')
@@ -43,11 +43,17 @@ describe('importCSV', () => {
     expect(transactions[0].amount).toBe(1200)
   })
 
-  test('reports malformed rows as skipped', () => {
+  test('reports malformed rows as skipped with line numbers', () => {
     const csv = `${H}\nr001,2026-07-05,INCOME,5000,Salary,DEBIT,Salary,,,,,\nmalformed-row-with-no-commas`
     const { transactions, skippedRows } = importCSV(csv)
     expect(transactions).toHaveLength(1)
-    expect(skippedRows).toBe(1)
+    expect(skippedRows).toEqual([3])
+  })
+
+  test('reports multiple malformed rows with their line numbers', () => {
+    const csv = `${H}\nr001,2026-07-05,INCOME,5000,Salary,DEBIT,Salary,,,,,\nbad-row\nr002,2026-07-06,EXPENSE,10,Food,DEBIT,Bread,,,,,\nalso-bad`
+    const { skippedRows } = importCSV(csv)
+    expect(skippedRows).toEqual([3, 5])
   })
 })
 
