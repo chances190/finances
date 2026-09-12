@@ -1,5 +1,6 @@
 import type { FinanceData } from '../../domain/entities'
 import { downloadBlob } from '../download'
+import type { ValidationResult } from '../validation'
 import { validateFinanceData } from '../validation'
 
 export function exportJSON(data: FinanceData): void {
@@ -9,6 +10,6 @@ export function exportJSON(data: FinanceData): void {
   downloadBlob(blob, `finances-${new Date().toISOString().slice(0, 10)}.json`)
 }
 
-export function importJSON(json: string): FinanceData {
+export function importJSON(json: string): ValidationResult {
   return validateFinanceData(JSON.parse(json))
 }

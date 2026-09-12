@@ -28,6 +28,7 @@ type PreviewData = {
   transactions: Transaction[]
   budgets: Budget[]
   filename: string
+  skipped: number
 }
 
 export default function CSVImportDialog({
@@ -58,16 +59,23 @@ export default function CSVImportDialog({
       try {
         const content = reader.result as string
         if (file.name.endsWith('.json')) {
-          const data = importJSON(content)
+          const { data, skippedTransactions, skippedBudgets } = importJSON(content)
           setPreview({
             type: 'json',
             transactions: data.transactions,
             budgets: data.budgets,
+            skipped: skippedTransactions + skippedBudgets,
             filename: file.name,
           })
         } else if (file.name.endsWith('.csv')) {
-          const txs = importCSV(content)
-          setPreview({ type: 'csv', transactions: txs, budgets: [], filename: file.name })
+          const { transactions, skippedRows } = importCSV(content)
+          setPreview({
+            type: 'csv',
+            transactions,
+            budgets: [],
+            skipped: skippedRows,
+            filename: file.name,
+          })
         } else {
           setError('Unsupported file format. Use .json or .csv')
         }
@@ -161,6 +169,8 @@ export default function CSVImportDialog({
               {preview.filename} — {preview.transactions.length} transaction
               {preview.transactions.length !== 1 ? 's' : ''} and {preview.budgets.length} budget
               {preview.budgets.length !== 1 ? 's' : ''} found
+              {preview.skipped > 0 &&
+                ` — ${preview.skipped} row${preview.skipped !== 1 ? 's' : ''} skipped (invalid or malformed)`}
             </p>
             <div className="max-h-60 overflow-y-auto border border-border">
               <Table>

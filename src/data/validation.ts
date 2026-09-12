@@ -36,7 +36,13 @@ function isValidBudget(value: unknown): value is Budget {
   )
 }
 
-export function validateFinanceData(value: unknown): FinanceData {
+export interface ValidationResult {
+  data: FinanceData
+  skippedTransactions: number
+  skippedBudgets: number
+}
+
+export function validateFinanceData(value: unknown): ValidationResult {
   if (!value || typeof value !== 'object') {
     throw new Error('Invalid data: expected an object')
   }
@@ -59,5 +65,9 @@ export function validateFinanceData(value: unknown): FinanceData {
   const validTransactions = data.transactions.filter(isValidTransaction)
   const validBudgets = data.budgets.filter(isValidBudget)
 
-  return { transactions: validTransactions, budgets: validBudgets }
+  return {
+    data: { transactions: validTransactions, budgets: validBudgets },
+    skippedTransactions: data.transactions.length - validTransactions.length,
+    skippedBudgets: data.budgets.length - validBudgets.length,
+  }
 }

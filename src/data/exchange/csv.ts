@@ -111,7 +111,12 @@ export function exportCSV(transactions: Transaction[]): void {
   downloadBlob(blob, `finances-${new Date().toISOString().slice(0, 10)}.csv`)
 }
 
-export function importCSV(csv: string): Transaction[] {
+export interface CSVImportResult {
+  transactions: Transaction[]
+  skippedRows: number
+}
+
+export function importCSV(csv: string): CSVImportResult {
   const lines = csv.trim().split('\n')
   if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row')
 
@@ -122,11 +127,15 @@ export function importCSV(csv: string): Transaction[] {
   }
 
   const rowObjects: Record<string, string>[] = []
+  let skippedRows = 0
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim()
     if (!line) continue
     const values = parseCSVLine(line)
-    if (values.length !== headers.length) continue
+    if (values.length !== headers.length) {
+      skippedRows++
+      continue
+    }
     rowObjects.push(Object.fromEntries(headers.map((h, idx) => [h, values[idx]])))
   }
 
@@ -214,7 +223,7 @@ export function importCSV(csv: string): Transaction[] {
     transactions.push(t)
   }
 
-  return transactions
+  return { transactions, skippedRows }
 }
 
 function parseCSVLine(line: string): string[] {

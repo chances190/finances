@@ -7,7 +7,7 @@ export function loadData(): FinanceData | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    return validateFinanceData(JSON.parse(raw))
+    return validateFinanceData(JSON.parse(raw)).data
   } catch {
     return null
   }

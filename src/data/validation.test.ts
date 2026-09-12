@@ -19,8 +19,10 @@ describe('validateFinanceData', () => {
       budgets: [],
     }
     const result = validateFinanceData(input)
-    expect(result.transactions).toHaveLength(1)
-    expect(result.budgets).toHaveLength(0)
+    expect(result.data.transactions).toHaveLength(1)
+    expect(result.data.budgets).toHaveLength(0)
+    expect(result.skippedTransactions).toBe(0)
+    expect(result.skippedBudgets).toBe(0)
   })
 
   test('rejects old v1 format', () => {
@@ -59,7 +61,8 @@ describe('validateFinanceData', () => {
       budgets: [],
     }
     const result = validateFinanceData(input)
-    expect(result.transactions).toHaveLength(0)
+    expect(result.data.transactions).toHaveLength(0)
+    expect(result.skippedTransactions).toBe(1)
   })
 
   test('strips expense transactions with income payment methods', () => {
@@ -79,7 +82,8 @@ describe('validateFinanceData', () => {
       budgets: [],
     }
     const result = validateFinanceData(input)
-    expect(result.transactions).toHaveLength(0)
+    expect(result.data.transactions).toHaveLength(0)
+    expect(result.skippedTransactions).toBe(1)
   })
 
   test('accepts income transactions with income payment methods only', () => {
@@ -108,8 +112,9 @@ describe('validateFinanceData', () => {
       budgets: [],
     }
     const result = validateFinanceData(input)
-    expect(result.transactions).toHaveLength(1)
-    expect(result.transactions[0].paymentMethod).toBe('SALARY')
+    expect(result.data.transactions).toHaveLength(1)
+    expect(result.data.transactions[0].paymentMethod).toBe('SALARY')
+    expect(result.skippedTransactions).toBe(1)
   })
 
   test('throws for non-object input', () => {
