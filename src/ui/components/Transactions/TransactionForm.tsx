@@ -173,6 +173,7 @@ export default function TransactionForm({
                 setForm((f) => ({
                   ...f,
                   type,
+                  paymentMethod: type === 'INCOME' ? 'SALARY' : 'DEBIT',
                   ...(type === 'INCOME' ? { installmentTotal: 1 } : {}),
                 }))
                 setDebts([])
