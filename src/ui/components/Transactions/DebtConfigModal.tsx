@@ -1,5 +1,4 @@
 import { LightningAIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
-import c from 'currency.js'
 import { useEffect, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { Button } from '@/components/ui/button'
@@ -41,7 +40,9 @@ export default function DebtConfigModal({
 
   const assignedTotal = splits.reduce((s, d) => s + d.amount, 0)
   const delta = totalAmount - assignedTotal
-  const remaining = Math.max(0, delta)
+  const userShare = Math.max(0, delta)
+  const overBy = Math.max(0, -delta)
+  const isOver = delta < -0.01
   const isBalanced = Math.abs(delta) < 0.01
 
   function handleAddPerson() {
@@ -57,25 +58,20 @@ export default function DebtConfigModal({
   }
 
   function handleFillRemainder(id: string) {
-    setSplits((prev) => prev.map((s) => (s.id === id ? { ...s, amount: remaining } : s)))
+    setSplits((prev) => prev.map((s) => (s.id === id ? { ...s, amount: userShare } : s)))
   }
 
   function handleSplitEvenly() {
     if (splits.length === 0) return
-    const perPerson = c(totalAmount).divide(splits.length).value
-    const remainder = Math.round((totalAmount - perPerson * splits.length) * 100) / 100
-    setSplits((prev) =>
-      prev.map((s, i) => ({
-        ...s,
-        amount: i === 0 ? perPerson + remainder : perPerson,
-      })),
-    )
+    const totalCents = Math.round(totalAmount * 100)
+    const baseCents = Math.floor(totalCents / (splits.length + 1))
+    setSplits((prev) => prev.map((s) => ({ ...s, amount: baseCents / 100 })))
   }
 
   function handleSave() {
-    if (totalAmount > 0 && !isBalanced) {
+    if (totalAmount > 0 && isOver) {
       toast(
-        `Debt splits must total ${formatCurrency(totalAmount)} (currently ${formatCurrency(assignedTotal)})`,
+        `Debt splits cannot exceed ${formatCurrency(totalAmount)} (currently ${formatCurrency(assignedTotal)})`,
         'error',
       )
       return
@@ -136,7 +132,7 @@ export default function DebtConfigModal({
                       size="icon-xs"
                       title="Fill with remaining amount"
                       onClick={() => handleFillRemainder(split.id)}
-                      disabled={remaining < 0.01}
+                      disabled={userShare < 0.01}
                       aria-label="Fill remaining amount"
                     >
                       <LightningAIcon />
@@ -159,7 +155,7 @@ export default function DebtConfigModal({
                     className="w-full"
                     onClick={handleSplitEvenly}
                   >
-                    Split evenly ({splits.length} debtor{splits.length !== 1 ? 's' : ''})
+                    Split evenly (you + {splits.length} debtor{splits.length !== 1 ? 's' : ''})
                   </Button>
                 )}
               </>
@@ -172,7 +168,7 @@ export default function DebtConfigModal({
                 ? 'bg-blue-50 border-blue-200 text-blue-700'
                 : isBalanced
                   ? 'bg-green-50 border-green-200 text-green-700'
-                  : delta < 0
+                  : isOver
                     ? 'bg-red-50 border-red-200 text-red-700'
                     : 'bg-yellow-50 border-yellow-200 text-yellow-700'
             }`}
@@ -188,19 +184,13 @@ export default function DebtConfigModal({
           {totalAmount > 0 && (
             <div className="flex items-center justify-between text-xs border p-2">
               <span>Your share:</span>
-              <span className="font-mono font-medium">{formatCurrency(remaining)}</span>
+              <span className="font-mono font-medium">{formatCurrency(userShare)}</span>
             </div>
           )}
 
-          {!isBalanced && remaining !== 0 && (
-            <div className="text-xs text-muted-foreground">
-              Remaining: {formatCurrency(remaining)}
-            </div>
-          )}
-
-          {totalAmount > 0 && delta < 0 && (
+          {totalAmount > 0 && isOver && (
             <div className="text-xs text-destructive">
-              Over by {formatCurrency(-delta)} — reduce split amounts.
+              Over by {formatCurrency(overBy)} — reduce split amounts.
             </div>
           )}
         </div>
@@ -209,7 +199,7 @@ export default function DebtConfigModal({
           <Button variant="outline" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={totalAmount > 0 && !isBalanced}>
+          <Button onClick={handleSave} disabled={totalAmount > 0 && isOver}>
             Save
           </Button>
         </div>
