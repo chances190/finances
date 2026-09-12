@@ -51,11 +51,6 @@ export default function TransactionForm({
     [state.budgets, state.transactions],
   )
 
-  const isEditingInstallment = useMemo(() => {
-    if (!editTransaction) return false
-    return editTransaction.installments != null && editTransaction.installments > 1
-  }, [editTransaction])
-
   const [form, setForm] = useState<EditFormState>({
     type: 'EXPENSE',
     date: '',
@@ -143,9 +138,10 @@ export default function TransactionForm({
       description: form.description,
       category: form.category,
       paymentMethod: form.paymentMethod,
-      ...(isEditingInstallment
-        ? {}
-        : { installments: form.installmentTotal > 1 ? form.installmentTotal : undefined }),
+      installments:
+        form.paymentMethod === 'CREDIT' && form.installmentTotal > 1
+          ? form.installmentTotal
+          : undefined,
       ...(debts.length > 0 ? { debts } : {}),
     }
 
@@ -274,28 +270,26 @@ export default function TransactionForm({
               </div>
             </div>
 
-            {form.type === 'EXPENSE' &&
-              form.paymentMethod === 'CREDIT' &&
-              !isEditingInstallment && (
-                <div className="space-y-1">
-                  <Label htmlFor="tx-installments" className="text-xs">
-                    Installments
-                  </Label>
-                  <Input
-                    id="tx-installments"
-                    type="number"
-                    min="1"
-                    max="48"
-                    value={form.installmentTotal}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        installmentTotal: Math.max(1, parseInt(e.target.value, 10) || 1),
-                      }))
-                    }
-                  />
-                </div>
-              )}
+            {form.type === 'EXPENSE' && form.paymentMethod === 'CREDIT' && (
+              <div className="space-y-1">
+                <Label htmlFor="tx-installments" className="text-xs">
+                  Installments
+                </Label>
+                <Input
+                  id="tx-installments"
+                  type="number"
+                  min="1"
+                  max="48"
+                  value={form.installmentTotal}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      installmentTotal: Math.max(1, parseInt(e.target.value, 10) || 1),
+                    }))
+                  }
+                />
+              </div>
+            )}
 
             {form.type === 'EXPENSE' && form.paymentMethod !== 'MEAL_VOUCHER' && (
               <div className="border-t pt-3 space-y-2">

@@ -369,7 +369,7 @@ export default function TransactionTable() {
               return (
                 <TableRow
                   key={`${tx.id}-${flow.referenceMonth}-${flow.installmentIndex ?? 0}`}
-                  className={`cursor-pointer ${isFuture ? 'opacity-70' : ''}`}
+                  className={`cursor-pointer ${isFuture ? 'opacity-45' : ''}`}
                   onClick={() => handleEdit(tx)}
                 >
                   <TableCell>
@@ -395,12 +395,7 @@ export default function TransactionTable() {
                   </TableCell>
                   <TableCell className="text-xs">{tx.category}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {tx.date}
-                    {isFuture && (
-                      <Badge variant="outline" className="text-[10px] text-muted-foreground ml-1">
-                        Future
-                      </Badge>
-                    )}
+                    {flow.installmentIndex != null ? flow.referenceMonth : tx.date}
                   </TableCell>
                   <TableCell className="text-center text-xs">
                     {flow.installmentIndex != null ? (
