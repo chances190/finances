@@ -27,7 +27,16 @@ function AppShell() {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      if (!(e.ctrlKey || e.metaKey)) return
+      const target = e.target as HTMLElement | null
+      const isTextEntry =
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      if (isTextEntry) return
+      if (e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
         const latest = state.auditLog[0]
         if (latest) {
@@ -35,7 +44,7 @@ function AppShell() {
           toast(`Undo: ${latest.description}`, 'info')
         }
       }
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+      if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
         e.preventDefault()
         if (state.redoStack.length > 0) {
           dispatch({ type: 'REDO' })
