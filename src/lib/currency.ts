@@ -20,3 +20,7 @@ export function formatCurrency(value: number): string {
 export function formatPlainCurrency(value: number): string {
   return c(value, { ...brlOpts, symbol: '' }).format()
 }
+
+export function addCurrency(a: number, b: number): number {
+  return c(a).add(b).value
+}

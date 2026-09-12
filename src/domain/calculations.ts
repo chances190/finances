@@ -1,3 +1,4 @@
+import { addCurrency } from '../lib/currency'
 import { DAYS_IN_MONTH, SES_ALPHA } from './constants'
 import type { Budget, MonthlyFlow, Transaction } from './entities'
 import { addMonths, monthlyFlows } from './entities'
@@ -72,18 +73,18 @@ export function incomeByMonth(tx: Transaction[], refMonth: string): MonthlyFlow[
 }
 
 export function totalByMonth(tx: Transaction[], refMonth: string): number {
-  return incomeByMonth(tx, refMonth).reduce((s, t) => s + t.amount, 0)
+  return incomeByMonth(tx, refMonth).reduce((s, t) => addCurrency(s, t.amount), 0)
 }
 
 export function incomeByPaymentMethod(tx: Transaction[], refMonth: string): Record<string, number> {
   return incomeByMonth(tx, refMonth).reduce<Record<string, number>>((acc, t) => {
-    acc[t.paymentMethod] = (acc[t.paymentMethod] || 0) + t.amount
+    acc[t.paymentMethod] = addCurrency(acc[t.paymentMethod] || 0, t.amount)
     return acc
   }, {})
 }
 
 export function expensesByMonth(tx: Transaction[], refMonth: string): number {
-  return byMonth(tx, refMonth).reduce((s, t) => s + t.amount, 0)
+  return byMonth(tx, refMonth).reduce((s, t) => addCurrency(s, t.amount), 0)
 }
 
 export function balance(tx: Transaction[], refMonth: string): number {
@@ -92,7 +93,7 @@ export function balance(tx: Transaction[], refMonth: string): number {
 
 export function byCategory(tx: Transaction[], refMonth: string): Record<string, number> {
   return byMonth(tx, refMonth).reduce<Record<string, number>>((acc, t) => {
-    acc[t.category] = (acc[t.category] || 0) + t.amount
+    acc[t.category] = addCurrency(acc[t.category] || 0, t.amount)
     return acc
   }, {})
 }
@@ -102,7 +103,7 @@ export function groupedByPaymentMethod(
   refMonth: string,
 ): Record<string, number> {
   return byMonth(tx, refMonth).reduce<Record<string, number>>((acc, t) => {
-    acc[t.paymentMethod] = (acc[t.paymentMethod] || 0) + t.amount
+    acc[t.paymentMethod] = addCurrency(acc[t.paymentMethod] || 0, t.amount)
     return acc
   }, {})
 }
@@ -110,19 +111,19 @@ export function groupedByPaymentMethod(
 export function cashExpenses(tx: Transaction[], refMonth: string): number {
   return byMonth(tx, refMonth)
     .filter((t) => t.paymentMethod !== 'MEAL_VOUCHER' && t.paymentMethod !== 'CREDIT')
-    .reduce((s, t) => s + t.amount, 0)
+    .reduce((s, t) => addCurrency(s, t.amount), 0)
 }
 
 export function mealVoucherIncome(tx: Transaction[], refMonth: string): number {
   return incomeByMonth(tx, refMonth)
     .filter((t) => t.paymentMethod === 'MEAL_VOUCHER')
-    .reduce((s, t) => s + t.amount, 0)
+    .reduce((s, t) => addCurrency(s, t.amount), 0)
 }
 
 export function mealVoucherExpenses(tx: Transaction[], refMonth: string): number {
   return byMonth(tx, refMonth)
     .filter((t) => t.paymentMethod === 'MEAL_VOUCHER')
-    .reduce((s, t) => s + t.amount, 0)
+    .reduce((s, t) => addCurrency(s, t.amount), 0)
 }
 
 export function mealVoucherBalance(tx: Transaction[], refMonth: string): number {
@@ -132,7 +133,7 @@ export function mealVoucherBalance(tx: Transaction[], refMonth: string): number 
 export function creditInvoice(tx: Transaction[], refMonth: string): number {
   return byMonth(tx, refMonth)
     .filter((t) => t.paymentMethod === 'CREDIT')
-    .reduce((s, t) => s + t.amount, 0)
+    .reduce((s, t) => addCurrency(s, t.amount), 0)
 }
 
 export function ses(expenses: number[]): number[] {
@@ -181,14 +182,14 @@ export function spendingPace(
           const day = parseInt(t.date.split('-')[2], 10)
           return day === d
         })
-        .reduce((s, t) => s + t.amount, 0),
+        .reduce((s, t) => addCurrency(s, t.amount), 0),
     )
   }
 
   const sesResult = ses(dailyActual.slice(0, currentDay))
   const lastSes = sesResult.length > 0 ? sesResult[sesResult.length - 1] : 0
 
-  const accumulatedSpent = dailyActual.slice(0, currentDay).reduce((s, v) => s + v, 0)
+  const accumulatedSpent = dailyActual.slice(0, currentDay).reduce((s, v) => addCurrency(s, v), 0)
   const remainingDays = DAYS_IN_MONTH - currentDay
   const suggestionPerDay =
     remainingDays > 0 ? Math.max(0, (limit - accumulatedSpent) / remainingDays) : 0
@@ -201,7 +202,7 @@ export function spendingPace(
 
   for (let d = 1; d <= DAYS_IN_MONTH; d++) {
     const idx = d - 1
-    cumActual += dailyActual[idx]
+    cumActual = addCurrency(cumActual, dailyActual[idx])
 
     let sesProj: number | null = null
     let sugProj: number | null = null
@@ -211,8 +212,8 @@ export function spendingPace(
     } else {
       sesProj = lastSes
       sugProj = suggestionPerDay
-      cumProjection += lastSes
-      cumSuggestion += suggestionPerDay
+      cumProjection = addCurrency(cumProjection, lastSes)
+      cumSuggestion = addCurrency(cumSuggestion, suggestionPerDay)
     }
 
     daily.push({
@@ -274,7 +275,10 @@ export function futureCommitments(tx: Transaction[], months: number = 12): Futur
     for (const f of flows) {
       const diff = monthDiff(f.referenceMonth, currentYM)
       if (diff >= 0 && diff < months) {
-        commitments[f.referenceMonth].total += f.amount
+        commitments[f.referenceMonth].total = addCurrency(
+          commitments[f.referenceMonth].total,
+          f.amount,
+        )
         commitments[f.referenceMonth].transactions.push(t)
       }
     }
@@ -328,8 +332,8 @@ export function yearSummary(
     const refMonth = `${year}-${String(m).padStart(2, '0')}`
     const inc = totalByMonth(tx, refMonth)
     const exp = expensesByMonth(tx, refMonth)
-    totalIncome += inc
-    totalExpenses += exp
+    totalIncome = addCurrency(totalIncome, inc)
+    totalExpenses = addCurrency(totalExpenses, exp)
     months.push({ referenceMonth: refMonth, income: inc, expenses: exp, balance: inc - exp })
   }
 
@@ -352,13 +356,13 @@ export function budgetVsActualYear(
     if (budget) {
       for (const [cat, val] of Object.entries(budget.categoryLimits)) {
         if (!categoryTotals[cat]) categoryTotals[cat] = { budgeted: 0, actual: 0 }
-        categoryTotals[cat].budgeted += val
+        categoryTotals[cat].budgeted = addCurrency(categoryTotals[cat].budgeted, val)
       }
     }
 
     for (const [cat, val] of Object.entries(actuals)) {
       if (!categoryTotals[cat]) categoryTotals[cat] = { budgeted: 0, actual: 0 }
-      categoryTotals[cat].actual += val
+      categoryTotals[cat].actual = addCurrency(categoryTotals[cat].actual, val)
     }
   }
 

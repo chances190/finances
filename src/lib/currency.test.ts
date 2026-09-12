@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { formatCurrency, formatPlainCurrency, parseCurrency } from './currency'
+import { addCurrency, formatCurrency, formatPlainCurrency, parseCurrency } from './currency'
 
 describe('parseCurrency', () => {
   test('parses string number', () => {
@@ -41,5 +41,17 @@ describe('formatPlainCurrency', () => {
   })
   test('handles zero', () => {
     expect(formatPlainCurrency(0)).toBe('0,00')
+  })
+})
+
+describe('addCurrency', () => {
+  test('avoids float drift', () => {
+    expect(addCurrency(0.1, 0.2)).toBe(0.3)
+  })
+  test('sums currency values', () => {
+    expect(addCurrency(10.5, 20.25)).toBe(30.75)
+  })
+  test('sums with zero', () => {
+    expect(addCurrency(0, 99.99)).toBe(99.99)
   })
 })

@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/table'
 import { daysSince } from '@/domain/calculations'
 import type { Transaction } from '@/domain/entities'
-import { formatCurrency } from '@/lib/currency'
+import { addCurrency, formatCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
 
 const BADGE_GREEN = 'text-green-600 bg-green-50 '
@@ -62,10 +62,10 @@ function aggregatePersonData(transactions: Transaction[]): PersonData[] {
         }
         map.set(d.name, entry)
       }
-      entry.totalAmount += d.amount
+      entry.totalAmount = addCurrency(entry.totalAmount, d.amount)
       entry.anySettled ||= d.settled
       if (!d.settled) {
-        entry.unsettledAmount += d.amount
+        entry.unsettledAmount = addCurrency(entry.unsettledAmount, d.amount)
         entry.allSettled = false
       }
     }
