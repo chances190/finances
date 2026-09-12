@@ -14,7 +14,12 @@ import {
 } from '@/components/ui/select'
 import { localYMD } from '@/domain/calculations'
 import { getAllCategories } from '@/domain/categories'
-import { INCOME_PAYMENT_METHODS, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/domain/constants'
+import {
+  INCOME_CATEGORIES,
+  INCOME_PAYMENT_METHODS,
+  PAYMENT_METHOD_LABELS,
+  PAYMENT_METHODS,
+} from '@/domain/constants'
 import type { Debt, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
@@ -172,7 +177,7 @@ export default function TransactionForm({
                   ...f,
                   type,
                   paymentMethod: type === 'INCOME' ? 'SALARY' : 'DEBIT',
-                  ...(type === 'INCOME' ? { installmentTotal: 1 } : {}),
+                  ...(type === 'INCOME' ? { installmentTotal: 1, category: 'Salary' } : {}),
                 }))
                 setDebts([])
               }}
@@ -226,13 +231,18 @@ export default function TransactionForm({
                 </Label>
                 <Select
                   value={form.category}
-                  onValueChange={(v) => setForm((f) => ({ ...f, category: v ?? 'Other' }))}
+                  onValueChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      category: v ?? (f.type === 'INCOME' ? 'Salary' : 'Other'),
+                    }))
+                  }
                 >
                   <SelectTrigger id="tx-category">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((c) => (
+                    {(form.type === 'INCOME' ? INCOME_CATEGORIES : categories).map((c) => (
                       <SelectItem key={c} value={c}>
                         {c}
                       </SelectItem>

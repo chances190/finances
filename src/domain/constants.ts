@@ -15,6 +15,8 @@ export const DEFAULT_CATEGORIES = [
   'Other',
 ] as const
 
+export const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Other'] as const
+
 export const PAYMENT_METHODS: PaymentMethod[] = ['CASH', 'DEBIT', 'CREDIT', 'PIX', 'MEAL_VOUCHER']
 export const INCOME_PAYMENT_METHODS: PaymentMethod[] = ['SALARY', 'TRANSFER', 'VOUCHER']
 export const TRANSACTION_TYPES = ['INCOME', 'EXPENSE'] as const
