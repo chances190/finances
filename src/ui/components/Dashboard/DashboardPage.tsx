@@ -40,7 +40,6 @@ import {
   daysInMonth,
   expensesByMonth,
   groupedByPaymentMethod,
-  incomeByMonth,
   incomeByPaymentMethod,
   mealVoucherBalance,
   monthRelation,
@@ -49,7 +48,7 @@ import {
 } from '@/domain/calculations'
 import { CHART_COLORS, PAYMENT_METHOD_CHART_COLORS } from '@/domain/constants'
 import { monthlyFlows } from '@/domain/entities'
-import { formatAxisCurrency, formatCurrency } from '@/lib/currency'
+import { addCurrency, formatAxisCurrency, formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import StatCard from '@/ui/components/Common/StatCard'
 import { useFinance } from '@/ui/context'
@@ -91,7 +90,6 @@ export default function DashboardPage() {
       creditInvoice: creditInvoice(state.transactions, selectedMonth),
       bankExpenses: bankExpenses(state.transactions, selectedMonth),
       mealVoucher: mealVoucherBalance(state.transactions, selectedMonth),
-      incomeTransactions: incomeByMonth(state.transactions, selectedMonth),
       incomeByMethod: incomeByPaymentMethod(state.transactions, selectedMonth),
     }
   }, [state.transactions, selectedMonth])
@@ -133,13 +131,10 @@ export default function DashboardPage() {
   const spentSoFar = useMemo(() => {
     if (!selectedMonth) return 0
     return state.transactions
-      .filter((t) => {
-        if (t.type !== 'Expense') return false
-        const hasUnsettledDebt = t.debts?.some((d) => !d.settled) ?? false
-        const flows = monthlyFlows(t)
-        return flows.some((f) => f.referenceMonth === selectedMonth) && !hasUnsettledDebt
-      })
-      .reduce((s, t) => s + t.amount, 0)
+      .filter((t) => t.type === 'Expense' && !(t.debts?.some((d) => !d.settled) ?? false))
+      .flatMap((t) => monthlyFlows(t))
+      .filter((f) => f.referenceMonth === selectedMonth)
+      .reduce((s, f) => addCurrency(s, f.amount), 0)
   }, [state.transactions, selectedMonth])
 
   const paceStatus = useMemo(() => {

@@ -19,15 +19,15 @@ export function parseNaturalDate(text: string): string | null {
   if (weeksAgo) return toISO(new Date(y, m, d - Number(weeksAgo[1]) * 7))
 
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+  const todayDow = today.getDay()
   for (const [i, name] of dayNames.entries()) {
     if (lower === `last ${name}`) {
-      const diff = (d - i + 6) % 7
-      if (diff === 0) return toISO(new Date(y, m, d - 7))
-      return toISO(new Date(y, m, d - (diff || 7)))
+      const diff = (todayDow - i + 7) % 7 || 7
+      return toISO(new Date(y, m, d - diff))
     }
     if (lower === `next ${name}`) {
-      const diff = (i - d + 6) % 7
-      return toISO(new Date(y, m, d + (diff || 7)))
+      const diff = (i - todayDow + 7) % 7 || 7
+      return toISO(new Date(y, m, d + diff))
     }
   }
 

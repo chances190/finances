@@ -167,7 +167,7 @@ export default function BudgetFormDialog({
         ? monthsBetween(editingRange.startMonth, editingRange.endMonth)
         : [editingMonth]
       : []
-    const removed = isRange ? oldRangeMonths.filter((m) => !newMonths.includes(m)) : []
+    const removed = oldRangeMonths.filter((m) => !newMonths.includes(m))
     const overwritten = newMonths.filter(
       (m) => state.budgets.some((b) => b.referenceMonth === m) && !oldRangeMonths.includes(m),
     )

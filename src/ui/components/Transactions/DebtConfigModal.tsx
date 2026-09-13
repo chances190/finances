@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { Debt } from '@/domain/entities'
-import { formatCurrency, parseCurrency } from '@/lib/currency'
+import { addCurrency, formatCurrency, parseCurrency } from '@/lib/currency'
 import { useToast } from '@/ui/context/ToastContext'
 
 interface DebtSplitUI {
@@ -38,7 +38,7 @@ export default function DebtConfigModal({
     setSplits(debts.map((d) => ({ id: uuid(), name: d.name, amount: d.amount })))
   }, [debts, open])
 
-  const assignedTotal = splits.reduce((s, d) => s + d.amount, 0)
+  const assignedTotal = splits.reduce((s, d) => addCurrency(s, d.amount), 0)
   const delta = totalAmount - assignedTotal
   const userShare = Math.max(0, delta)
   const overBy = Math.max(0, -delta)

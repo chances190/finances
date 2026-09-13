@@ -446,35 +446,50 @@ export default function TransactionTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead
-                className="w-24 cursor-pointer select-none"
-                onClick={() => handleSort('paymentMethod')}
-              >
-                Payment{sortIndicator('paymentMethod')}
+              <TableHead className="w-24">
+                <button
+                  type="button"
+                  onClick={() => handleSort('paymentMethod')}
+                  className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
+                >
+                  Payment{sortIndicator('paymentMethod')}
+                </button>
               </TableHead>
-              <TableHead
-                className="text-right w-24 cursor-pointer select-none"
-                onClick={() => handleSort('amount')}
-              >
-                Amount{sortIndicator('amount')}
+              <TableHead className="text-right w-24">
+                <button
+                  type="button"
+                  onClick={() => handleSort('amount')}
+                  className="flex w-full cursor-pointer select-none items-center justify-end gap-0.5 text-right font-medium"
+                >
+                  Amount{sortIndicator('amount')}
+                </button>
               </TableHead>
-              <TableHead
-                className="flex-1 cursor-pointer select-none"
-                onClick={() => handleSort('description')}
-              >
-                Description{sortIndicator('description')}
+              <TableHead className="flex-1">
+                <button
+                  type="button"
+                  onClick={() => handleSort('description')}
+                  className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
+                >
+                  Description{sortIndicator('description')}
+                </button>
               </TableHead>
-              <TableHead
-                className="w-20 cursor-pointer select-none"
-                onClick={() => handleSort('category')}
-              >
-                Category{sortIndicator('category')}
+              <TableHead className="w-20">
+                <button
+                  type="button"
+                  onClick={() => handleSort('category')}
+                  className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
+                >
+                  Category{sortIndicator('category')}
+                </button>
               </TableHead>
-              <TableHead
-                className="w-24 cursor-pointer select-none"
-                onClick={() => handleSort('date')}
-              >
-                Date{sortIndicator('date')}
+              <TableHead className="w-24">
+                <button
+                  type="button"
+                  onClick={() => handleSort('date')}
+                  className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
+                >
+                  Date{sortIndicator('date')}
+                </button>
               </TableHead>
               <TableHead className="w-16 text-center">Install</TableHead>
               <TableHead className="w-32">Debts</TableHead>

@@ -40,43 +40,38 @@ function getAllPaymentMethods() {
   return [...PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS]
 }
 
+const SUGGESTION_SOURCES: Record<number, () => string[]> = {
+  0: getAllPaymentMethods,
+  2: () => [],
+  3: () => [],
+  4: () => ['today', 'yesterday', 'tomorrow'],
+}
+
+function filterPrefix(items: string[], prefix: string, limit = 10): string[] {
+  if (!prefix) return items.slice(0, limit)
+  const lower = prefix.toLowerCase()
+  return items.filter((i) => i.toLowerCase().includes(lower)).slice(0, limit)
+}
+
 function getSuggestionsForToken(
   tokenIndex: number,
   prefix: string,
   allDescs: string[],
   categories: string[],
 ): string[] {
-  const lower = prefix.toLowerCase()
-  if (tokenIndex === 0) {
-    const all = [...getAllPaymentMethods()]
-    if (!prefix) return all
-    return all.filter((label) => label.toLowerCase().includes(lower))
-  }
   if (tokenIndex === 1) return []
-  if (tokenIndex === 2) {
-    const all = allDescs
-    if (!prefix) return all.slice(0, 10)
-    return all.filter((c) => c.toLowerCase().includes(lower)).slice(0, 10)
-  }
-  if (tokenIndex === 3) {
-    const all = categories
-    if (!prefix) return all.slice(0, 10)
-    return all.filter((c) => c.toLowerCase().includes(lower)).slice(0, 10)
-  }
-  if (tokenIndex === 4) {
-    const datePresets = ['today', 'yesterday', 'tomorrow']
-    if (!prefix) return datePresets
-    return datePresets.filter((d) => d.includes(lower))
-  }
-  return []
+  if (tokenIndex === 2) return filterPrefix(allDescs, prefix)
+  if (tokenIndex === 3) return filterPrefix(categories, prefix)
+  const src = SUGGESTION_SOURCES[tokenIndex]
+  return src ? filterPrefix(src(), prefix) : []
 }
 
-function buildSuggestionText(suggestion: string, tokens: string[], tokenIndex: number): string {
-  const result = [...tokens]
-  while (result.length <= tokenIndex) result.push('')
-  result[tokenIndex] = suggestion
-  const built = result.map((t) => t.trim()).join(', ')
-  return tokenIndex < 4 ? `${built}, ` : built
+function applySuggestionText(raw: string, suggestion: string): string {
+  const parts = raw.split(',').map((t) => t.trim())
+  const idx = Math.min(parts.length - 1, 4)
+  parts[idx] = suggestion
+  const built = parts.join(', ')
+  return idx < 4 ? `${built}, ` : built
 }
 
 export default function SmartTransactionInput({
@@ -157,11 +152,7 @@ export default function SmartTransactionInput({
 
   function applySuggestion() {
     if (activeSuggestion >= 0 && suggestions[activeSuggestion]) {
-      const selected = suggestions[activeSuggestion]
-      const parts = raw.split(',').map((t) => t.trim())
-      const idx = Math.min(parts.length - 1, 4)
-      const built = buildSuggestionText(selected, parts, idx)
-      setRaw(built)
+      setRaw(applySuggestionText(raw, suggestions[activeSuggestion]))
       setShowSuggestions(false)
     }
   }
@@ -253,10 +244,7 @@ export default function SmartTransactionInput({
                   }`}
                   onMouseDown={(e) => {
                     e.preventDefault()
-                    const parts = raw.split(',').map((t) => t.trim())
-                    const idx = Math.min(parts.length - 1, 4)
-                    const built = buildSuggestionText(s, parts, idx)
-                    setRaw(built)
+                    setRaw(applySuggestionText(raw, s))
                     setShowSuggestions(false)
                   }}
                   onFocus={() => setActiveSuggestion(i)}

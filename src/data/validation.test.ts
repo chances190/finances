@@ -122,6 +122,123 @@ describe('validateTransaction', () => {
     expect(validateTransaction({ id: '1' }).ok).toBe(false)
     expect(validateTransaction({}).ok).toBe(false)
   })
+
+  test('rejects negative amount', () => {
+    const result = validateTransaction({
+      id: '1',
+      type: 'Expense',
+      date: '2026-07-01',
+      description: 'Bad',
+      amount: -100,
+      category: 'Food',
+      paymentMethod: 'Debit',
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.reason).toContain('non-negative')
+    }
+  })
+
+  test('rejects NaN amount', () => {
+    const result = validateTransaction({
+      id: '1',
+      type: 'Expense',
+      date: '2026-07-01',
+      description: 'Bad',
+      amount: Number.NaN,
+      category: 'Food',
+      paymentMethod: 'Debit',
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.reason).toContain('non-negative')
+    }
+  })
+
+  test('rejects debts that are not an array', () => {
+    const result = validateTransaction({
+      id: '1',
+      type: 'Expense',
+      date: '2026-07-01',
+      description: 'Bad',
+      amount: 100,
+      category: 'Food',
+      paymentMethod: 'Debit',
+      debts: 'string',
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.reason).toContain('debts must be an array')
+    }
+  })
+
+  test('rejects null debt entry', () => {
+    const result = validateTransaction({
+      id: '1',
+      type: 'Expense',
+      date: '2026-07-01',
+      description: 'Bad',
+      amount: 100,
+      category: 'Food',
+      paymentMethod: 'Debit',
+      debts: [null],
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.reason).toContain('invalid debt entry')
+    }
+  })
+
+  test('rejects debt with missing name', () => {
+    const result = validateTransaction({
+      id: '1',
+      type: 'Expense',
+      date: '2026-07-01',
+      description: 'Bad',
+      amount: 100,
+      category: 'Food',
+      paymentMethod: 'Debit',
+      debts: [{ amount: 50, settled: false }],
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.reason).toContain('debt.name')
+    }
+  })
+
+  test('rejects non-integer installments', () => {
+    const result = validateTransaction({
+      id: '1',
+      type: 'Expense',
+      date: '2026-07-01',
+      description: 'Bad',
+      amount: 100,
+      category: 'Food',
+      paymentMethod: 'Credit',
+      installments: 2.5,
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.reason).toContain('positive integer')
+    }
+  })
+
+  test('rejects non-number installments', () => {
+    const result = validateTransaction({
+      id: '1',
+      type: 'Expense',
+      date: '2026-07-01',
+      description: 'Bad',
+      amount: 100,
+      category: 'Food',
+      paymentMethod: 'Credit',
+      installments: 'abc',
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.reason).toContain('positive integer')
+    }
+  })
 })
 
 describe('validateFinanceData', () => {

@@ -124,94 +124,90 @@ export function importCSV(csv: string): CSVImportResult {
   })
 
   const headers = parsed.meta.fields ?? []
-  const requiredFields = ['date', 'type', 'amount', 'category', 'paymentMethod']
+  const requiredFields = ['ref', 'date', 'type', 'amount', 'category', 'paymentMethod']
   for (const field of requiredFields) {
     if (!headers.includes(field)) throw new Error(`Missing required column: ${field}`)
   }
 
-  const malformedLines = new Set(
+  const malformedRows = new Set(
     parsed.errors
       .filter((e) => e.code === 'TooFewFields' || e.code === 'TooManyFields')
-      .map((e) => (e.row ?? -1) + 2),
+      .map((e) => e.row ?? -1),
   )
 
-  const skippedRows: SkippedRow[] = [...malformedLines].map((line) => ({
-    line,
+  const skippedRows: SkippedRow[] = [...malformedRows].map((rowIdx) => ({
+    line: rowIdx + 2,
     reason: 'wrong number of columns',
   }))
 
+  const installmentChildRefs = new Set(
+    parsed.data.filter((r) => r.installmentRef).map((r) => r.ref),
+  )
+
+  const byRef = new Map<string, { firstIndex: number; rows: CSVRow[] }>()
+  for (let i = 0; i < parsed.data.length; i++) {
+    if (malformedRows.has(i)) continue
+    const row = parsed.data[i]
+    if (!row.ref || installmentChildRefs.has(row.ref)) continue
+    const existing = byRef.get(row.ref)
+    if (existing) {
+      existing.rows.push(row)
+    } else {
+      byRef.set(row.ref, { firstIndex: i, rows: [row] })
+    }
+  }
+
   const transactions: Transaction[] = []
 
-  for (let i = 0; i < parsed.data.length; i++) {
-    const row = parsed.data[i]
-    const line = i + 2
+  for (const [, { firstIndex, rows }] of byRef) {
+    const first = rows[0]
+    const line = firstIndex + 2
 
-    if (malformedLines.has(line)) continue
-
-    const type = validateType(row.type)
+    const type = validateType(first.type)
     if (type === null) {
-      skippedRows.push({ line, reason: `invalid type: "${row.type}"` })
+      skippedRows.push({ line, reason: `invalid type: "${first.type}"` })
       continue
     }
 
-    const paymentMethod = validatePaymentMethod(row.paymentMethod, type)
+    const paymentMethod = validatePaymentMethod(first.paymentMethod, type)
     if (paymentMethod === null) {
       skippedRows.push({
         line,
-        reason: `invalid payment method: "${row.paymentMethod}" for ${type}`,
+        reason: `invalid payment method: "${first.paymentMethod}" for ${type}`,
       })
       continue
     }
 
-    const amount = validateAmount(row.amount)
+    const amount = validateAmount(first.amount)
     if (amount === null) {
-      skippedRows.push({ line, reason: `invalid amount: "${row.amount}"` })
+      skippedRows.push({ line, reason: `invalid amount: "${first.amount}"` })
       continue
     }
 
-    const ref = row.ref
-    const isInstallmentHead = row.installmentTotal && !row.installmentRef
-    const isInstallmentChild = !!row.installmentRef
-
-    if (isInstallmentChild) continue
+    const isInstallmentHead = first.installmentTotal && !first.installmentRef
 
     const t: Transaction = {
       id: uuid(),
       type,
-      date: row.date,
-      description: row.description || '',
+      date: first.date,
+      description: first.description || '',
       amount,
-      category: type === 'Income' ? 'Income' : row.category || 'Other',
+      category: type === 'Income' ? 'Income' : first.category || 'Other',
       paymentMethod,
     }
 
     if (isInstallmentHead) {
-      t.installments = parseInt(row.installmentTotal, 10) || 1
+      t.installments = parseInt(first.installmentTotal, 10) || 1
     }
 
-    if (row.debtName) {
-      t.debts = [
-        {
-          name: row.debtName,
-          amount: parseCurrency(row.debtAmount || '0'),
+    if (first.debtName && rows.some((r) => r.debtName)) {
+      t.debts = rows
+        .filter((r) => r.debtName)
+        .map((r) => ({
+          name: r.debtName,
+          amount: parseCurrency(r.debtAmount || '0'),
           settled: false,
-        },
-      ]
-
-      if (!isInstallmentHead) {
-        const sameRef = parsed.data.filter((r) => r.ref === ref && r !== row)
-        if (sameRef.length > 0 && sameRef.every((r) => r.debtName)) {
-          t.amount = amount
-          t.debts = [
-            { name: row.debtName, amount: parseCurrency(row.debtAmount || '0'), settled: false },
-            ...sameRef.map((r) => ({
-              name: r.debtName,
-              amount: parseCurrency(r.debtAmount || '0'),
-              settled: false,
-            })),
-          ]
-        }
-      }
+        }))
     }
 
     transactions.push(t)

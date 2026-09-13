@@ -29,7 +29,11 @@ export function parseDate(d: string): number {
 }
 
 export function daysSince(date: string): number {
-  return Math.floor((Date.now() - parseDate(date)) / 86400000)
+  const [y, m, d] = date.split('-').map(Number)
+  const then = new Date(y, m - 1, d)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return Math.round((today.getTime() - then.getTime()) / 86400000)
 }
 
 export function availableMonths(tx: Transaction[]): string[] {

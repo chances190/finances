@@ -96,7 +96,7 @@ export default function CSVImportDialog({
             },
             filename: file.name,
           })
-        } else if (file.name.endsWith('.csv')) {
+        } else if (isCsv) {
           const { transactions, skippedRows } = importCSV(content)
           setPreview({
             type: 'csv',
@@ -135,12 +135,19 @@ export default function CSVImportDialog({
 
   function handleImport() {
     if (!preview) return
-    dispatch({
-      type: 'ADD_TRANSACTIONS',
-      payload: preview.transactions.map((t) => ({ ...t, id: t.id || uuid() })),
-    })
-    for (const budget of preview.budgets) {
-      dispatch({ type: 'UPSERT_BUDGET', payload: budget })
+    if (preview.type === 'json') {
+      dispatch({
+        type: 'IMPORT',
+        payload: { transactions: preview.transactions, budgets: preview.budgets },
+      })
+    } else {
+      dispatch({
+        type: 'ADD_TRANSACTIONS',
+        payload: preview.transactions.map((t) => ({ ...t, id: t.id || uuid() })),
+      })
+      for (const budget of preview.budgets) {
+        dispatch({ type: 'UPSERT_BUDGET', payload: budget })
+      }
     }
     setPreview(null)
     onOpenChange(false)

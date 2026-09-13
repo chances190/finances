@@ -107,9 +107,7 @@ export default function DebtPage() {
     const tx = state.transactions.find((t) => t.id === id)
     if (!tx?.debts) return
     for (const d of tx.debts) {
-      if (!d.settled) {
-        dispatch({ type: 'SETTLE_DEBT', payload: { transactionId: id, debtName: d.name } })
-      }
+      dispatch({ type: 'SETTLE_DEBT', payload: { transactionId: id, debtName: d.name } })
     }
   }
 
@@ -268,7 +266,10 @@ export default function DebtPage() {
                               <Button
                                 variant="ghost"
                                 size="icon-xs"
-                                onClick={() => handleToggleSettle(tx.id, d.name)}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleToggleSettle(tx.id, d.name)
+                                }}
                                 title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
                                 aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
                               >
@@ -289,7 +290,10 @@ export default function DebtPage() {
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        onClick={() => handleSettleAll(tx.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleSettleAll(tx.id)
+                        }}
                         title={allSettled ? 'Unsettle all' : 'Settle all'}
                         aria-label={allSettled ? 'Unsettle all' : 'Settle all'}
                       >

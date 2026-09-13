@@ -13,7 +13,8 @@ export function validateTransaction(
   if (typeof t.date !== 'string') return { ok: false, reason: 'missing or invalid date' }
   if (typeof t.description !== 'string')
     return { ok: false, reason: 'missing or invalid description' }
-  if (typeof t.amount !== 'number') return { ok: false, reason: 'missing or invalid amount' }
+  if (typeof t.amount !== 'number' || Number.isNaN(t.amount) || t.amount < 0)
+    return { ok: false, reason: 'amount must be a non-negative number' }
   if (typeof t.category !== 'string') return { ok: false, reason: 'missing or invalid category' }
 
   if (!TRANSACTION_TYPES.includes(t.type as (typeof TRANSACTION_TYPES)[number])) {
@@ -41,6 +42,31 @@ export function validateTransaction(
         ok: false,
         reason: `invalid payment method: "${t.paymentMethod}" for Expense (expected: ${PAYMENT_METHODS.join(', ')})`,
       }
+    }
+  }
+
+  if (t.debts != null) {
+    if (!Array.isArray(t.debts)) return { ok: false, reason: 'debts must be an array' }
+    for (const d of t.debts) {
+      if (!d || typeof d !== 'object') return { ok: false, reason: 'invalid debt entry' }
+      const debt = d as Record<string, unknown>
+      if (typeof debt.name !== 'string') return { ok: false, reason: 'debt.name must be a string' }
+      if (typeof debt.amount !== 'number')
+        return { ok: false, reason: 'debt.amount must be a number' }
+      if (typeof debt.settled !== 'boolean')
+        return { ok: false, reason: 'debt.settled must be a boolean' }
+    }
+  }
+
+  if (t.installments != null) {
+    if (type === 'Income')
+      return { ok: false, reason: 'Income transaction cannot have installments' }
+    if (
+      typeof t.installments !== 'number' ||
+      !Number.isInteger(t.installments) ||
+      t.installments < 1
+    ) {
+      return { ok: false, reason: 'installments must be a positive integer' }
     }
   }
 

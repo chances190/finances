@@ -16,7 +16,7 @@ import { localYMD } from '@/domain/calculations'
 import { getAllCategories } from '@/domain/categories'
 import { INCOME_PAYMENT_METHODS, PAYMENT_METHODS } from '@/domain/constants'
 import type { Debt, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
-import { parseCurrency } from '@/lib/currency'
+import { addCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import CSVImportDialog from '@/ui/components/Common/CSVImportDialog'
 import { useFinance } from '@/ui/context'
@@ -104,7 +104,7 @@ export default function TransactionForm({
       return
     }
     if (form.type === 'Expense' && debts.length > 0) {
-      const debtTotal = debts.reduce((s, d) => s + d.amount, 0)
+      const debtTotal = debts.reduce((s, d) => addCurrency(s, d.amount), 0)
       if (debtTotal > amount) {
         toast('Total debts cannot exceed purchase amount', 'error')
         return
@@ -144,7 +144,7 @@ export default function TransactionForm({
         form.paymentMethod === 'Credit' && form.installmentTotal > 1
           ? form.installmentTotal
           : undefined,
-      ...(debts.length > 0 ? { debts } : {}),
+      debts: debts.length > 0 ? debts : undefined,
     }
 
     dispatch({ type: 'UPDATE_TRANSACTION', payload: updated })

@@ -21,18 +21,14 @@ export interface FinanceState {
 
 export type FinanceAction =
   | { type: 'LOAD'; payload: FinanceData }
-  | { type: 'ADD_TRANSACTIONS'; payload: Transaction[]; description?: string }
-  | { type: 'UPDATE_TRANSACTION'; payload: Transaction; description?: string }
-  | { type: 'DELETE_TRANSACTION'; payload: string; description?: string }
-  | {
-      type: 'SETTLE_DEBT'
-      payload: { transactionId: string; debtName: string }
-      description?: string
-    }
-  | { type: 'UPSERT_BUDGET'; payload: Budget; description?: string }
-  | { type: 'DELETE_BUDGET'; payload: string; description?: string }
+  | { type: 'ADD_TRANSACTIONS'; payload: Transaction[] }
+  | { type: 'UPDATE_TRANSACTION'; payload: Transaction }
+  | { type: 'DELETE_TRANSACTION'; payload: string }
+  | { type: 'SETTLE_DEBT'; payload: { transactionId: string; debtName: string } }
+  | { type: 'UPSERT_BUDGET'; payload: Budget }
+  | { type: 'DELETE_BUDGET'; payload: string }
   | { type: 'SEED' }
-  | { type: 'IMPORT'; payload: FinanceData; description?: string }
+  | { type: 'IMPORT'; payload: FinanceData }
   | { type: 'UNDO'; payload: string }
   | { type: 'REDO' }
   | { type: 'CLEAR_AUDIT' }
@@ -44,19 +40,19 @@ function snapshot(state: FinanceState): { transactions: Transaction[]; budgets: 
 function describeAction(action: FinanceAction): string {
   switch (action.type) {
     case 'ADD_TRANSACTIONS':
-      return action.description ?? `Added ${action.payload.length} transaction(s)`
+      return `Added ${action.payload.length} transaction(s)`
     case 'UPDATE_TRANSACTION':
-      return action.description ?? `Updated transaction "${action.payload.description}"`
+      return `Updated transaction "${action.payload.description}"`
     case 'DELETE_TRANSACTION':
-      return action.description ?? `Deleted transaction`
+      return `Deleted transaction`
     case 'SETTLE_DEBT':
-      return action.description ?? `Settled debt "${action.payload.debtName}"`
+      return `Settled debt "${action.payload.debtName}"`
     case 'UPSERT_BUDGET':
-      return action.description ?? `Saved budget for ${action.payload.referenceMonth}`
+      return `Saved budget for ${action.payload.referenceMonth}`
     case 'DELETE_BUDGET':
-      return action.description ?? `Deleted budget for ${action.payload}`
+      return `Deleted budget for ${action.payload}`
     case 'IMPORT':
-      return action.description ?? `Imported ${action.payload.transactions.length} transaction(s)`
+      return `Imported ${action.payload.transactions.length} transaction(s)`
     case 'SEED':
       return 'Loaded seed data'
     case 'UNDO':
@@ -68,38 +64,28 @@ function describeAction(action: FinanceAction): string {
   }
 }
 
-function withAudit(
-  state: FinanceState,
-  action: FinanceAction & { description?: string },
-): FinanceState {
-  const before = snapshot(state)
-  let next: FinanceState
-
+function mutate(state: FinanceState, action: FinanceAction): FinanceState {
   switch (action.type) {
     case 'ADD_TRANSACTIONS':
-      next = { ...state, transactions: [...state.transactions, ...action.payload] }
-      break
+      return { ...state, transactions: [...state.transactions, ...action.payload] }
 
-    case 'UPDATE_TRANSACTION': {
-      const updated = action.payload
-      next = {
+    case 'UPDATE_TRANSACTION':
+      return {
         ...state,
-        transactions: state.transactions.map((t) => (t.id === updated.id ? updated : t)),
+        transactions: state.transactions.map((t) =>
+          t.id === action.payload.id ? action.payload : t,
+        ),
       }
-      break
-    }
 
-    case 'DELETE_TRANSACTION': {
-      next = {
+    case 'DELETE_TRANSACTION':
+      return {
         ...state,
         transactions: state.transactions.filter((t) => t.id !== action.payload),
       }
-      break
-    }
 
     case 'SETTLE_DEBT': {
       const { transactionId, debtName } = action.payload
-      next = {
+      return {
         ...state,
         transactions: state.transactions.map((t) => {
           if (t.id !== transactionId || !t.debts) return t
@@ -109,7 +95,6 @@ function withAudit(
           }
         }),
       }
-      break
     }
 
     case 'UPSERT_BUDGET': {
@@ -118,43 +103,39 @@ function withAudit(
       if (idx >= 0) {
         const nextBudgets = [...state.budgets]
         nextBudgets[idx] = budget
-        next = { ...state, budgets: nextBudgets }
-      } else {
-        next = { ...state, budgets: [...state.budgets, budget] }
+        return { ...state, budgets: nextBudgets }
       }
-      break
+      return { ...state, budgets: [...state.budgets, budget] }
     }
 
     case 'DELETE_BUDGET':
-      next = { ...state, budgets: state.budgets.filter((b) => b.referenceMonth !== action.payload) }
-      break
+      return { ...state, budgets: state.budgets.filter((b) => b.referenceMonth !== action.payload) }
 
     case 'IMPORT':
-      next = {
+      return {
         ...state,
         transactions: action.payload.transactions,
         budgets: action.payload.budgets,
       }
-      break
 
     case 'SEED':
-      next = { ...state, ...generateSeed(), loaded: true }
-      break
+      return { ...state, ...generateSeed(), loaded: true }
 
     default:
       return state
   }
-
-  const entry: AuditEntry = {
-    id: uuid(),
-    timestamp: Date.now(),
-    description: describeAction(action),
-    snapshot: before,
-    actionType: action.type,
-  }
-
-  return { ...next, auditLog: [entry, ...state.auditLog].slice(0, 200) }
 }
+
+const MUTATION_TYPES = new Set<FinanceAction['type']>([
+  'ADD_TRANSACTIONS',
+  'UPDATE_TRANSACTION',
+  'DELETE_TRANSACTION',
+  'SETTLE_DEBT',
+  'UPSERT_BUDGET',
+  'DELETE_BUDGET',
+  'IMPORT',
+  'SEED',
+])
 
 function reducer(state: FinanceState, action: FinanceAction): FinanceState {
   switch (action.type) {
@@ -180,8 +161,7 @@ function reducer(state: FinanceState, action: FinanceAction): FinanceState {
 
     case 'REDO': {
       const [redoEntry, ...rest] = state.redoStack
-      if (!redoEntry) return state
-      if (!redoEntry.forwardSnapshot) return state
+      if (!redoEntry?.forwardSnapshot) return state
       return {
         ...state,
         transactions: redoEntry.forwardSnapshot.transactions,
@@ -197,18 +177,24 @@ function reducer(state: FinanceState, action: FinanceAction): FinanceState {
     case 'CLEAR_AUDIT':
       return { ...state, auditLog: [], redoStack: [] }
 
-    case 'ADD_TRANSACTIONS':
-    case 'UPDATE_TRANSACTION':
-    case 'DELETE_TRANSACTION':
-    case 'SETTLE_DEBT':
-    case 'UPSERT_BUDGET':
-    case 'DELETE_BUDGET':
-    case 'IMPORT':
-    case 'SEED':
-      return withAudit(state, action)
-
-    default:
-      return state
+    default: {
+      if (!MUTATION_TYPES.has(action.type)) return state
+      const before = snapshot(state)
+      const next = mutate(state, action)
+      return {
+        ...next,
+        auditLog: [
+          {
+            id: uuid(),
+            timestamp: Date.now(),
+            description: describeAction(action),
+            snapshot: before,
+            actionType: action.type,
+          },
+          ...state.auditLog,
+        ].slice(0, 200),
+      }
+    }
   }
 }
 
