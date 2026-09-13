@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, PiggyBank, TrendUp } from '@phosphor-icons/react'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   Bar,
   BarChart,
@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { useSearchParams } from 'wouter'
 import {
   Select,
   SelectContent,
@@ -35,6 +36,7 @@ import { useFinance } from '@/ui/context'
 
 export default function TrendsPage() {
   const { state } = useFinance()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const years = useMemo(() => {
     const y = new Set<string>()
@@ -54,7 +56,19 @@ export default function TrendsPage() {
       .reverse()
   }, [state.transactions, state.budgets])
 
-  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()))
+  const defaultYear = String(new Date().getFullYear())
+  const selectedYear = searchParams.get('year') ?? defaultYear
+
+  function setSelectedYear(year: string) {
+    setSearchParams((prev) => {
+      if (year === defaultYear) {
+        prev.delete('year')
+      } else {
+        prev.set('year', year)
+      }
+      return prev
+    })
+  }
 
   const yearData = useMemo(
     () => yearSummary(state.transactions, Number(selectedYear)),

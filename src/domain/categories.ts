@@ -10,6 +10,7 @@ export function getAllCategories(budgets: Budget[], transactions: Transaction[])
     }
   }
   for (const t of transactions) {
+    if (t.type === 'Income') continue
     if (!defaults.includes(t.category)) custom.add(t.category)
   }
   return [...defaults, ...[...custom].sort()]

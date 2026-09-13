@@ -14,12 +14,7 @@ import {
 } from '@/components/ui/select'
 import { localYMD } from '@/domain/calculations'
 import { getAllCategories } from '@/domain/categories'
-import {
-  INCOME_CATEGORIES,
-  INCOME_PAYMENT_METHODS,
-  PAYMENT_METHOD_LABELS,
-  PAYMENT_METHODS,
-} from '@/domain/constants'
+import { INCOME_PAYMENT_METHODS, PAYMENT_METHODS } from '@/domain/constants'
 import type { Debt, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
@@ -58,12 +53,12 @@ export default function TransactionForm({
   )
 
   const [form, setForm] = useState<EditFormState>({
-    type: 'EXPENSE',
+    type: 'Expense',
     date: '',
     amount: '',
     description: '',
     category: 'Other',
-    paymentMethod: 'DEBIT',
+    paymentMethod: 'Debit',
     installmentTotal: 1,
   })
 
@@ -86,12 +81,12 @@ export default function TransactionForm({
       setDebts(editTransaction.debts ? [...editTransaction.debts] : [])
     } else if (open) {
       setForm({
-        type: 'EXPENSE',
+        type: 'Expense',
         date: localYMD(),
         amount: '',
         description: '',
         category: 'Other',
-        paymentMethod: 'DEBIT',
+        paymentMethod: 'Debit',
         installmentTotal: 1,
       })
       setDebts([])
@@ -108,7 +103,7 @@ export default function TransactionForm({
       toast('Description is required', 'error')
       return
     }
-    if (form.type === 'EXPENSE' && debts.length > 0) {
+    if (form.type === 'Expense' && debts.length > 0) {
       const debtTotal = debts.reduce((s, d) => s + d.amount, 0)
       if (debtTotal > amount) {
         toast('Total debts cannot exceed purchase amount', 'error')
@@ -123,9 +118,9 @@ export default function TransactionForm({
         date: form.date,
         description: form.description,
         amount,
-        category: form.category,
+        category: form.type === 'Income' ? 'Income' : form.category,
         paymentMethod: form.paymentMethod,
-        ...(form.installmentTotal > 1 && form.paymentMethod === 'CREDIT'
+        ...(form.installmentTotal > 1 && form.paymentMethod === 'Credit'
           ? { installments: form.installmentTotal }
           : {}),
         ...(debts.length > 0 ? { debts } : {}),
@@ -143,10 +138,10 @@ export default function TransactionForm({
       date: form.date,
       amount,
       description: form.description,
-      category: form.category,
+      category: form.type === 'Income' ? 'Income' : form.category,
       paymentMethod: form.paymentMethod,
       installments:
-        form.paymentMethod === 'CREDIT' && form.installmentTotal > 1
+        form.paymentMethod === 'Credit' && form.installmentTotal > 1
           ? form.installmentTotal
           : undefined,
       ...(debts.length > 0 ? { debts } : {}),
@@ -176,14 +171,14 @@ export default function TransactionForm({
                 setForm((f) => ({
                   ...f,
                   type,
-                  paymentMethod: type === 'INCOME' ? 'SALARY' : 'DEBIT',
-                  ...(type === 'INCOME' ? { installmentTotal: 1, category: 'Salary' } : {}),
+                  paymentMethod: type === 'Income' ? 'Salary' : 'Debit',
+                  ...(type === 'Income' ? { installmentTotal: 1 } : {}),
                 }))
                 setDebts([])
               }}
               options={[
-                { value: 'EXPENSE', label: 'Expense' },
-                { value: 'INCOME', label: 'Income' },
+                { value: 'Expense', label: 'Expense' },
+                { value: 'Income', label: 'Income' },
               ]}
             />
 
@@ -225,32 +220,29 @@ export default function TransactionForm({
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label htmlFor="tx-category" className="text-xs">
-                  Category
-                </Label>
-                <Select
-                  value={form.category}
-                  onValueChange={(v) =>
-                    setForm((f) => ({
-                      ...f,
-                      category: v ?? (f.type === 'INCOME' ? 'Salary' : 'Other'),
-                    }))
-                  }
-                >
-                  <SelectTrigger id="tx-category">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(form.type === 'INCOME' ? INCOME_CATEGORIES : categories).map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
+              {form.type === 'Expense' && (
+                <div className="space-y-1">
+                  <Label htmlFor="tx-category" className="text-xs">
+                    Category
+                  </Label>
+                  <Select
+                    value={form.category}
+                    onValueChange={(v) => setForm((f) => ({ ...f, category: v ?? 'Other' }))}
+                  >
+                    <SelectTrigger id="tx-category">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className={`space-y-1 ${form.type === 'Income' ? 'col-span-2' : ''}`}>
                 <Label htmlFor="tx-payment" className="text-xs">
                   Payment Method
                 </Label>
@@ -260,20 +252,18 @@ export default function TransactionForm({
                     setForm((f) => ({
                       ...f,
                       paymentMethod: (v ??
-                        (form.type === 'INCOME' ? 'SALARY' : 'DEBIT')) as PaymentMethod,
+                        (form.type === 'Income' ? 'Salary' : 'Debit')) as PaymentMethod,
                     }))
                   }
                 >
                   <SelectTrigger id="tx-payment">
-                    <SelectValue>
-                      {PAYMENT_METHOD_LABELS[form.paymentMethod] ?? form.paymentMethod}
-                    </SelectValue>
+                    <SelectValue>{form.paymentMethod}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {(form.type === 'INCOME' ? INCOME_PAYMENT_METHODS : PAYMENT_METHODS).map(
+                    {(form.type === 'Income' ? INCOME_PAYMENT_METHODS : PAYMENT_METHODS).map(
                       (pm) => (
                         <SelectItem key={pm} value={pm}>
-                          {PAYMENT_METHOD_LABELS[pm] ?? pm}
+                          {pm}
                         </SelectItem>
                       ),
                     )}
@@ -282,7 +272,7 @@ export default function TransactionForm({
               </div>
             </div>
 
-            {form.type === 'EXPENSE' && form.paymentMethod === 'CREDIT' && (
+            {form.type === 'Expense' && form.paymentMethod === 'Credit' && (
               <div className="space-y-1">
                 <Label htmlFor="tx-installments" className="text-xs">
                   Installments
@@ -303,7 +293,7 @@ export default function TransactionForm({
               </div>
             )}
 
-            {form.type === 'EXPENSE' && form.paymentMethod !== 'MEAL_VOUCHER' && (
+            {form.type === 'Expense' && form.paymentMethod !== 'Meal Voucher' && (
               <div className="border-t pt-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <Button

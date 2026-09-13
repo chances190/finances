@@ -7,6 +7,7 @@ import {
 } from '@phosphor-icons/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { v4 as uuid } from 'uuid'
+import { useSearchParams } from 'wouter'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -32,13 +33,11 @@ import { getAllCategories } from '@/domain/categories'
 import {
   INCOME_PAYMENT_METHODS,
   PAYMENT_METHOD_BADGE_COLORS,
-  PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
 } from '@/domain/constants'
 import type { PaymentMethod, Transaction } from '@/domain/entities'
 import { monthlyFlows } from '@/domain/entities'
 import { formatCurrency, parseCurrency } from '@/lib/currency'
-import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
 import SmartTransactionInput from './SmartTransactionInput'
@@ -47,30 +46,91 @@ import TransactionForm from './TransactionForm'
 function PaymentBadge({ method }: { method: string }) {
   return (
     <Badge variant="outline" className={PAYMENT_METHOD_BADGE_COLORS[method] ?? ''}>
-      {PAYMENT_METHOD_LABELS[method] ?? method}
+      {method}
     </Badge>
   )
 }
 
+function getParamList(params: URLSearchParams, key: string): string[] {
+  const val = params.get(key)
+  return val ? val.split(',').filter(Boolean) : []
+}
+
 export default function TransactionTable() {
   const { state, dispatch } = useFinance()
-  const [filterMonth, setFilterMonth] = useState<string>('all')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [filterCategories, setFilterCategories] = useState<string[]>([])
-  const [filterPayments, setFilterPayments] = useState<string[]>([])
+  const [searchParams, setSearchParams] = useSearchParams()
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>()
-  useEffect(() => {
-    searchTimer.current = setTimeout(() => setDebouncedSearch(searchQuery), 150)
-    return () => clearTimeout(searchTimer.current)
-  }, [searchQuery])
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
   const [showEditForm, setShowEditForm] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const { toast } = useToast()
+
+  const filterSearch = searchParams.get('search') ?? ''
+  const filterMonth = searchParams.get('month') ?? 'all'
+  const filterType = searchParams.get('type') ?? 'all'
+  const filterCategories = getParamList(searchParams, 'category')
+  const filterPayments = getParamList(searchParams, 'payment')
+  const filterDebtors = getParamList(searchParams, 'debtor')
+  const filterTxId = searchParams.get('tx')
+
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>()
+  const [localSearch, setLocalSearch] = useState(filterSearch)
+  const [debouncedSearch, setDebouncedSearch] = useState(filterSearch)
+
+  useEffect(() => {
+    setLocalSearch(filterSearch)
+    setDebouncedSearch(filterSearch)
+  }, [filterSearch])
+
+  useEffect(() => {
+    searchTimer.current = setTimeout(() => {
+      setSearchParams(
+        (prev) => {
+          if (debouncedSearch) {
+            prev.set('search', debouncedSearch)
+          } else {
+            prev.delete('search')
+          }
+          return prev
+        },
+        { replace: true },
+      )
+    }, 150)
+    return () => clearTimeout(searchTimer.current)
+  }, [debouncedSearch, setSearchParams])
+
+  useEffect(() => {
+    if (filterTxId) {
+      const tx = state.transactions.find((t) => t.id === filterTxId)
+      if (tx) {
+        setEditingTx(tx)
+        setShowEditForm(true)
+      }
+      setSearchParams(
+        (prev) => {
+          prev.delete('tx')
+          return prev
+        },
+        { replace: true },
+      )
+    }
+  }, [filterTxId, setSearchParams, state.transactions])
+
+  function updateParam(key: string, value: string | string[] | null) {
+    setSearchParams((prev) => {
+      if (value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
+        prev.delete(key)
+      } else if (Array.isArray(value)) {
+        prev.set(key, value.join(','))
+      } else if (value === 'all') {
+        prev.delete(key)
+      } else {
+        prev.set(key, value)
+      }
+      return prev
+    })
+  }
 
   const months = useMemo(() => availableMonths(state.transactions), [state.transactions])
 
@@ -87,8 +147,21 @@ export default function TransactionTable() {
     [state.budgets, state.transactions],
   )
 
+  const allDebtors = useMemo(() => {
+    const names = new Set<string>()
+    for (const t of state.transactions) {
+      for (const d of t.debts ?? []) {
+        if (d.name) names.add(d.name)
+      }
+    }
+    return Array.from(names).sort()
+  }, [state.transactions])
+
   const filtered = useMemo(() => {
     let txs = state.transactions
+    if (filterType !== 'all') {
+      txs = txs.filter((t) => t.type === filterType)
+    }
     if (filterMonth !== 'all') {
       txs = txs.filter((t) => monthlyFlows(t).some((f) => f.referenceMonth === filterMonth))
     }
@@ -102,6 +175,9 @@ export default function TransactionTable() {
     if (filterPayments.length > 0) {
       txs = txs.filter((t) => filterPayments.includes(t.paymentMethod))
     }
+    if (filterDebtors.length > 0) {
+      txs = txs.filter((t) => t.debts?.some((d) => filterDebtors.includes(d.name)))
+    }
     if (sortKey) {
       txs = [...txs].sort((a, b) =>
         compareTransactions(a, b, sortKey as keyof Transaction, sortDir),
@@ -112,10 +188,12 @@ export default function TransactionTable() {
     return txs
   }, [
     state.transactions,
+    filterType,
     filterMonth,
     debouncedSearch,
     filterCategories,
     filterPayments,
+    filterDebtors,
     sortKey,
     sortDir,
   ])
@@ -134,6 +212,13 @@ export default function TransactionTable() {
       ),
     [filtered, filterMonth],
   )
+
+  const activeFilterCount =
+    (filterType !== 'all' ? 1 : 0) +
+    (filterMonth !== 'all' ? 1 : 0) +
+    filterCategories.length +
+    filterPayments.length +
+    filterDebtors.length
 
   function handleSort(key: string) {
     if (sortKey === key) {
@@ -174,12 +259,12 @@ export default function TransactionTable() {
 
     const tx: Transaction = {
       id: uuid(),
-      type: isIncome ? 'INCOME' : 'EXPENSE',
+      type: isIncome ? 'Income' : 'Expense',
       date: row.date,
       description: row.description,
       amount,
-      category: row.category ?? 'Other',
-      paymentMethod: (row.paymentMethod ?? 'DEBIT') as PaymentMethod,
+      category: isIncome ? 'Income' : (row.category ?? 'Other'),
+      paymentMethod: (row.paymentMethod ?? 'Debit') as PaymentMethod,
     }
 
     dispatch({ type: 'ADD_TRANSACTIONS', payload: [tx] })
@@ -187,14 +272,8 @@ export default function TransactionTable() {
   }
 
   function handleDelete(id: string) {
-    setConfirmDeleteId(id)
-  }
-
-  function handleConfirmDelete() {
-    if (confirmDeleteId) {
-      dispatch({ type: 'DELETE_TRANSACTION', payload: confirmDeleteId })
-      setConfirmDeleteId(null)
-    }
+    dispatch({ type: 'DELETE_TRANSACTION', payload: id })
+    toast('Transaction deleted', 'info')
   }
 
   function handleSettleDebt(id: string, debtName: string) {
@@ -224,12 +303,22 @@ export default function TransactionTable() {
       <div className="flex flex-wrap items-center gap-2">
         <Input
           placeholder="Search description..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          value={localSearch}
+          onChange={(e) => setLocalSearch(e.target.value)}
           className="h-7 w-44 text-xs"
           aria-label="Search transactions"
         />
-        <Select value={filterMonth} onValueChange={(v) => setFilterMonth(v ?? 'all')}>
+        <Select value={filterType} onValueChange={(v) => updateParam('type', v)}>
+          <SelectTrigger className="h-7 w-24 text-xs">
+            <SelectValue>{filterType === 'all' ? 'All types' : filterType}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            <SelectItem value="Expense">Expense</SelectItem>
+            <SelectItem value="Income">Income</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterMonth} onValueChange={(v) => updateParam('month', v)}>
           <SelectTrigger className="h-7 w-28 text-xs">
             <SelectValue>{filterMonth === 'all' ? 'All months' : filterMonth}</SelectValue>
           </SelectTrigger>
@@ -268,7 +357,8 @@ export default function TransactionTable() {
                     id={`cat-filter-${cat}`}
                     checked={filterCategories.includes(cat)}
                     onCheckedChange={(checked) => {
-                      setFilterCategories(
+                      updateParam(
+                        'category',
                         checked
                           ? [...filterCategories, cat]
                           : filterCategories.filter((c) => c !== cat),
@@ -296,20 +386,60 @@ export default function TransactionTable() {
                       id={`pay-filter-${key}`}
                       checked={filterPayments.includes(key)}
                       onCheckedChange={(checked) => {
-                        setFilterPayments(
+                        updateParam(
+                          'payment',
                           checked
                             ? [...filterPayments, key]
                             : filterPayments.filter((p) => p !== key),
                         )
                       }}
                     />
-                    <span className="text-xs">{PAYMENT_METHOD_LABELS[key] ?? key}</span>
+                    <span className="text-xs">{key}</span>
                   </span>
                 )
               })}
             </div>
           </PopoverContent>
         </Popover>
+        {allDebtors.length > 0 && (
+          <Popover>
+            <PopoverTrigger render={<Button variant="outline" size="sm" />}>
+              <FunnelIcon className="size-3" />
+              Debtor{filterDebtors.length > 0 && ` (${filterDebtors.length})`}
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-2">
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {allDebtors.map((name) => (
+                  <span key={name} className="flex items-center gap-2 py-1 cursor-pointer">
+                    <Checkbox
+                      id={`debtor-filter-${name}`}
+                      checked={filterDebtors.includes(name)}
+                      onCheckedChange={(checked) => {
+                        updateParam(
+                          'debtor',
+                          checked
+                            ? [...filterDebtors, name]
+                            : filterDebtors.filter((d) => d !== name),
+                        )
+                      }}
+                    />
+                    <span className="text-xs">{name}</span>
+                  </span>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+        {activeFilterCount > 0 || filterSearch ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-muted-foreground"
+            onClick={() => setSearchParams({}, { replace: true })}
+          >
+            Clear all
+          </Button>
+        ) : null}
       </div>
 
       <div className="border border-border">
@@ -373,7 +503,7 @@ export default function TransactionTable() {
                     <PaymentBadge method={tx.paymentMethod} />
                   </TableCell>
                   <TableCell
-                    className={`text-right font-mono text-xs ${tx.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}
+                    className={`text-right font-mono text-xs ${tx.type === 'Income' ? 'text-green-600' : 'text-red-600'}`}
                   >
                     {formatCurrency(flow.amount)}
                   </TableCell>
@@ -454,17 +584,6 @@ export default function TransactionTable() {
       />
 
       <TransactionForm open={showAddForm} onOpenChange={setShowAddForm} />
-
-      <ConfirmDialog
-        open={confirmDeleteId !== null}
-        onOpenChange={(o) => {
-          if (!o) setConfirmDeleteId(null)
-        }}
-        title="Delete Transaction"
-        message="Are you sure you want to delete this transaction? You can undo this with Ctrl+Z."
-        confirmLabel="Delete"
-        onConfirm={handleConfirmDelete}
-      />
     </div>
   )
 }

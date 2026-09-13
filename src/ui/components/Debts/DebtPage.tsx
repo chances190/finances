@@ -1,5 +1,6 @@
 import { CheckCircleIcon, UserIcon, UsersIcon } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
+import { useLocation } from 'wouter'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -81,6 +82,7 @@ function aggregatePersonData(transactions: Transaction[]): PersonData[] {
 
 export default function DebtPage() {
   const { state, dispatch } = useFinance()
+  const [, navigate] = useLocation()
   const [showSettled, setShowSettled] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('transaction')
 
@@ -161,7 +163,11 @@ export default function DebtPage() {
             </TableHeader>
             <TableBody>
               {personView.map((p) => (
-                <TableRow key={p.name} className={p.allSettled ? 'opacity-50' : ''}>
+                <TableRow
+                  key={p.name}
+                  className={`${p.allSettled ? 'opacity-50' : ''} cursor-pointer hover:bg-muted/50`}
+                  onClick={() => navigate(`/?debtor=${encodeURIComponent(p.name)}`)}
+                >
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-1">
                       <UserIcon className="size-3" />
@@ -224,7 +230,11 @@ export default function DebtPage() {
                 const allSettled = tx.debts?.every((d) => d.settled) ?? true
                 const debtNames = [...new Set(tx.debts?.map((d) => d.name) ?? [])]
                 return (
-                  <TableRow key={tx.id} className={allSettled ? 'opacity-50' : ''}>
+                  <TableRow
+                    key={tx.id}
+                    className={`${allSettled ? 'opacity-50' : ''} cursor-pointer hover:bg-muted/50`}
+                    onClick={() => navigate(`/?tx=${tx.id}`)}
+                  >
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-1">
                         <UserIcon className="size-3" />

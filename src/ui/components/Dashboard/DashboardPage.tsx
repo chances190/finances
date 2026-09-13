@@ -6,7 +6,7 @@ import {
   TrendDown,
   TrendUp,
 } from '@phosphor-icons/react'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   Bar,
   BarChart,
@@ -22,6 +22,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { useSearchParams } from 'wouter'
 import { Badge } from '@/components/ui/badge'
 import {
   Select,
@@ -32,8 +33,8 @@ import {
 } from '@/components/ui/select'
 import {
   availableMonths,
+  bankExpenses,
   budgetVsActual,
-  cashExpenses,
   creditInvoice,
   currentYM,
   daysInMonth,
@@ -46,11 +47,7 @@ import {
   spendingPace,
   totalByMonth,
 } from '@/domain/calculations'
-import {
-  CHART_COLORS,
-  PAYMENT_METHOD_CHART_COLORS,
-  PAYMENT_METHOD_LABELS,
-} from '@/domain/constants'
+import { CHART_COLORS, PAYMENT_METHOD_CHART_COLORS } from '@/domain/constants'
 import { monthlyFlows } from '@/domain/entities'
 import { formatAxisCurrency, formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
@@ -59,13 +56,24 @@ import { useFinance } from '@/ui/context'
 
 export default function DashboardPage() {
   const { state } = useFinance()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const months = useMemo(() => availableMonths(state.transactions), [state.transactions])
 
   const nowYM = currentYM()
-  const [selectedMonth, setSelectedMonth] = useState(
-    months.includes(nowYM) ? nowYM : (months[0] ?? ''),
-  )
+  const defaultMonth = months.includes(nowYM) ? nowYM : (months[0] ?? '')
+  const selectedMonth = searchParams.get('month') ?? defaultMonth
+
+  function setSelectedMonth(month: string) {
+    setSearchParams((prev) => {
+      if (month === defaultMonth) {
+        prev.delete('month')
+      } else {
+        prev.set('month', month)
+      }
+      return prev
+    })
+  }
 
   const budget = useMemo(
     () => state.budgets.find((b) => b.referenceMonth === selectedMonth),
@@ -81,7 +89,7 @@ export default function DashboardPage() {
       expenses,
       balance: income - expenses,
       creditInvoice: creditInvoice(state.transactions, selectedMonth),
-      cashExpenses: cashExpenses(state.transactions, selectedMonth),
+      bankExpenses: bankExpenses(state.transactions, selectedMonth),
       mealVoucher: mealVoucherBalance(state.transactions, selectedMonth),
       incomeTransactions: incomeByMonth(state.transactions, selectedMonth),
       incomeByMethod: incomeByPaymentMethod(state.transactions, selectedMonth),
@@ -99,7 +107,7 @@ export default function DashboardPage() {
     return Object.entries(grouped)
       .filter(([, v]) => v > 0)
       .map(([method, amount]) => ({
-        name: PAYMENT_METHOD_LABELS[method] ?? method,
+        name: method,
         value: amount,
         color: PAYMENT_METHOD_CHART_COLORS[method] ?? '#6b7280',
       }))
@@ -126,7 +134,7 @@ export default function DashboardPage() {
     if (!selectedMonth) return 0
     return state.transactions
       .filter((t) => {
-        if (t.type !== 'EXPENSE') return false
+        if (t.type !== 'Expense') return false
         const hasUnsettledDebt = t.debts?.some((d) => !d.settled) ?? false
         const flows = monthlyFlows(t)
         return flows.some((f) => f.referenceMonth === selectedMonth) && !hasUnsettledDebt
@@ -209,9 +217,9 @@ export default function DashboardPage() {
           valueClassName={monthData.mealVoucher >= 0 ? 'text-green-500' : 'text-red-500'}
         />
         <StatCard
-          label="Cash spent"
+          label="Bank spent"
           icon={<CurrencyDollar className="size-3 text-cyan-500" />}
-          value={formatCurrency(monthData.cashExpenses)}
+          value={formatCurrency(monthData.bankExpenses)}
         />
       </div>
 
@@ -225,9 +233,7 @@ export default function DashboardPage() {
                   className="inline-block size-2.5 rounded-full"
                   style={{ background: PAYMENT_METHOD_CHART_COLORS[method] ?? '#6b7280' }}
                 />
-                <span className="text-muted-foreground text-xs">
-                  {PAYMENT_METHOD_LABELS[method] ?? method}:
-                </span>
+                <span className="text-muted-foreground text-xs">{method}:</span>
                 <span className="font-mono text-xs font-medium">{formatCurrency(amount)}</span>
               </div>
             ))}

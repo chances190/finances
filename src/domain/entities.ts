@@ -1,13 +1,5 @@
-export type TransactionType = 'INCOME' | 'EXPENSE'
-export type PaymentMethod =
-  | 'CASH'
-  | 'DEBIT'
-  | 'CREDIT'
-  | 'PIX'
-  | 'MEAL_VOUCHER'
-  | 'SALARY'
-  | 'TRANSFER'
-  | 'VOUCHER'
+export type TransactionType = 'Income' | 'Expense'
+export type PaymentMethod = 'Debit' | 'Credit' | 'Meal Voucher' | 'Salary' | 'Transfer' | 'Voucher'
 
 export interface Debt {
   name: string
@@ -74,7 +66,7 @@ function dateToYM(dateStr: string): string {
 export function monthlyFlows(tx: Transaction): MonthlyFlow[] {
   const ym = dateToYM(tx.date)
 
-  if (tx.type === 'INCOME' || !tx.installments || tx.installments <= 1) {
+  if (tx.type === 'Income' || !tx.installments || tx.installments <= 1) {
     return [
       {
         id: tx.id,

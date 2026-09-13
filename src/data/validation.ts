@@ -1,27 +1,50 @@
 import { INCOME_PAYMENT_METHODS, PAYMENT_METHODS, TRANSACTION_TYPES } from '../domain/constants'
 import type { Budget, FinanceData, PaymentMethod, Transaction } from '../domain/entities'
 
-function isValidTransaction(value: unknown): value is Transaction {
-  if (!value || typeof value !== 'object') return false
+export type SkipReason = string
+
+export function validateTransaction(
+  value: unknown,
+): { ok: true; tx: Transaction } | { ok: false; reason: SkipReason } {
+  if (!value || typeof value !== 'object') return { ok: false, reason: 'not an object' }
   const t = value as Record<string, unknown>
-  if (
-    typeof t.id !== 'string' ||
-    typeof t.date !== 'string' ||
-    typeof t.description !== 'string' ||
-    typeof t.amount !== 'number' ||
-    typeof t.category !== 'string' ||
-    !TRANSACTION_TYPES.includes(t.type as (typeof TRANSACTION_TYPES)[number])
-  ) {
-    return false
+
+  if (typeof t.id !== 'string') return { ok: false, reason: 'missing or invalid id' }
+  if (typeof t.date !== 'string') return { ok: false, reason: 'missing or invalid date' }
+  if (typeof t.description !== 'string')
+    return { ok: false, reason: 'missing or invalid description' }
+  if (typeof t.amount !== 'number') return { ok: false, reason: 'missing or invalid amount' }
+  if (typeof t.category !== 'string') return { ok: false, reason: 'missing or invalid category' }
+
+  if (!TRANSACTION_TYPES.includes(t.type as (typeof TRANSACTION_TYPES)[number])) {
+    return {
+      ok: false,
+      reason: `invalid type: "${t.type}" (expected: ${TRANSACTION_TYPES.join(', ')})`,
+    }
   }
-  if (t.type === 'INCOME') {
-    if (!INCOME_PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod)) return false
-    if (t.installments != null) return false
-    if (t.debts != null) return false
+
+  const type = t.type as Transaction['type']
+
+  if (type === 'Income') {
+    if (!INCOME_PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod)) {
+      return {
+        ok: false,
+        reason: `invalid payment method: "${t.paymentMethod}" for Income (expected: ${INCOME_PAYMENT_METHODS.join(', ')})`,
+      }
+    }
+    if (t.installments != null)
+      return { ok: false, reason: 'Income transaction cannot have installments' }
+    if (t.debts != null) return { ok: false, reason: 'Income transaction cannot have debts' }
   } else {
-    if (!PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod)) return false
+    if (!PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod)) {
+      return {
+        ok: false,
+        reason: `invalid payment method: "${t.paymentMethod}" for Expense (expected: ${PAYMENT_METHODS.join(', ')})`,
+      }
+    }
   }
-  return true
+
+  return { ok: true, tx: value as Transaction }
 }
 
 function isValidBudget(value: unknown): value is Budget {
@@ -36,9 +59,14 @@ function isValidBudget(value: unknown): value is Budget {
   )
 }
 
+export interface SkippedEntry {
+  index: number
+  reason: SkipReason
+}
+
 export interface ValidationResult {
   data: FinanceData
-  skippedTransactions: number
+  skippedTransactions: SkippedEntry[]
   skippedBudgets: number
 }
 
@@ -56,12 +84,23 @@ export function validateFinanceData(value: unknown): ValidationResult {
     throw new Error('Invalid data: budgets must be an array')
   }
 
-  const validTransactions = data.transactions.filter(isValidTransaction)
+  const validTransactions: Transaction[] = []
+  const skippedTransactions: SkippedEntry[] = []
+
+  for (let i = 0; i < data.transactions.length; i++) {
+    const result = validateTransaction(data.transactions[i])
+    if (result.ok) {
+      validTransactions.push(result.tx)
+    } else {
+      skippedTransactions.push({ index: i, reason: result.reason })
+    }
+  }
+
   const validBudgets = data.budgets.filter(isValidBudget)
 
   return {
     data: { transactions: validTransactions, budgets: validBudgets },
-    skippedTransactions: data.transactions.length - validTransactions.length,
+    skippedTransactions,
     skippedBudgets: data.budgets.length - validBudgets.length,
   }
 }

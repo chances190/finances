@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { Route, Switch, useLocation } from 'wouter'
 import BudgetPage from './ui/components/Budget/BudgetPage'
 import AuditLogPanel from './ui/components/Common/AuditLogPanel'
 import ErrorBoundary from './ui/components/Common/ErrorBoundary'
@@ -11,18 +12,20 @@ import { FinanceProvider, useFinance } from './ui/context'
 import { ToastProvider, useToast } from './ui/context/ToastContext'
 
 const tabs = [
-  { key: 'transactions', label: 'Transactions' },
-  { key: 'budgets', label: 'Budgets' },
-  { key: 'debts', label: 'Debts' },
-  { key: 'dashboard', label: 'Dashboard' },
-  { key: 'yearly', label: 'Trends' },
-  { key: 'history', label: 'Actions' },
+  { key: '/', label: 'Transactions' },
+  { key: '/budgets', label: 'Budgets' },
+  { key: '/debts', label: 'Debts' },
+  { key: '/dashboard', label: 'Dashboard' },
+  { key: '/yearly', label: 'Trends' },
+  { key: '/history', label: 'Actions' },
 ]
 
 function AppShell() {
   const { state, dispatch } = useFinance()
   const { toast } = useToast()
-  const [activeTab, setActiveTab] = useState('transactions')
+  const [location, navigate] = useLocation()
+
+  const activeTab = tabs.find((t) => t.key === location.split('?')[0])?.key ?? '/'
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -64,14 +67,19 @@ function AppShell() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
-        <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
+        <Tabs tabs={tabs} active={activeTab} onChange={(key) => navigate(key)} />
 
-        {activeTab === 'transactions' && <TransactionTable />}
-        {activeTab === 'budgets' && <BudgetPage />}
-        {activeTab === 'debts' && <DebtPage />}
-        {activeTab === 'history' && <AuditLogPanel />}
-        {activeTab === 'dashboard' && <DashboardPage />}
-        {activeTab === 'yearly' && <TrendsPage />}
+        <Switch>
+          <Route path="/" component={TransactionTable} />
+          <Route path="/budgets" component={BudgetPage} />
+          <Route path="/debts" component={DebtPage} />
+          <Route path="/dashboard" component={DashboardPage} />
+          <Route path="/yearly" component={TrendsPage} />
+          <Route path="/history" component={AuditLogPanel} />
+          <Route>
+            <TransactionTable />
+          </Route>
+        </Switch>
       </main>
     </div>
   )

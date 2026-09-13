@@ -5,12 +5,12 @@ import { addMonths, monthlyFlows } from './entities'
 function tx(overrides: Partial<Transaction> = {}): Transaction {
   return {
     id: '1',
-    type: 'EXPENSE',
+    type: 'Expense',
     date: '2026-03-15',
     description: 'Test',
     amount: 100,
     category: 'Shopping',
-    paymentMethod: 'CREDIT',
+    paymentMethod: 'Credit',
     ...overrides,
   }
 }
@@ -46,10 +46,10 @@ describe('monthlyFlows', () => {
   })
 
   test('income never splits', () => {
-    const f = monthlyFlows(tx({ type: 'INCOME', installments: 3 }))
+    const f = monthlyFlows(tx({ type: 'Income', installments: 3 }))
     expect(f).toHaveLength(1)
     expect(f[0].amount).toBe(100)
-    expect(f[0].type).toBe('INCOME')
+    expect(f[0].type).toBe('Income')
   })
 
   test('even split across 3 months', () => {
@@ -89,10 +89,10 @@ describe('monthlyFlows', () => {
     expect(f[0].amount + f[1].amount + f[2].amount).toBe(5)
   })
 
-  test('passthrough for debit/cash with no installments', () => {
-    const f = monthlyFlows(tx({ paymentMethod: 'DEBIT', installments: undefined }))
+  test('passthrough for debit with no installments', () => {
+    const f = monthlyFlows(tx({ paymentMethod: 'Debit', installments: undefined }))
     expect(f).toHaveLength(1)
-    expect(f[0].paymentMethod).toBe('DEBIT')
+    expect(f[0].paymentMethod).toBe('Debit')
   })
 
   test('all flow fields match source transaction', () => {

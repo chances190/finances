@@ -11,47 +11,29 @@ export const DEFAULT_CATEGORIES = [
   'Health',
   'Education',
   'Shopping',
-  'Salary',
   'Other',
 ] as const
 
-export const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Other'] as const
-
-export const PAYMENT_METHODS: PaymentMethod[] = ['CASH', 'DEBIT', 'CREDIT', 'PIX', 'MEAL_VOUCHER']
-export const INCOME_PAYMENT_METHODS: PaymentMethod[] = ['SALARY', 'TRANSFER', 'VOUCHER']
-export const TRANSACTION_TYPES = ['INCOME', 'EXPENSE'] as const
-
-export const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  CASH: 'Cash',
-  DEBIT: 'Debit',
-  CREDIT: 'Credit',
-  PIX: 'Pix',
-  MEAL_VOUCHER: 'Meal Voucher',
-  SALARY: 'Salary',
-  TRANSFER: 'Transfer',
-  VOUCHER: 'Voucher',
-}
+export const PAYMENT_METHODS: PaymentMethod[] = ['Debit', 'Credit', 'Meal Voucher']
+export const INCOME_PAYMENT_METHODS: PaymentMethod[] = ['Salary', 'Transfer', 'Voucher']
+export const TRANSACTION_TYPES = ['Income', 'Expense'] as const
 
 export const PAYMENT_METHOD_BADGE_COLORS: Record<string, string> = {
-  CREDIT: 'bg-amber-100 text-amber-800  ',
-  DEBIT: 'bg-blue-100 text-blue-800  ',
-  PIX: 'bg-green-100 text-green-800  ',
-  CASH: 'bg-purple-100 text-purple-800  ',
-  MEAL_VOUCHER: 'bg-teal-100 text-teal-800  ',
-  SALARY: 'bg-emerald-100 text-emerald-800  ',
-  TRANSFER: 'bg-sky-100 text-sky-800  ',
-  VOUCHER: 'bg-orange-100 text-orange-800  ',
+  Credit: 'bg-amber-100 text-amber-800  ',
+  Debit: 'bg-blue-100 text-blue-800  ',
+  'Meal Voucher': 'bg-teal-100 text-teal-800  ',
+  Salary: 'bg-emerald-100 text-emerald-800  ',
+  Transfer: 'bg-sky-100 text-sky-800  ',
+  Voucher: 'bg-orange-100 text-orange-800  ',
 }
 
 export const PAYMENT_METHOD_CHART_COLORS: Record<string, string> = {
-  CASH: '#3b82f6',
-  DEBIT: '#22c55e',
-  CREDIT: '#ef4444',
-  PIX: '#06b6d4',
-  MEAL_VOUCHER: '#a855f7',
-  SALARY: '#10b981',
-  TRANSFER: '#0ea5e9',
-  VOUCHER: '#f97316',
+  Debit: '#22c55e',
+  Credit: '#ef4444',
+  'Meal Voucher': '#a855f7',
+  Salary: '#10b981',
+  Transfer: '#0ea5e9',
+  Voucher: '#f97316',
 }
 
 export const CHART_COLORS = {

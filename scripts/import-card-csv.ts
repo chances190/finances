@@ -14,6 +14,28 @@ const CATEGORY_MAP: Record<string, string> = {
   Outros: 'Other',
 }
 
+interface ParsedRow {
+  date: string
+  description: string
+  amount: number
+  category: string
+  paymentMethod: 'Credit' | 'Debit'
+  installment?: { current: number; total: number }
+  debt?: { name: string; amount: number }
+}
+
+interface ImportTransaction {
+  id: string
+  type: 'Expense'
+  date: string
+  description: string
+  amount: number
+  category: string
+  paymentMethod: 'Credit' | 'Debit'
+  installments?: number
+  debts?: { name: string; amount: number; settled: boolean }[]
+}
+
 function parseAmount(raw: string): number {
   const cleaned = raw.replace('R$ ', '').replace('.', '').replace(',', '.').trim()
   return parseFloat(cleaned) || 0
@@ -43,19 +65,12 @@ function parseTag(tag: string): { debtorName: string; split: boolean } | null {
   return { debtorName: t, split: false }
 }
 
-function buildDebtSplits(amount: number, debtorName: string, split: boolean): { userShare: number; splits: { debtorName: string; amount: number }[] } {
-  if (split) {
-    const totalCents = Math.round(amount * 100)
-    const halfCents = Math.round(totalCents / 2)
-    return {
-      userShare: halfCents / 100,
-      splits: [{ debtorName, amount: (totalCents - halfCents) / 100 }],
-    }
+function buildDebt(tag: { debtorName: string; split: boolean }, amount: number): { name: string; amount: number } {
+  if (tag.split) {
+    const debtorCents = Math.floor(Math.round(amount * 100) / 2)
+    return { name: tag.debtorName, amount: debtorCents / 100 }
   }
-  return {
-    userShare: 0,
-    splits: [{ debtorName, amount }],
-  }
+  return { name: tag.debtorName, amount }
 }
 
 function parseCSVLine(line: string): string[] {
@@ -82,16 +97,7 @@ function parseCSVLine(line: string): string[] {
   return result
 }
 
-const csv = readFileSync('/home/chances/Downloads/Fatura do Cartão - Página9.csv', 'utf-8')
-const lines = csv.trim().split('\n')
-
-const transactions: any[] = []
-const installmentGroups = new Map<string, string>()
-
-for (const line of lines) {
-  const cols = parseCSVLine(line)
-  if (cols.length < 5) continue
-
+function parseRow(cols: string[]): ParsedRow | null {
   const paymentRaw = cols[0].trim()
   const descriptionRaw = cols[1].trim()
   const amountRaw = cols[2].trim()
@@ -100,54 +106,90 @@ for (const line of lines) {
   const tagRaw = cols[5]?.trim() ?? ''
 
   const amount = parseAmount(amountRaw)
-  if (amount === 0) continue
+  if (amount === 0) return null
 
   const date = parseDateBR(dateRaw)
-  const refMonth = date.slice(0, 7)
   const category = CATEGORY_MAP[categoryRaw] ?? 'Other'
-  const paymentMethod = paymentRaw === 'Crédito' ? 'CREDIT' : 'DEBIT'
+  const paymentMethod = paymentRaw === 'Crédito' ? 'Credit' : 'Debit'
 
   const inst = extractInstallment(descriptionRaw)
   const description = inst ? inst.description : descriptionRaw
 
   const tag = parseTag(tagRaw)
+  const debt = tag ? buildDebt(tag, amount) : undefined
 
-  const tx: any = {
-    id: uuid(),
-    type: 'EXPENSE',
+  return {
     date,
-    referenceMonth: refMonth,
     description,
     amount,
     category,
     paymentMethod,
-    isDebt: !!tag,
-    isSettled: !!tag,
+    ...(inst ? { installment: inst } : {}),
+    ...(debt ? { debt } : {}),
   }
+}
 
-  if (tag) {
-    const debt = buildDebtSplits(amount, tag.debtorName, tag.split)
-    tx.debtUserShare = debt.userShare
-    tx.debtSplits = debt.splits
+function toTransaction(row: ParsedRow): ImportTransaction {
+  return {
+    id: uuid(),
+    type: 'Expense',
+    date: row.date,
+    description: row.description,
+    amount: row.amount,
+    category: row.category,
+    paymentMethod: row.paymentMethod,
+    ...(row.debt ? { debts: [{ name: row.debt.name, amount: row.debt.amount, settled: false }] } : {}),
   }
+}
 
-  if (inst) {
-    tx.installment = { current: inst.current, total: inst.total }
-    const groupKey = `${description}::${inst.total}`
-    if (!installmentGroups.has(groupKey)) {
-      installmentGroups.set(groupKey, uuid())
-    }
-    const groupId = installmentGroups.get(groupKey)!
-    tx.groupId = groupId
-    tx.parentId = groupId
+const inputPath = process.argv[2] ?? '/home/chances/Downloads/Fatura do Cartão - Página9.csv'
+const outputPath = process.argv[3] ?? '/home/chances/Downloads/fatura-import.json'
+
+const csv = readFileSync(inputPath, 'utf-8')
+const lines = csv.trim().split('\n')
+
+const transactions: ImportTransaction[] = []
+const installmentGroups = new Map<string, { rows: ParsedRow[]; total: number }>()
+
+for (const line of lines) {
+  const cols = parseCSVLine(line)
+  if (cols.length < 5) continue
+
+  const row = parseRow(cols)
+  if (!row) continue
+
+  if (row.installment) {
+    const key = `${row.description}::${row.installment.total}`
+    const group = installmentGroups.get(key) ?? { rows: [], total: row.installment.total }
+    group.rows.push(row)
+    installmentGroups.set(key, group)
+  } else {
+    transactions.push(toTransaction(row))
   }
+}
 
-  transactions.push(tx)
+for (const [, group] of installmentGroups) {
+  const first = group.rows[0]
+  const amount = group.rows.reduce((s, r) => s + r.amount, 0)
+  const date = group.rows.map((r) => r.date).sort()[0]
+  transactions.push({
+    id: uuid(),
+    type: 'Expense',
+    date,
+    description: first.description,
+    amount,
+    category: first.category,
+    paymentMethod: first.paymentMethod,
+    installments: group.total,
+    ...(first.debt ? { debts: [{ name: first.debt.name, amount: first.debt.amount, settled: false }] } : {}),
+  })
 }
 
 const output = { transactions, budgets: [] }
-writeFileSync('/home/chances/Downloads/fatura-import.json', JSON.stringify(output, null, 2), 'utf-8')
+writeFileSync(outputPath, JSON.stringify(output, null, 2), 'utf-8')
 
-const debtCount = transactions.filter((t) => t.isDebt).length
-const splitCount = transactions.filter((t) => t.debtSplits && t.debtSplits.length > 0 && t.debtUserShare > 0).length
-console.log(`Converted ${transactions.length} transactions (${debtCount} debts, ${splitCount} split evenly) → /home/chances/Downloads/fatura-import.json`)
+const debtCount = transactions.filter((t) => t.debts && t.debts.length > 0).length
+console.log(
+  `Converted ${transactions.length} transactions (${debtCount} with debts, ${installmentGroups.size} installment series collapsed) → ${outputPath}`,
+)
+console.log('Import via Actions tab → Import backup (.json)')

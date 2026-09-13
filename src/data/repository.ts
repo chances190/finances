@@ -1,7 +1,7 @@
 import type { FinanceData } from '../domain/entities'
 import { validateFinanceData } from './validation'
 
-const STORAGE_KEY = 'finances-data-v2'
+const STORAGE_KEY = 'finances-data'
 
 export function loadData(): FinanceData | null {
   try {

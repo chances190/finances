@@ -69,13 +69,13 @@ export function yearRelation(y: string): 'past' | 'current' | 'future' {
 export function byMonth(tx: Transaction[], refMonth: string): MonthlyFlow[] {
   return tx
     .flatMap((t) => monthlyFlows(t))
-    .filter((f) => f.referenceMonth === refMonth && f.type === 'EXPENSE')
+    .filter((f) => f.referenceMonth === refMonth && f.type === 'Expense')
 }
 
 export function incomeByMonth(tx: Transaction[], refMonth: string): MonthlyFlow[] {
   return tx
     .flatMap((t) => monthlyFlows(t))
-    .filter((f) => f.referenceMonth === refMonth && f.type === 'INCOME')
+    .filter((f) => f.referenceMonth === refMonth && f.type === 'Income')
 }
 
 export function totalByMonth(tx: Transaction[], refMonth: string): number {
@@ -114,21 +114,21 @@ export function groupedByPaymentMethod(
   }, {})
 }
 
-export function cashExpenses(tx: Transaction[], refMonth: string): number {
+export function bankExpenses(tx: Transaction[], refMonth: string): number {
   return byMonth(tx, refMonth)
-    .filter((t) => t.paymentMethod !== 'MEAL_VOUCHER' && t.paymentMethod !== 'CREDIT')
+    .filter((t) => t.paymentMethod !== 'Meal Voucher' && t.paymentMethod !== 'Credit')
     .reduce((s, t) => addCurrency(s, t.amount), 0)
 }
 
 export function mealVoucherIncome(tx: Transaction[], refMonth: string): number {
   return incomeByMonth(tx, refMonth)
-    .filter((t) => t.paymentMethod === 'MEAL_VOUCHER')
+    .filter((t) => t.paymentMethod === 'Meal Voucher')
     .reduce((s, t) => addCurrency(s, t.amount), 0)
 }
 
 export function mealVoucherExpenses(tx: Transaction[], refMonth: string): number {
   return byMonth(tx, refMonth)
-    .filter((t) => t.paymentMethod === 'MEAL_VOUCHER')
+    .filter((t) => t.paymentMethod === 'Meal Voucher')
     .reduce((s, t) => addCurrency(s, t.amount), 0)
 }
 
@@ -138,7 +138,7 @@ export function mealVoucherBalance(tx: Transaction[], refMonth: string): number 
 
 export function creditInvoice(tx: Transaction[], refMonth: string): number {
   return byMonth(tx, refMonth)
-    .filter((t) => t.paymentMethod === 'CREDIT')
+    .filter((t) => t.paymentMethod === 'Credit')
     .reduce((s, t) => addCurrency(s, t.amount), 0)
 }
 
@@ -277,7 +277,7 @@ export function futureCommitments(tx: Transaction[], months: number = 12): Futur
   }
 
   for (const t of tx) {
-    if (t.type !== 'EXPENSE' || !t.installments || t.installments <= 1) continue
+    if (t.type !== 'Expense' || !t.installments || t.installments <= 1) continue
     const flows = monthlyFlows(t)
     for (const f of flows) {
       const diff = monthDiff(f.referenceMonth, currentYM)

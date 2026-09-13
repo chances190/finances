@@ -1,14 +1,20 @@
+---
+id: 0002
+title: local-first-single-user-storage
+status: Accepted
+date: 2026-08-06
+supersedes: []
+superseded_by: null
+---
+
 # 0002. Local-Only Single-User Storage (localStorage)
 
-- **Status:** Accepted
-- **Date:** 2026-08-06
-
 ## Context
-The app is a personal finance tool for one user. Requirements never included accounts, sync, sharing, or cloud access — a server, auth, and database would be unproductive complexity.
+The prototype needs persistence without a backend. A server, database, or sync layer would add deployment and auth complexity that has no value at v0.x.
 
 ## Decision
-Keep the app local-only. The entire `FinanceData` document persists to `localStorage` under key `finances-data` (`data/repository.ts`) with runtime validation on load (`data/validation.ts`). Fresh state bootstraps from a deterministic seed (`data/seed.ts`) accepting an optional `Date`, defaulting to 2026-07-01. Data never leaves the browser except by explicit user action (JSON/CSV export, see ADR-0005).
+Persist all data in `localStorage` via `data/repository.ts`. On load, parse and validate; on every state change, serialize. No server, no IndexedDB, no file-system access.
 
 ## Consequences
-- **Positive:** Zero infrastructure, instant startup, offline by default; deterministic seed keeps charts and demos reproducible.
-- **Negative/Risks:** Data is bound to one browser profile — a cleared profile or new machine starts empty unless the user exports; a single JSON blob means no incremental writes or schema migrations (schema changes are handled inside `validateFinanceData`).
+* **Positive:** Zero deployment cost; data stays on the user's machine; offline-first by default.
+* **Negative/Risks:** Data is tied to one browser; clearing browser storage deletes everything; JSON size limited by localStorage (~5MB, sufficient for years of transactions).

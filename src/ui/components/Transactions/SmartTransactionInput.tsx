@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { localYMD } from '@/domain/calculations'
-import { INCOME_PAYMENT_METHODS, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/domain/constants'
+import { INCOME_PAYMENT_METHODS, PAYMENT_METHODS } from '@/domain/constants'
 import { parseCurrency } from '@/lib/currency'
 import { parseNaturalDate } from '@/lib/parseDate'
 
@@ -48,7 +48,7 @@ function getSuggestionsForToken(
 ): string[] {
   const lower = prefix.toLowerCase()
   if (tokenIndex === 0) {
-    const all = [...getAllPaymentMethods().map((p) => PAYMENT_METHOD_LABELS[p])]
+    const all = [...getAllPaymentMethods()]
     if (!prefix) return all
     return all.filter((label) => label.toLowerCase().includes(lower))
   }
@@ -120,10 +120,9 @@ export default function SmartTransactionInput({
     let date = localYMD()
     let error: string | null = null
 
+    const allPaymentMethods = [...PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS]
     const pmCode = paymentMethod
-      ? (Object.entries(PAYMENT_METHOD_LABELS).find(
-          ([, label]) => label.toLowerCase() === paymentMethod.toLowerCase(),
-        )?.[0] ?? null)
+      ? (allPaymentMethods.find((pm) => pm.toLowerCase() === paymentMethod.toLowerCase()) ?? null)
       : null
 
     const amountValue = parseCurrency(amount)
@@ -199,12 +198,7 @@ export default function SmartTransactionInput({
       {focused && (
         <div className="mb-0.5 text-[10px] text-muted-foreground bg-muted/50 px-2 py-1 flex flex-wrap gap-x-4 gap-y-0.5">
           <span>
-            Pay:{' '}
-            <span className="font-medium">
-              {parsed.paymentMethod
-                ? (PAYMENT_METHOD_LABELS[parsed.paymentMethod] ?? parsed.paymentMethod)
-                : '—'}
-            </span>
+            Pay: <span className="font-medium">{parsed.paymentMethod ?? '—'}</span>
           </span>
           <span>
             Amt:{' '}

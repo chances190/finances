@@ -24,8 +24,7 @@ import { formatCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
 
 type SkippedInfo = {
-  lines: number[]
-  count: number
+  entries: Array<{ label: string; reason: string }>
 }
 
 type PreviewData = {
@@ -83,7 +82,18 @@ export default function CSVImportDialog({
             type: 'json',
             transactions: data.transactions,
             budgets: data.budgets,
-            skipped: { lines: [], count: skippedTransactions + skippedBudgets },
+            skipped: {
+              entries: [
+                ...skippedTransactions.map((s) => ({
+                  label: `transaction #${s.index + 1}`,
+                  reason: s.reason,
+                })),
+                ...Array.from({ length: skippedBudgets }, (_, i) => ({
+                  label: `budget #${i + 1}`,
+                  reason: 'invalid budget format',
+                })),
+              ],
+            },
             filename: file.name,
           })
         } else if (file.name.endsWith('.csv')) {
@@ -92,7 +102,12 @@ export default function CSVImportDialog({
             type: 'csv',
             transactions,
             budgets: [],
-            skipped: { lines: skippedRows, count: skippedRows.length },
+            skipped: {
+              entries: skippedRows.map((s) => ({
+                label: `line ${s.line}`,
+                reason: s.reason,
+              })),
+            },
             filename: file.name,
           })
         } else {
@@ -207,13 +222,18 @@ export default function CSVImportDialog({
               {preview.filename} — {preview.transactions.length} transaction
               {preview.transactions.length !== 1 ? 's' : ''} and {preview.budgets.length} budget
               {preview.budgets.length !== 1 ? 's' : ''} found
-              {preview.skipped.count > 0 &&
-                preview.skipped.lines.length > 0 &&
-                ` — ${preview.skipped.count} row${preview.skipped.count !== 1 ? 's' : ''} skipped (malformed): line${preview.skipped.lines.length !== 1 ? 's' : ''} ${preview.skipped.lines.join(', ')}`}
-              {preview.skipped.count > 0 &&
-                preview.skipped.lines.length === 0 &&
-                ` — ${preview.skipped.count} entr${preview.skipped.count !== 1 ? 'ies' : 'y'} skipped (invalid format)`}
+              {preview.skipped.entries.length > 0 && ` — ${preview.skipped.entries.length} skipped`}
             </p>
+            {preview.skipped.entries.length > 0 && (
+              <div className="bg-muted/50 text-xs p-2 rounded-none space-y-0.5 max-h-24 overflow-y-auto">
+                {preview.skipped.entries.map((s, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: static display list
+                  <div key={i} className="text-muted-foreground">
+                    <span className="font-medium">{s.label}:</span> {s.reason}
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="max-h-60 overflow-y-auto border border-border">
               <Table>
                 <TableHeader>

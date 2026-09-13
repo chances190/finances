@@ -2,11 +2,11 @@ import { describe, expect, test } from 'bun:test'
 import {
   addMonths,
   balance,
+  bankExpenses,
   budgetVsActual,
   budgetVsActualYear,
   byCategory,
   byMonth,
-  cashExpenses,
   categoryTimeSeries,
   compareTransactions,
   creditInvoice,
@@ -33,12 +33,12 @@ import type { Budget, Transaction } from './entities'
 
 function tx(overrides: Partial<Transaction> & { id: string }): Transaction {
   return {
-    type: 'EXPENSE',
+    type: 'Expense',
     date: '2026-07-01',
     description: '',
     amount: 100,
     category: 'Other',
-    paymentMethod: 'DEBIT',
+    paymentMethod: 'Debit',
     ...overrides,
   }
 }
@@ -71,40 +71,40 @@ describe('parseDate', () => {
 })
 
 const sampleTransactions: Transaction[] = [
-  tx({ id: '1', amount: 100, category: 'Food', paymentMethod: 'PIX' }),
-  tx({ id: '2', amount: 200, category: 'Rent', paymentMethod: 'DEBIT' }),
+  tx({ id: '1', amount: 100, category: 'Food', paymentMethod: 'Debit' }),
+  tx({ id: '2', amount: 200, category: 'Rent', paymentMethod: 'Debit' }),
   tx({
     id: '3',
     amount: 50,
     category: 'Food',
-    paymentMethod: 'MEAL_VOUCHER',
+    paymentMethod: 'Meal Voucher',
   }),
   tx({
     id: '4',
     amount: 5000,
-    type: 'INCOME',
-    category: 'Salary',
-    paymentMethod: 'DEBIT',
+    type: 'Income',
+    category: 'Income',
+    paymentMethod: 'Debit',
   }),
-  tx({ id: '5', amount: 300, date: '2026-08-01', category: 'Food', paymentMethod: 'PIX' }),
+  tx({ id: '5', amount: 300, date: '2026-08-01', category: 'Food', paymentMethod: 'Debit' }),
   tx({
     id: '6',
     amount: 150,
     category: 'Leisure',
-    paymentMethod: 'CREDIT',
+    paymentMethod: 'Credit',
   }),
   tx({
     id: '7',
     amount: 80,
     category: 'Food',
-    paymentMethod: 'PIX',
+    paymentMethod: 'Debit',
   }),
   tx({
     id: '8',
     amount: 800,
-    type: 'INCOME',
-    category: 'Salary',
-    paymentMethod: 'MEAL_VOUCHER',
+    type: 'Income',
+    category: 'Income',
+    paymentMethod: 'Meal Voucher',
   }),
 ]
 
@@ -113,15 +113,15 @@ describe('byMonth', () => {
     const result = byMonth(sampleTransactions, '2026-07')
     expect(result).toHaveLength(5) // tx 1,2,3,6,7
     expect(result.every((t) => t.referenceMonth === '2026-07')).toBe(true)
-    expect(result.every((t) => t.type === 'EXPENSE')).toBe(true)
+    expect(result.every((t) => t.type === 'Expense')).toBe(true)
   })
 })
 
 describe('incomeByMonth', () => {
-  test('filters income for given month, excluding settled', () => {
+  test('filters income for given month', () => {
     const result = incomeByMonth(sampleTransactions, '2026-07')
     expect(result).toHaveLength(2)
-    expect(result.every((t) => t.type === 'INCOME')).toBe(true)
+    expect(result.every((t) => t.type === 'Income')).toBe(true)
   })
 })
 
@@ -153,34 +153,35 @@ describe('byCategory', () => {
 describe('groupedByPaymentMethod', () => {
   test('sums expenses by payment method', () => {
     const result = groupedByPaymentMethod(sampleTransactions, '2026-07')
-    expect(result.PIX).toBe(180) // 100+80
-    expect(result.DEBIT).toBe(200)
-    expect(result.MEAL_VOUCHER).toBe(50)
-    expect(result.CREDIT).toBe(150)
+    const total = Object.values(result).reduce((a, b) => a + b, 0)
+    expect(total).toBe(580) // 100+200+50+150+80
+    expect(result.Debit).toBe(380)
+    expect(result['Meal Voucher']).toBe(50)
+    expect(result.Credit).toBe(150)
   })
 })
 
-describe('cashExpenses', () => {
-  test('excludes MEAL_VOUCHER and CREDIT', () => {
-    expect(cashExpenses(sampleTransactions, '2026-07')).toBe(380) // 100 PIX + 200 DEBIT + 80 PIX
+describe('bankExpenses', () => {
+  test('excludes meal voucher and credit card payments', () => {
+    expect(bankExpenses(sampleTransactions, '2026-07')).toBe(380) // 100+200+80, all Debit
   })
 })
 
 describe('mealVoucherIncome', () => {
-  test('income with MEAL_VOUCHER payment', () => {
+  test('income paid via meal voucher', () => {
     expect(mealVoucherIncome(sampleTransactions, '2026-07')).toBe(800)
   })
 })
 
 describe('mealVoucherExpenses', () => {
-  test('expenses with MEAL_VOUCHER payment', () => {
+  test('expenses paid via meal voucher', () => {
     const withMv = [
       ...sampleTransactions,
       tx({
         id: '9',
         amount: 30,
         category: 'Food',
-        paymentMethod: 'MEAL_VOUCHER',
+        paymentMethod: 'Meal Voucher',
       }),
     ]
     expect(mealVoucherExpenses(withMv, '2026-07')).toBe(80) // 50 (tx3) + 30 (tx9)
@@ -195,7 +196,7 @@ describe('mealVoucherBalance', () => {
         id: '9',
         amount: 30,
         category: 'Food',
-        paymentMethod: 'MEAL_VOUCHER',
+        paymentMethod: 'Meal Voucher',
       }),
     ]
     expect(mealVoucherBalance(withMv, '2026-07')).toBe(720) // 800 income - 80 expenses
@@ -203,7 +204,7 @@ describe('mealVoucherBalance', () => {
 })
 
 describe('creditInvoice', () => {
-  test('sums CREDIT expenses', () => {
+  test('sums credit card expenses', () => {
     expect(creditInvoice(sampleTransactions, '2026-07')).toBe(150)
   })
 })
@@ -303,7 +304,7 @@ describe('futureCommitments', () => {
         id: 'i1',
         amount: 300,
         date: '2026-09-15',
-        paymentMethod: 'CREDIT',
+        paymentMethod: 'Credit',
         installments: 3,
       })
       const result = futureCommitments([...sampleTransactions, installmentTx], 6)

@@ -5,12 +5,12 @@ import type { Budget, Transaction } from './entities'
 
 const baseTx: Transaction = {
   id: '1',
-  type: 'EXPENSE',
+  type: 'Expense',
   date: '2026-08-01',
   description: 'x',
   amount: 10,
   category: 'Food',
-  paymentMethod: 'DEBIT',
+  paymentMethod: 'Debit',
 }
 
 const budget = (categoryLimits: Record<string, number>): Budget => ({
