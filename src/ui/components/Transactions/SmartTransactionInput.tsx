@@ -2,10 +2,9 @@ import { PlusIcon } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { localYMD } from '@/domain/calculations'
-import { INCOME_PAYMENT_METHODS, PAYMENT_METHODS } from '@/domain/constants'
-import { parseCurrency } from '@/lib/currency'
-import { parseNaturalDate } from '@/lib/parseDate'
+import { formatPlainCurrency } from '@/lib/currency'
+import type { SmartParseResult } from '@/lib/parseSmartInput'
+import { acceptSuggestion, getSuggestions, parseSmartInput } from '@/lib/parseSmartInput'
 
 type ParsedRow = {
   description: string
@@ -16,19 +15,6 @@ type ParsedRow = {
   error: string | null
 }
 
-function splitAmountTokens(parts: string[]): { amount: string; rest: string[] } {
-  const isPureInt = (s: string) => /^\d+$/.test(s)
-  const looksLikeThousands = (s: string) => /^\d{1,3}(\.\d{3})+$/.test(s)
-  if (
-    parts.length >= 3 &&
-    isPureInt(parts[2]) &&
-    (isPureInt(parts[1]) || looksLikeThousands(parts[1]))
-  ) {
-    return { amount: `${parts[1]},${parts[2]}`, rest: parts.slice(3) }
-  }
-  return { amount: parts[1] || '', rest: parts.slice(2) }
-}
-
 interface SmartInputProps {
   onAdd: (parsed: ParsedRow) => void
   onOpenModal: () => void
@@ -36,42 +22,15 @@ interface SmartInputProps {
   categories: string[]
 }
 
-function getAllPaymentMethods() {
-  return [...PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS]
-}
-
-const SUGGESTION_SOURCES: Record<number, () => string[]> = {
-  0: getAllPaymentMethods,
-  2: () => [],
-  3: () => [],
-  4: () => ['today', 'yesterday', 'tomorrow'],
-}
-
-function filterPrefix(items: string[], prefix: string, limit = 10): string[] {
-  if (!prefix) return items.slice(0, limit)
-  const lower = prefix.toLowerCase()
-  return items.filter((i) => i.toLowerCase().includes(lower)).slice(0, limit)
-}
-
-function getSuggestionsForToken(
-  tokenIndex: number,
-  prefix: string,
-  allDescs: string[],
-  categories: string[],
-): string[] {
-  if (tokenIndex === 1) return []
-  if (tokenIndex === 2) return filterPrefix(allDescs, prefix)
-  if (tokenIndex === 3) return filterPrefix(categories, prefix)
-  const src = SUGGESTION_SOURCES[tokenIndex]
-  return src ? filterPrefix(src(), prefix) : []
-}
-
-function applySuggestionText(raw: string, suggestion: string): string {
-  const parts = raw.split(',').map((t) => t.trim())
-  const idx = Math.min(parts.length - 1, 4)
-  parts[idx] = suggestion
-  const built = parts.join(', ')
-  return idx < 4 ? `${built}, ` : built
+function toDisplayResult(r: SmartParseResult): ParsedRow {
+  return {
+    description: r.description,
+    amount: r.amount !== null ? String(r.amount) : '',
+    category: r.category,
+    paymentMethod: r.paymentMethod,
+    date: r.date ?? '',
+    error: r.error,
+  }
 }
 
 export default function SmartTransactionInput({
@@ -88,13 +47,12 @@ export default function SmartTransactionInput({
   const [focused, setFocused] = useState(false)
   const suggestionRef = useRef<HTMLDivElement>(null)
 
+  const parsed = parseSmartInput(raw, categories)
+
   useEffect(() => {
-    const parts = raw.split(',').map((t) => t.trim())
-    const idx = Math.min(parts.length - 1, 4)
-    const last = parts.length > 0 ? parts[parts.length - 1] || '' : ''
-    const matches = getSuggestionsForToken(idx, last, knownDescriptions, categories)
+    const matches = getSuggestions(raw, knownDescriptions, categories)
     setSuggestions(matches)
-    setShowSuggestions(matches.length > 0 && idx <= 4 && last.length > 0)
+    setShowSuggestions(matches.length > 0)
     setActiveSuggestion(matches.length > 0 ? 0 : -1)
   }, [raw, knownDescriptions, categories])
 
@@ -104,55 +62,21 @@ export default function SmartTransactionInput({
     item?.scrollIntoView({ block: 'nearest' })
   }, [activeSuggestion])
 
-  function parseInput(text: string): ParsedRow {
-    const parts = text.split(',').map((t) => t.trim())
-    const paymentMethod = parts[0] || null
-    const { amount, rest } = splitAmountTokens(parts)
-    const description = rest[0] || ''
-    const category = rest[1] || null
-    const dateText = rest[2] || null
-
-    let date = localYMD()
-    let error: string | null = null
-
-    const allPaymentMethods = [...PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS]
-    const pmCode = paymentMethod
-      ? (allPaymentMethods.find((pm) => pm.toLowerCase() === paymentMethod.toLowerCase()) ?? null)
-      : null
-
-    const amountValue = parseCurrency(amount)
-
-    if (paymentMethod && !pmCode) error = `Unknown payment method: "${paymentMethod}"`
-    else if (!amount || Number.isNaN(amountValue) || amountValue <= 0)
-      error = 'Amount must be a positive number'
-    else if (!description) error = 'Description is required'
-    else {
-      if (dateText) {
-        const parsed = parseNaturalDate(dateText)
-        if (parsed) date = parsed
-        else error = `Could not parse date: "${dateText}"`
-      }
-    }
-
-    return { description, amount, category, paymentMethod: pmCode, date, error }
-  }
-
   function attemptSubmit() {
     if (!raw.trim()) return
-    const parsed = parseInput(raw)
     if (parsed.error) {
       setSubmitError(parsed.error)
       return
     }
-    onAdd(parsed)
+    onAdd(toDisplayResult(parsed))
     setRaw('')
     setShowSuggestions(false)
     setSubmitError(null)
   }
 
-  function applySuggestion() {
+  function acceptActive() {
     if (activeSuggestion >= 0 && suggestions[activeSuggestion]) {
-      setRaw(applySuggestionText(raw, suggestions[activeSuggestion]))
+      setRaw(acceptSuggestion(raw, suggestions[activeSuggestion]))
       setShowSuggestions(false)
     }
   }
@@ -161,9 +85,14 @@ export default function SmartTransactionInput({
     if (e.key === 'Enter') {
       e.preventDefault()
       if (showSuggestions && activeSuggestion >= 0 && suggestions[activeSuggestion]) {
-        applySuggestion()
+        acceptActive()
       } else {
         attemptSubmit()
+      }
+    } else if (e.key === 'Tab') {
+      if (showSuggestions && activeSuggestion >= 0 && suggestions[activeSuggestion]) {
+        e.preventDefault()
+        acceptActive()
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -174,37 +103,30 @@ export default function SmartTransactionInput({
     } else if (e.key === 'Escape') {
       setShowSuggestions(false)
       setSubmitError(null)
-    } else if (e.key === 'Tab') {
-      if (showSuggestions && activeSuggestion >= 0 && suggestions[activeSuggestion]) {
-        e.preventDefault()
-        applySuggestion()
-      }
     }
   }
-
-  const parsed = parseInput(raw)
 
   return (
     <div className="relative">
       {focused && (
         <div className="mb-0.5 text-[10px] text-muted-foreground bg-muted/50 px-2 py-1 flex flex-wrap gap-x-4 gap-y-0.5">
           <span>
-            Pay: <span className="font-medium">{parsed.paymentMethod ?? '—'}</span>
-          </span>
-          <span>
-            Amt:{' '}
+            Amount:{' '}
             <span className="font-medium font-mono">
-              {parsed.amount ? parseCurrency(parsed.amount).toFixed(2) : '—'}
+              {parsed.amount !== null ? formatPlainCurrency(parsed.amount) : '—'}
             </span>
           </span>
           <span>
-            Desc: <span className="font-medium">{parsed.description || '—'}</span>
+            Description: <span className="font-medium">{parsed.description || '—'}</span>
           </span>
           <span>
-            Cat: <span className="font-medium">{parsed.category || '—'}</span>
+            Category: <span className="font-medium">{parsed.category || '—'}</span>
           </span>
           <span>
-            Date: <span className="font-medium">{parsed.date}</span>
+            Payment: <span className="font-medium">{parsed.paymentMethod ?? '—'}</span>
+          </span>
+          <span>
+            Date: <span className="font-medium">{parsed.date || '—'}</span>
           </span>
         </div>
       )}
@@ -226,7 +148,7 @@ export default function SmartTransactionInput({
               setFocused(true)
               if (suggestions.length > 0) setShowSuggestions(true)
             }}
-            placeholder="debit, 25,90, Lunch, Food, today"
+            placeholder="Description 25,90 #Food @Debit hoje"
             className="h-7 text-xs font-mono"
             aria-label="Quick add transaction"
           />
@@ -244,7 +166,7 @@ export default function SmartTransactionInput({
                   }`}
                   onMouseDown={(e) => {
                     e.preventDefault()
-                    setRaw(applySuggestionText(raw, s))
+                    setRaw(acceptSuggestion(raw, s))
                     setShowSuggestions(false)
                   }}
                   onFocus={() => setActiveSuggestion(i)}
