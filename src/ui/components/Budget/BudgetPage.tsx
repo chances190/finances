@@ -19,6 +19,7 @@ import {
 } from '@/domain/calculations'
 import { formatCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
+import EmptyState from '@/ui/components/Common/EmptyState'
 import { useFinance } from '@/ui/context'
 import BudgetFormDialog from './BudgetFormDialog'
 
@@ -85,8 +86,11 @@ export default function BudgetPage() {
           <TableBody>
             {ranges.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                  No budgets yet. Create one to start planning.
+                <TableCell colSpan={5}>
+                  <EmptyState
+                    variant="cell"
+                    message="No budgets yet. Create one to start planning."
+                  />
                 </TableCell>
               </TableRow>
             )}

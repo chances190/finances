@@ -16,6 +16,7 @@ import {
 import { daysSince } from '@/domain/calculations'
 import type { Transaction } from '@/domain/entities'
 import { addCurrency, formatCurrency } from '@/lib/currency'
+import EmptyState from '@/ui/components/Common/EmptyState'
 import { useFinance } from '@/ui/context'
 
 const BADGE_GREEN = 'text-green-600 bg-green-50 '
@@ -218,8 +219,11 @@ export default function DebtPage() {
             <TableBody>
               {debts.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    No {showSettled ? 'debts' : 'active debts'}.
+                  <TableCell colSpan={7}>
+                    <EmptyState
+                      variant="cell"
+                      message={`No ${showSettled ? 'debts' : 'active debts'}.`}
+                    />
                   </TableCell>
                 </TableRow>
               )}
@@ -227,6 +231,8 @@ export default function DebtPage() {
                 const days = daysSince(tx.date)
                 const allSettled = tx.debts?.every((d) => d.settled) ?? true
                 const debtNames = [...new Set(tx.debts?.map((d) => d.name) ?? [])]
+                const splitCount = tx.debts?.length ?? 0
+                const singleSplit = tx.debts?.[0]
                 return (
                   <TableRow
                     key={tx.id}
@@ -254,7 +260,7 @@ export default function DebtPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{tx.date}</TableCell>
                     <TableCell>
-                      {(tx.debts?.length ?? 0) > 1 ? (
+                      {splitCount > 1 ? (
                         <div className="text-xs space-y-0.5">
                           {tx.debts?.map((d) => (
                             <div key={d.name} className="flex items-center justify-between gap-2">
@@ -278,10 +284,20 @@ export default function DebtPage() {
                             </div>
                           ))}
                         </div>
-                      ) : tx.debts?.length === 1 ? (
-                        <span className="text-xs text-muted-foreground">
-                          {tx.debts[0].settled ? 'Settled' : '100%'}
-                        </span>
+                      ) : singleSplit ? (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="text-xs text-muted-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleToggleSettle(tx.id, singleSplit.name)
+                          }}
+                          title={singleSplit.settled ? 'Unsettle' : 'Settle'}
+                          aria-label={singleSplit.settled ? 'Unsettle' : 'Settle'}
+                        >
+                          {singleSplit.settled ? 'Settled' : '100%'}
+                        </Button>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}

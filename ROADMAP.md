@@ -9,15 +9,50 @@
 ## Active Card
 > *There can only be ONE Active Card at a time. Finish or push to Next before opening another.*
 
-- **UI/UX Consistency Pass + income/debt UX unification (2026-08-07, PARTIALLY IMPLEMENTED):** remaining tasks from docs/ui-ux-audit-2026-08-06.md plus: fold "Unify income vs debt UX" into this card (hide debt/installment controls for INCOME consistently across SmartTransactionInput, TransactionForm, DebtConfigModal); refactor import/export UI so ExportImport + CSVImportDialog surface the new v2 model cleanly (backup vs exchange distinction, clear version-mismatch guidance); one segmented/toggle vocabulary, one confirmation pattern, money-entry via `parseCurrency`, no `rounded-none` on interactive elements, no opacity-dimmed rows without state indicator, standardized h2/section headers, shared StatCard, unified empty states, toast pass.
+- **UI/UX Consistency Pass + income/debt UX unification (opened 2026-08-07; audited 2026-09-26 — 5 tasks left):** the card is mostly implemented. This entry was rewritten on 2026-09-26 after a line-by-line audit of `docs/ui-ux-audit-2026-08-06.md` (findings A1–A8, B1–B12) plus the 2026-09-12 additions, against the code as of `91c7b4c`. What follows is the verified remainder, not a restatement of the original brief.
 
-  **New items (2026-09-12):**
-  - **(a) Debt split "your share" visibility** — DebtConfigModal shows a read-only "Your share: R$X" row derived from `amount - Σdebts` so the user sees their remainder; no model change.
-  - **(b) Debt button styling** in Add Transaction modal — align with rest of form.
-  - **(c) Payment method case mismatch** — Select shows uppercase before click, lowercase in dropdown options; normalize to consistent casing.
-  - **(d) Transactions table: future installments** — show as inline rows (one per monthlyFlow), dim future flows; add installment index badge (e.g. "2/6").
-  - **(e) Rename "Details" → "Debts"** column in TransactionTable.
-  - **(f) Debt splits validation** — prevent debt total from exceeding transaction amount (DebtConfigModal + TransactionForm save guard).
+  **Intent:** close the last five audit/card items, then stop. The consistency work this card was chartered for is already in the tree.
+
+  **Verified complete — do not reopen:**
+  - **A1** single toggle vocabulary: `SegmentedControl` in `TransactionForm`, `DebtPage`, `BudgetFormDialog`.
+  - **A2** single confirmation pattern: `ConfirmDialog` in `TransactionForm` and `BudgetFormDialog`.
+  - **A3** money entry via `parseCurrency`; amount fields are `type="text" inputMode="decimal"`. (The one surviving `type="number"` is the installment *count*, not money.)
+  - **A4** custom categories: `getAllCategories` in both `BudgetFormDialog` and `TransactionForm`.
+  - **A5** title drift: tab "Trends" = h2 "Trends", tab "Actions" = h2 "Actions".
+  - **A8** money axis labels: `formatAxisCurrency` in `DashboardPage` and `TrendsPage`.
+  - **B1** blurred suggestion sets: removed with the old comma-delimited token design.
+  - **B2** `currentYM(today)` + one spending filter (`DashboardPage:115,131`).
+  - **B3** shared `StatCard`; **B5** uniform `text-sm font-semibold` section headers; **B12** uniform `text-lg font-semibold` h2 across all six pages.
+  - **B9** toast pass: `aria-live`, `role="status"`, dismiss button, no `font-mono`.
+  - **B10** `c` shadowing gone; **B11** type column reads via amount colour + "Paid" badge, not bare `+`/`−` glyphs.
+  - **(a)** "Your share:" row (`DebtConfigModal:186`); **(b)** debt button aligned (`TransactionForm:296-308`); **(c)** payment-method casing canonical (`TransactionForm:245-265`); **(f)** debt-total guards in both `TransactionForm:107` and `DebtConfigModal:74`.
+  - **Income/debt unification:** `TransactionForm` gates debt + installment controls behind `form.type === 'Expense'`; `DebtConfigModal` is reachable only from that gate; `SmartTransactionInput` has no debt/installment surface, so there is nothing to hide.
+
+  **Moot:** **(e) rename "Details" → "Debts"** — the column no longer exists. Heads are now Payment / Amount / Description / Category / Date; debt state moved into the Description cell ("Paid" badge) and the Debts page. Nothing to rename.
+
+  **Remaining (6):**
+  1. **`rounded-none` on interactive elements (A6/A7)** — `CSVImportDialog.tsx:180` dropzone, `:212` error box, `:235` preview list. `TransactionTable`'s rounded-none filter triggers are already gone.
+  2. **Installment index badge (d)** — `TransactionTable.tsx:510-514` dims future flows (`opacity-45`) with no state indicator, which itself breaks this card's "no opacity-dimmed rows without state indicator" rule. Add the `n/total` badge (e.g. "2/6") to the future row.
+  3. **Settled-row affordance (B6)** — `DebtPage.tsx:166,233` dim settled rows `opacity-50` while leaving them clickable. Add a state indicator so dimming no longer reads as disabled.
+  4. **Single-split settle toggle (B7)** — `DebtPage.tsx:279-282` still renders plain text flipping `100%` ↔ `Settled` with no button affordance. (The multi-split case is already a real `<Button>` with `aria-label`; make the single-split case match.)
+  5. **Unified empty states (B8)** — `EmptyState` is used only by `DashboardPage:152` and `TrendsPage:119`. `TransactionTable.tsx:500-506` (in-table row), `BudgetPage` (in-table row) and `DebtPage:198-200` (bordered div) are still bespoke.
+
+  **Closed without an ADR (2026-09-26):** version-mismatch guidance for backup imports is **dropped as a non-goal.** The export/import UI already separates backup from exchange (`ExportImport.tsx:14,22`; `CSVImportDialog.tsx:74,170-171`), and the app is not deployed, so there is no legacy document in the wild to mismatch. `data/backup/json.ts:14` returning per-row skip reasons and `data/repository.ts:9-15` swallowing a load failure to `null` only affect a developer's own stale `localStorage`. Per `AGENTS.md` (no backward-compatibility shims, YAGNI), the fix is to delete the stale store, not to add a version marker to detect it. Revisit only if the app ships and real user data exists.
+
+  **Trade-offs / risks:**
+  - Empty-state unification touches four components at once. `EmptyState` needs a `variant` (or a slot) for the in-table case, or the table rows get visually wrong — resist collapsing all four into one shape.
+
+  **Acceptance Criteria (DoD):**
+  - `grep -rn "rounded-none" src/ui` returns no hits in any interactive/dropzone/error surface (shadcn vendored primitives under `src/components/ui/` are exempt).
+  - A future installment row shows a `n/total` badge; no row anywhere is dimmed without a visible state indicator.
+  - Every settle control (single-split and multi-split) is a real button with an `aria-label`.
+  - Every empty surface renders through `Common/EmptyState`.
+  - `bun run typecheck`, `bunx biome check src/`, `bun test`, `bun run build` all green.
+
+  **Out of Scope:**
+  - **B4** (chart boilerplate duplicated across `DashboardPage`/`TrendsPage`) — a maintenance smell, never a card requirement. De-scoped.
+  - Reworking the shadcn vendored primitives in `src/components/ui/` to drop their own `rounded-none`.
+  - The smart-input parser / `docs/text-input-specification.md` work (commit `91c7b4c`) — that was untracked feature work, not part of this card. It should be filed as its own card or left out of the roadmap.
 
 ## Next Cards
 > *Direction-only one-liners for future work in this milestone.*

@@ -177,7 +177,7 @@ export default function CSVImportDialog({
             type="button"
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
-            className="border-2 border-dashed border-border rounded-none p-8 text-center space-y-3 cursor-pointer hover:bg-muted/50 transition-colors w-full"
+            className="border-2 border-dashed border-border p-8 text-center space-y-3 cursor-pointer hover:bg-muted/50 transition-colors w-full"
             onClick={() => fileRef.current?.click()}
           >
             <div className="flex justify-center gap-2 text-muted-foreground">
@@ -209,7 +209,7 @@ export default function CSVImportDialog({
         )}
 
         {error && (
-          <div className="bg-destructive/10 text-destructive text-xs p-3 rounded-none">
+          <div className="bg-destructive/10 text-destructive text-xs p-3">
             {error}
             <Button
               variant="ghost"
@@ -232,7 +232,7 @@ export default function CSVImportDialog({
               {preview.skipped.entries.length > 0 && ` — ${preview.skipped.entries.length} skipped`}
             </p>
             {preview.skipped.entries.length > 0 && (
-              <div className="bg-muted/50 text-xs p-2 rounded-none space-y-0.5 max-h-24 overflow-y-auto">
+              <div className="bg-muted/50 text-xs p-2 space-y-0.5 max-h-24 overflow-y-auto">
                 {preview.skipped.entries.map((s, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: static display list
                   <div key={i} className="text-muted-foreground">

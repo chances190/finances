@@ -38,6 +38,7 @@ import {
 import type { PaymentMethod, Transaction } from '@/domain/entities'
 import { monthlyFlows } from '@/domain/entities'
 import { formatCurrency, parseCurrency } from '@/lib/currency'
+import EmptyState from '@/ui/components/Common/EmptyState'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
 import SmartTransactionInput from './SmartTransactionInput'
@@ -499,8 +500,11 @@ export default function TransactionTable() {
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                  No transactions yet. Add one using the row above or import a CSV file.
+                <TableCell colSpan={8}>
+                  <EmptyState
+                    variant="cell"
+                    message="No transactions yet. Add one using the row above or import a CSV file."
+                  />
                 </TableCell>
               </TableRow>
             )}
