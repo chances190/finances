@@ -35,20 +35,118 @@ import {
   PAYMENT_METHOD_BADGE_COLORS,
   PAYMENT_METHODS,
 } from '@/domain/constants'
-import type { PaymentMethod, Transaction } from '@/domain/entities'
+import type { MonthlyFlow, PaymentMethod, Transaction } from '@/domain/entities'
 import { monthlyFlows } from '@/domain/entities'
 import { formatCurrency, parseCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
+import { useIsDesktop } from '@/ui/hooks/useIsDesktop'
 import SmartTransactionInput from './SmartTransactionInput'
 import TransactionForm from './TransactionForm'
+
+const SORT_KEYS: [string, string][] = [
+  ['paymentMethod', 'Payment'],
+  ['amount', 'Amount'],
+  ['description', 'Description'],
+  ['category', 'Category'],
+  ['date', 'Date'],
+]
 
 function PaymentBadge({ method }: { method: string }) {
   return (
     <Badge variant="outline" className={PAYMENT_METHOD_BADGE_COLORS[method] ?? ''}>
       {method}
     </Badge>
+  )
+}
+
+function TransactionCard({
+  tx,
+  flow,
+  onEdit,
+  onSettleDebt,
+  onDelete,
+}: {
+  tx: Transaction
+  flow: MonthlyFlow
+  onEdit: () => void
+  onSettleDebt: (name: string) => void
+  onDelete: () => void
+}) {
+  const debts = tx.debts ?? []
+  const isFuture = monthRelation(flow.referenceMonth) === 'future'
+
+  return (
+    <div className={`px-3 pt-0 pb-3 ${isFuture ? 'opacity-45' : ''}`}>
+      <button
+        type="button"
+        onClick={onEdit}
+        className="flex w-full items-start gap-2 py-3 text-left"
+      >
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">{tx.description}</span>
+        {debts.length > 0 && debts.every((d) => d.settled) && (
+          <Badge variant="outline" className="shrink-0 text-[10px] text-green-600 bg-green-50">
+            Paid
+          </Badge>
+        )}
+        <span
+          className={`shrink-0 font-mono text-sm font-semibold ${tx.type === 'Income' ? 'text-green-600' : 'text-red-600'}`}
+        >
+          {formatCurrency(flow.amount)}
+        </span>
+      </button>
+
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <PaymentBadge method={tx.paymentMethod} />
+        <span className="text-xs text-muted-foreground">
+          {flow.installmentIndex != null ? flow.referenceMonth : tx.date}
+        </span>
+        <span className="text-xs">{tx.category}</span>
+        {flow.installmentIndex != null && (
+          <Badge variant="outline" className="text-xs whitespace-nowrap">
+            {flow.installmentIndex + 1}/{flow.installmentTotal}
+          </Badge>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="ml-auto size-10"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          aria-label="Delete transaction"
+        >
+          <TrashIcon />
+        </Button>
+      </div>
+
+      {debts.length > 0 && (
+        <div className="mt-2 space-y-1 border-t border-border pt-2">
+          {debts.map((d) => (
+            <div key={d.name} className="flex items-center justify-between gap-2">
+              <span className={`text-xs text-muted-foreground ${d.settled ? 'line-through' : ''}`}>
+                {d.name}: {formatCurrency(d.amount)}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-10"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSettleDebt(d.name)
+                }}
+                title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
+                aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
+              >
+                <CheckCircleIcon />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -66,6 +164,7 @@ export default function TransactionTable() {
   const [showEditForm, setShowEditForm] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const { toast } = useToast()
+  const isDesktop = useIsDesktop()
 
   const filterSearch = searchParams.get('search') ?? ''
   const filterMonth = searchParams.get('month') ?? 'all'
@@ -443,158 +542,210 @@ export default function TransactionTable() {
         ) : null}
       </div>
 
-      <div className="border border-border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-24">
-                <button
-                  type="button"
-                  onClick={() => handleSort('paymentMethod')}
-                  className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
-                >
-                  Payment{sortIndicator('paymentMethod')}
-                </button>
-              </TableHead>
-              <TableHead className="text-right w-24">
-                <button
-                  type="button"
-                  onClick={() => handleSort('amount')}
-                  className="flex w-full cursor-pointer select-none items-center justify-end gap-0.5 text-right font-medium"
-                >
-                  Amount{sortIndicator('amount')}
-                </button>
-              </TableHead>
-              <TableHead className="flex-1">
-                <button
-                  type="button"
-                  onClick={() => handleSort('description')}
-                  className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
-                >
-                  Description{sortIndicator('description')}
-                </button>
-              </TableHead>
-              <TableHead className="w-20">
-                <button
-                  type="button"
-                  onClick={() => handleSort('category')}
-                  className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
-                >
-                  Category{sortIndicator('category')}
-                </button>
-              </TableHead>
-              <TableHead className="w-24">
-                <button
-                  type="button"
-                  onClick={() => handleSort('date')}
-                  className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
-                >
-                  Date{sortIndicator('date')}
-                </button>
-              </TableHead>
-              <TableHead className="w-16 text-center">Install</TableHead>
-              <TableHead className="w-32">Debts</TableHead>
-              <TableHead className="text-right w-20">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 && (
+      {isDesktop && (
+        <div className="border border-border">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={8}>
-                  <EmptyState
-                    variant="cell"
-                    message="No transactions yet. Add one using the row above or import a CSV file."
-                  />
-                </TableCell>
-              </TableRow>
-            )}
-
-            {rows.map(({ tx, flow }) => {
-              const allDebtsSettled = tx.debts?.every((d) => d.settled) ?? true
-              const isFuture = monthRelation(flow.referenceMonth) === 'future'
-              return (
-                <TableRow
-                  key={`${tx.id}-${flow.referenceMonth}-${flow.installmentIndex ?? 0}`}
-                  className={`cursor-pointer ${isFuture ? 'opacity-45' : ''}`}
-                  onClick={() => handleEdit(tx)}
-                >
-                  <TableCell>
-                    <PaymentBadge method={tx.paymentMethod} />
-                  </TableCell>
-                  <TableCell
-                    className={`text-right font-mono text-xs ${tx.type === 'Income' ? 'text-green-600' : 'text-red-600'}`}
+                <TableHead className="w-24">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('paymentMethod')}
+                    className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
                   >
-                    {formatCurrency(flow.amount)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5">
-                      <div className="max-w-48 truncate">{tx.description}</div>
-                      {tx.debts && tx.debts.length > 0 && allDebtsSettled && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] text-green-600 bg-green-50 "
-                        >
-                          Paid
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-xs">{tx.category}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {flow.installmentIndex != null ? flow.referenceMonth : tx.date}
-                  </TableCell>
-                  <TableCell className="text-center text-xs">
-                    {flow.installmentIndex != null ? (
-                      <Badge variant="outline" className="text-xs whitespace-nowrap">
-                        {flow.installmentIndex + 1}/{flow.installmentTotal}
-                      </Badge>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>
-                    {tx.debts && tx.debts.length > 0 ? (
-                      <div className="text-xs space-y-0.5">
-                        {tx.debts.map((d) => (
-                          <div key={d.name} className="flex items-center justify-between gap-2">
-                            <span
-                              className={`text-muted-foreground ${d.settled ? 'line-through' : ''}`}
-                            >
-                              {d.name}: {formatCurrency(d.amount)}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleSettleDebt(tx.id, d.name)
-                              }}
-                              title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
-                              aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
-                            >
-                              <CheckCircleIcon />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <span className="flex gap-1 justify-end">
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => handleDelete(tx.id)}
-                        aria-label="Delete transaction"
-                      >
-                        <TrashIcon />
-                      </Button>
-                    </span>
+                    Payment{sortIndicator('paymentMethod')}
+                  </button>
+                </TableHead>
+                <TableHead className="text-right w-24">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('amount')}
+                    className="flex w-full cursor-pointer select-none items-center justify-end gap-0.5 text-right font-medium"
+                  >
+                    Amount{sortIndicator('amount')}
+                  </button>
+                </TableHead>
+                <TableHead className="flex-1">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('description')}
+                    className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
+                  >
+                    Description{sortIndicator('description')}
+                  </button>
+                </TableHead>
+                <TableHead className="w-20">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('category')}
+                    className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
+                  >
+                    Category{sortIndicator('category')}
+                  </button>
+                </TableHead>
+                <TableHead className="w-24">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('date')}
+                    className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
+                  >
+                    Date{sortIndicator('date')}
+                  </button>
+                </TableHead>
+                <TableHead className="w-16 text-center">Install</TableHead>
+                <TableHead className="w-32">Debts</TableHead>
+                <TableHead className="text-right w-20">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8}>
+                    <EmptyState
+                      variant="cell"
+                      message="No transactions yet. Add one using the row above or import a CSV file."
+                    />
                   </TableCell>
                 </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </div>
+              )}
+
+              {rows.map(({ tx, flow }) => {
+                const allDebtsSettled = tx.debts?.every((d) => d.settled) ?? true
+                const isFuture = monthRelation(flow.referenceMonth) === 'future'
+                return (
+                  <TableRow
+                    key={`${tx.id}-${flow.referenceMonth}-${flow.installmentIndex ?? 0}`}
+                    className={`cursor-pointer ${isFuture ? 'opacity-45' : ''}`}
+                    onClick={() => handleEdit(tx)}
+                  >
+                    <TableCell>
+                      <PaymentBadge method={tx.paymentMethod} />
+                    </TableCell>
+                    <TableCell
+                      className={`text-right font-mono text-xs ${tx.type === 'Income' ? 'text-green-600' : 'text-red-600'}`}
+                    >
+                      {formatCurrency(flow.amount)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <div className="max-w-48 truncate">{tx.description}</div>
+                        {tx.debts && tx.debts.length > 0 && allDebtsSettled && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] text-green-600 bg-green-50 "
+                          >
+                            Paid
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs">{tx.category}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {flow.installmentIndex != null ? flow.referenceMonth : tx.date}
+                    </TableCell>
+                    <TableCell className="text-center text-xs">
+                      {flow.installmentIndex != null ? (
+                        <Badge variant="outline" className="text-xs whitespace-nowrap">
+                          {flow.installmentIndex + 1}/{flow.installmentTotal}
+                        </Badge>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>
+                      {tx.debts && tx.debts.length > 0 ? (
+                        <div className="text-xs space-y-0.5">
+                          {tx.debts.map((d) => (
+                            <div key={d.name} className="flex items-center justify-between gap-2">
+                              <span
+                                className={`text-muted-foreground ${d.settled ? 'line-through' : ''}`}
+                              >
+                                {d.name}: {formatCurrency(d.amount)}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleSettleDebt(tx.id, d.name)
+                                }}
+                                title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
+                                aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
+                              >
+                                <CheckCircleIcon />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <span className="flex gap-1 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => handleDelete(tx.id)}
+                          aria-label="Delete transaction"
+                        >
+                          <TrashIcon />
+                        </Button>
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {!isDesktop && (
+        <div className="border border-border">
+          <div className="flex items-center gap-2 border-b border-border p-2">
+            <span className="text-xs text-muted-foreground">Sort</span>
+            <Select
+              value={sortKey ?? 'none'}
+              onValueChange={(v) => {
+                if (v === null || v === 'none') setSortKey(null)
+                else handleSort(v)
+              }}
+            >
+              <SelectTrigger className="h-8 flex-1 text-xs">
+                <SelectValue>
+                  {sortKey
+                    ? `${SORT_KEYS.find(([k]) => k === sortKey)?.[1] ?? sortKey} ${sortDir === 'asc' ? '↑' : '↓'}`
+                    : 'Default order'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Default order</SelectItem>
+                {SORT_KEYS.map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {rows.length === 0 ? (
+            <EmptyState message="No transactions yet. Add one using the row above or import a CSV file." />
+          ) : (
+            rows.map(({ tx, flow }) => (
+              <div
+                key={`${tx.id}-${flow.referenceMonth}-${flow.installmentIndex ?? 0}`}
+                className="border-b border-border last:border-b-0"
+              >
+                <TransactionCard
+                  tx={tx}
+                  flow={flow}
+                  onEdit={() => handleEdit(tx)}
+                  onSettleDebt={(name) => handleSettleDebt(tx.id, name)}
+                  onDelete={() => handleDelete(tx.id)}
+                />
+              </div>
+            ))
+          )}
+        </div>
+      )}
 
       <TransactionForm
         open={showEditForm}
