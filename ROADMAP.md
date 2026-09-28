@@ -1,101 +1,61 @@
 # Repository Roadmap
 
-## Macro Plan
-- **Current Milestone:** Bug-fix hardening (v0.1.x)
-- **Goal:** The finances app is a feature-complete single-user personal finance tracker (transactions, budgets, debts, dashboard, trends, CSV import/export, dark mode). Direction: UI/UX Consistency Pass next, then mobile usability + skeleton loading, then advance-pay.
+*Goal: a feature-complete single-user personal finance tracker — transactions, budgets, debts, dashboard, trends, CSV import/export, dark mode. Direction: mobile usability now, then skeleton loading, then advance-pay.*
 
 ---
 
 ## Active Card
 > *There can only be ONE Active Card at a time. Finish or push to Next before opening another.*
 
-- **UI/UX Consistency Pass + income/debt UX unification (opened 2026-08-07; audited 2026-09-26 — 5 tasks left):** the card is mostly implemented. This entry was rewritten on 2026-09-26 after a line-by-line audit of `docs/ui-ux-audit-2026-08-06.md` (findings A1–A8, B1–B12) plus the 2026-09-12 additions, against the code as of `91c7b4c`. What follows is the verified remainder, not a restatement of the original brief.
+- **Mobile usability — 360px gate (opened 2026-09-28):** make every flow usable on a 5.5" 21:9 phone and stop there. This is a **hard gate, not a vibe**: the Lead Architect is the sole acceptance authority and this card iterates until they sign off. Do not self-certify it closed.
 
-  **Intent:** close the last five audit/card items, then stop. The consistency work this card was chartered for is already in the tree.
+  **Reference device:** 5.5" diagonal, 21:9 portrait → **360 CSS px wide, 840 CSS px tall** full screen. Browser chrome (~100px) means the layout gate is **360×740**. Everything keys off the **360px width**; if a real device reports otherwise, change this one number, not the card.
 
-  **Verified complete — do not reopen:**
-  - **A1** single toggle vocabulary: `SegmentedControl` in `TransactionForm`, `DebtPage`, `BudgetFormDialog`.
-  - **A2** single confirmation pattern: `ConfirmDialog` in `TransactionForm` and `BudgetFormDialog`.
-  - **A3** money entry via `parseCurrency`; amount fields are `type="text" inputMode="decimal"`. (The one surviving `type="number"` is the installment *count*, not money.)
-  - **A4** custom categories: `getAllCategories` in both `BudgetFormDialog` and `TransactionForm`.
-  - **A5** title drift: tab "Trends" = h2 "Trends", tab "Actions" = h2 "Actions".
-  - **A8** money axis labels: `formatAxisCurrency` in `DashboardPage` and `TrendsPage`.
-  - **B1** blurred suggestion sets: removed with the old comma-delimited token design.
-  - **B2** `currentYM(today)` + one spending filter (`DashboardPage:115,131`).
-  - **B3** shared `StatCard`; **B5** uniform `text-sm font-semibold` section headers; **B12** uniform `text-lg font-semibold` h2 across all six pages.
-  - **B9** toast pass: `aria-live`, `role="status"`, dismiss button, no `font-mono`.
-  - **B10** `c` shadowing gone; **B11** type column reads via amount colour + "Paid" badge, not bare `+`/`−` glyphs.
-  - **(a)** "Your share:" row (`DebtConfigModal:186`); **(b)** debt button aligned (`TransactionForm:296-308`); **(c)** payment-method casing canonical (`TransactionForm:245-265`); **(f)** debt-total guards in both `TransactionForm:107` and `DebtConfigModal:74`.
-  - **Income/debt unification:** `TransactionForm` gates debt + installment controls behind `form.type === 'Expense'`; `DebtConfigModal` is reachable only from that gate; `SmartTransactionInput` has no debt/installment surface, so there is nothing to hide.
-
-  **Moot:** **(e) rename "Details" → "Debts"** — the column no longer exists. Heads are now Payment / Amount / Description / Category / Date; debt state moved into the Description cell ("Paid" badge) and the Debts page. Nothing to rename.
-
-  **Remaining (6):**
-  1. **`rounded-none` on interactive elements (A6/A7)** — `CSVImportDialog.tsx:180` dropzone, `:212` error box, `:235` preview list. `TransactionTable`'s rounded-none filter triggers are already gone.
-  2. **Installment index badge (d)** — `TransactionTable.tsx:510-514` dims future flows (`opacity-45`) with no state indicator, which itself breaks this card's "no opacity-dimmed rows without state indicator" rule. Add the `n/total` badge (e.g. "2/6") to the future row.
-  3. **Settled-row affordance (B6)** — `DebtPage.tsx:166,233` dim settled rows `opacity-50` while leaving them clickable. Add a state indicator so dimming no longer reads as disabled.
-  4. **Single-split settle toggle (B7)** — `DebtPage.tsx:279-282` still renders plain text flipping `100%` ↔ `Settled` with no button affordance. (The multi-split case is already a real `<Button>` with `aria-label`; make the single-split case match.)
-  5. **Unified empty states (B8)** — `EmptyState` is used only by `DashboardPage:152` and `TrendsPage:119`. `TransactionTable.tsx:500-506` (in-table row), `BudgetPage` (in-table row) and `DebtPage:198-200` (bordered div) are still bespoke.
-
-  **Closed without an ADR (2026-09-26):** version-mismatch guidance for backup imports is **dropped as a non-goal.** The export/import UI already separates backup from exchange (`ExportImport.tsx:14,22`; `CSVImportDialog.tsx:74,170-171`), and the app is not deployed, so there is no legacy document in the wild to mismatch. `data/backup/json.ts:14` returning per-row skip reasons and `data/repository.ts:9-15` swallowing a load failure to `null` only affect a developer's own stale `localStorage`. Per `AGENTS.md` (no backward-compatibility shims, YAGNI), the fix is to delete the stale store, not to add a version marker to detect it. Revisit only if the app ships and real user data exists.
+  **Current state (measured, not assumed):** the app is essentially desktop-fixed. Responsive classes total **8** across all of `src/ui` — `DashboardPage` 4, `TrendsPage` 2, and 1 each in `TransactionForm`, `DebtConfigModal`, `BudgetFormDialog`, `CSVImportDialog`, `ConfirmDialog`. `Common/Tabs.tsx` and `Transactions/TransactionTable.tsx` have **zero**. The 6-tab strip in `App.tsx:15-22` is a plain `flex` row of `px-4 py-2` buttons (~540px wide) with no overflow handling, so it already overflows 360px. This is greenfield work, not a retrofit.
 
   **Trade-offs / risks:**
-  - Empty-state unification touches four components at once. `EmptyState` needs a `variant` (or a slot) for the in-table case, or the table rows get visually wrong — resist collapsing all four into one shape.
+  - **Bottom nav vs. horizontally-scrolling tab strip — OPEN DECISION, yours.** Six tabs do not fit 360px. A bottom nav is 6 items across 360px (~60px each, needs short labels + safe-area inset) and changes the app's most persistent UI. A scrollable strip is ~10 lines and preserves the current shape. My recommendation is the **scrollable strip for this card** — bottom nav is a persistent chrome commitment, and shipping it before the app has shipped once is premature. If you want bottom nav, say so and it becomes task 1.
+  - **Table reflow is the bulk of the work and the main regression risk.** `TransactionTable`, `BudgetPage` and `DebtPage` are 6–8 column tables. Converting them to stacked cards can silently drop a datum or reorder columns relative to desktop. Whatever reflow is chosen, **both viewports must render the identical datum set** — that is the actual invariant, not "it looks fine on my phone".
+  - Dialogs are the second risk: `TransactionForm` is the widest form in the app and the most likely to need a sheet instead of a modal at 360px.
 
   **Acceptance Criteria (DoD):**
-  - `grep -rn "rounded-none" src/ui` returns no hits in any interactive/dropzone/error surface (shadcn vendored primitives under `src/components/ui/` are exempt).
-  - A future installment row shows a `n/total` badge; no row anywhere is dimmed without a visible state indicator.
-  - Every settle control (single-split and multi-split) is a real button with an `aria-label`.
-  - Every empty surface renders through `Common/EmptyState`.
+  - No page produces a horizontal scrollbar at 360px (`document.documentElement.scrollWidth <= window.innerWidth`), on any of the 6 routes.
+  - All 6 tabs are reachable at 360px with no clipped or truncated label.
+  - `TransactionTable` renders **every** currently-visible datum at 360px: date, description, amount, category, payment method, debt state, and the edit/settle actions.
+  - `BudgetPage` and `DebtPage` tables render their full datum set at 360px under the same rule.
+  - Add + edit a transaction end-to-end at 360px using `TransactionForm`: every field reachable, primary action reachable, no pinch-zoom required, and the `DebtConfigModal` sub-flow intact.
+  - `CSVImportDialog`, `ConfirmDialog` and `ExportImport` are operable at 360px (dropzone, preview, buttons all reachable).
+  - Dashboard and Trends charts are legible at 360px with no clipped axis labels or legend overlap.
+  - Primary tap targets are ≥ 40×40 CSS px.
   - `bun run typecheck`, `bunx biome check src/`, `bun test`, `bun run build` all green.
+  - **Lead Architect signs off in the browser at 360×740.** Until then the card stays open.
 
   **Out of Scope:**
-  - **B4** (chart boilerplate duplicated across `DashboardPage`/`TrendsPage`) — a maintenance smell, never a card requirement. De-scoped.
-  - Reworking the shadcn vendored primitives in `src/components/ui/` to drop their own `rounded-none`.
-  - The smart-input parser / `docs/text-input-specification.md` work (commit `91c7b4c`) — that was untracked feature work, not part of this card. It should be filed as its own card or left out of the roadmap.
+  - PWA / native shell / installability — no dedicated mobile UI unless PWA or native needs emerge.
+  - Skeleton loading states — separate card in `## Next Cards`.
+  - Advance-pay — separate card.
+  - Desktop visual redesign. Responsive work may change desktop markup only where unavoidable; it must not restyle desktop.
+  - New touch gestures (swipe-to-delete, pull-to-refresh). Make existing flows work; do not add interaction surface.
+
+---
 
 ## Next Cards
 > *Direction-only one-liners for future work in this milestone.*
 
-- **Mobile usability:** App must be 100% usable on mobile (intent: responsive-first via CSS — Tailwind v4 + shadcn are mobile-first, adapt Tabs → bottom nav, reflow the transactions table, bottom-sheet dialogs; no dedicated mobile UI unless PWA/native needs emerge).
-- **Skeleton loading states for Dashboard:** Add lightweight loading placeholders for Dashboard (carried over from the old UI/UX plan, Commit 9 — not yet implemented).
-- **Advance-pay for credit installments:** Let users pay the next N installments now and shift the remainder (deferred from the old Refactor Plan; requires a `paidInstallments` marker in the model).
-
----
-
-## Bug Fix Backlog
-> *Code-review sweep 2026-08-06. Severity: HIGH = user-visible data/logic bug, MED = error-prone or inconsistent, LOW = hygiene. The six HIGH items are closed (2026-08-06, commits 252382e → ef32afd + dead-code cleanup 380c687); the MED items are candidates for the next Active Card.*
-
-### HIGH — User-visible bugs (all closed)
-- ~~**Add-transaction modal is a silent no-op:**~~ `TransactionForm.handleSave` early-returns when `editTransaction` is absent, but the Add dialog renders a fillable form; clicking Save does nothing. (TransactionForm.tsx:109, wired at TransactionTable.tsx:479)
-- ~~**JSON import drops budgets:**~~ CSVImportDialog imports only `transactions` from `.json` files; the full-document backup restores without budgets, contradicting ADR-0005's lossless claim. (CSVImportDialog.tsx:60,83)
-- ~~**UTC month/day slicing shifts data for UTC-offset users:**~~ `new Date().toISOString().slice(0,7/10)` in DashboardPage:76, BudgetPage:37, SmartTransactionInput:98 — off-by-one month/day for Brazil (UTC-3) at month start; domain uses local `currentYM()`. Contradicts ADR-0004; centralize a local `YYYY-MM`/`YYYY-MM-DD` helper.
-- ~~**Validation bypass for income payment methods:**~~ `|| INCOME_PAYMENT_METHODS.includes(...)` escapes the field checks; any object with paymentMethod SALARY/TRANSFER/VOUCHER passes with no id/date/amount. (validation.ts:14-17)
-- ~~**Amount sort is lexicographic:**~~ `String(a.amount).localeCompare(b)` orders "100" before "20". (TransactionTable.tsx:108-110)
-- ~~**Smart input persists invalid payment methods:**~~ unmatched method label falls back to `raw.toUpperCase()`; invalid values are later silently dropped by validation on reload. (SmartTransactionInput.tsx:67-71)
-
-### MED — Error-prone / inconsistent (all closed)
-- ~~**Editing an installment series doesn't regenerate siblings:**~~ RESOLVED (2026-09-08): siblings no longer exist — installments are derived from `installments?: number` via `monthlyFlows()`.
-- ~~**Editing a debt resets per-split `settled` flags:**~~ RESOLVED (2026-09-08): debts stored as `Debt[]` with `settled` per entry; edit preserves the array.
-- ~~**Type switch keeps stale payment method:**~~ RESOLVED (2026-09-12): payment method now resets to a valid default (SALARY for INCOME, DEBIT for EXPENSE) on type change. (TransactionForm.tsx)
-- ~~**Global Ctrl+Z/Ctrl+Y hijacks text-input undo:**~~ RESOLVED (2026-09-12): focus guard skips undo/redo intercept when active element is input/textarea/select/contentEditable. (App.tsx)
-- ~~**Silent data filtering on import/load:**~~ RESOLVED (2026-09-12): `validateFinanceData` and `importCSV` now return skipped row counts/line numbers; import dialog surfaces them to the user. (validation.ts, csv.ts, CSVImportDialog.tsx)
-- ~~**Money sums use raw float `+`:~~ RESOLVED (2026-09-12): all monetary reduces/wraps in calculations.ts and DebtPage.tsx now use `addCurrency` (currency.js). (lib/currency.ts, calculations.ts, DebtPage.tsx)
-- ~~**Fixed `DAYS_IN_MONTH = 30` pace:**~~ RESOLVED (2026-09-12): replaced with `daysInMonth(ym)` helper using actual calendar; pace chart shows real month length; `DAYS_IN_MONTH` constant deleted. (calculations.ts, constants.ts, DashboardPage.tsx)
-
-### LOW — Hygiene & consistency
-- ~~**Dead code — QuickAddRow.tsx:**~~ replaced by SmartTransactionInput (ec9bf55) and deleted 2026-08-06 (380c687).
-- ~~**tsconfig.tsbuildinfo tracked in git:**~~ added to `.gitignore` and untracked (34ebd77).
-- **`parseFloat` for a disabled-state check** bypasses currency.js. (TransactionForm.tsx:308)
+- **Skeleton loading states for Dashboard:** Lightweight loading placeholders for `DashboardPage` (carried over from the old UI/UX plan, Commit 9 — never implemented). Kept separate from the mobile card on purpose: it is one file and near-mechanical, and bundling it would have blurred two unrelated DoDs.
+- **Advance-pay for credit installments:** Let the user pay the next N installments now and shift the remainder. Requires a `paidInstallments` marker in the model — a domain change, so it wants its own card and likely an ADR.
 
 ---
 
 ## Done Cards
 > *Completed cards with objective outcomes.*
 
+- **UI/UX Consistency Pass + income/debt UX unification (Active Card, opened 2026-08-07, closed 2026-09-26):** 19 of 20 audit findings closed, plus a scoped close-out. Final pass (`b71a7d8`): `EmptyState` gained a `cell` variant and the three in-table empty states (`TransactionTable`, `BudgetPage`, `DebtPage`) now render through it; the single-split settle control in `DebtPage` became a ghost `Button` with `aria-label` (was plain text flipping `100%` ↔ `Settled`); `rounded-none` stripped from `CSVImportDialog`'s dropzone, error box and skipped list. Audit items (d) and B6 verified as already implemented and struck; (e) moot — the "Details" column no longer exists. Version-mismatch guidance dropped as a non-goal: the app is undeployed, so there is no legacy document to detect, and `AGENTS.md` forbids the compatibility shim an ADR for it would have prescribed. The audit doc behind the card was deleted on close; its findings live here and in git history. Net +87/−24, 195 tests, all gates green.
+- **Span-based smart input parser (2026-09-26, `91c7b4c`):** implemented to `docs/text-input-specification.md`, the spec being the source of truth. Replaced the token + regex pre-pass parser with a maximal-munch span lexer and the §3 commitment model: provisional candidates (bare weekdays, `hoje`/`ontem`/`anteontem`/`amanhã`) commit by default and are demoted into the Description only when committing would break it. New `dateGrammar.ts` is the single source of truth for §2.2 date forms — ordered sticky patterns for lexing, structured shapes for §4 completions — so parser and autocompleter cannot disagree. Categories/payment methods resolve against their registries, which is what makes `@Meal Voucher` a single span. `parseSmartInput` now takes the category registry. `parseDate.ts` deleted (no consumers; its English/`dd/mm` fallbacks fall outside §2.2). Net +1101 lines incl. 422 lines of spec-derived tests, 195 tests, all gates green.
+- **Bug Fix Backlog fully closed (2026-09-28):** the standing 2026-08-06 sweep is retired from the roadmap. All 6 HIGH items were closed by the HIGH sweep card below; all 7 MED items by the MED round (5) and the purchase-centric rebuild (2); both prior LOW items (dead `QuickAddRow.tsx`, tracked `tsconfig.tsbuildinfo`) closed in the same window. The final open LOW — `parseFloat` in the `TransactionForm` disabled-state check — verified closed: the check now calls `parseCurrency`. The 16 struck-through evidence rows were dropped rather than carried; their `file:line` citations were only actionable while the bugs were open.
 - **MED bug fix round (Active Card, 2026-09-12):** Closed 5 MED bugs: (1) stale payment method on type switch — reset to valid default (SALARY/DEBIT); (2) Ctrl+Z/Ctrl+Y focus guard — skip intercept on text-input elements; (3) silent data filtering — `validateFinanceData` and `importCSV` now surface skipped row counts + CSV line numbers in the import dialog; (4) money sums — all monetary reduces/wraps in calculations.ts and DebtPage.tsx use `addCurrency` (currency.js); (5) fixed `DAYS_IN_MONTH=30` — replaced with `daysInMonth(ym)` using real calendar month length; constant deleted. Net +6 commits (`9f3c6e2` → `ff66660`), 100 tests, all gates green.
 - **Purchase-centric domain model rebuild (Active Card, 2026-09-08):** Rebuilt the transaction model so a transaction IS the purchase/receipt (ADR-0010): `installments?: number` (immutable, N derived monthly flows, remainder on first), `debts?: Debt[]` (full-settle only, receivables), deleted `parentId`/`groupId`/`isDebt`/`debtorName`/`debtSplits`/`debtUserShare`/`isSettled`/stored `referenceMonth`. Validation enforces installments⇒CREDIT, debts on EXPENSE only. Storage key bumped to v2 (old data rejected with clear message). Exchange CSV rebuilt (head-anchored, 1NF debts, minimal quoting). JSON backup/restore on new shape. FinanceContext simplified (SETTLE_DEBT replaces old SETTLE_TRANSACTION). UI rebuilt (TransactionForm, TransactionTable, DebtConfigModal, DebtPage). ADR-0010 flipped Proposed→Accepted. Net −345 lines, 90 tests, all gates green. Landed as commits 0b010ba → c18a5f9.
-- **Data in/out organization — partial, superseded mid-card (Active Card, 2026-08-07):** Landed the module split (`exchange/csv.ts` + `backup/json.ts` + barrel), the new exchange CSV shape (ref scheme, 1NF debt rows, head-anchored installments; commits 793ef30, 736a3ed) and ADR-0009. JSON/backup, validation and imports were NOT redone: the card surfaced that the installment/debt data model itself had to be rebuilt first → replaced by the Active Card above, which redoes them on the new model (fold-in: quote CSV cells only when needed).
+- **Data in/out organization — partial, superseded mid-card (Active Card, 2026-08-07):** Landed the module split (`exchange/csv.ts` + `backup/json.ts` + barrel), the new exchange CSV shape (ref scheme, 1NF debt rows, head-anchored installments; commits 793ef30, 736a3ed) and ADR-0009. JSON/backup, validation and imports were NOT redone: the card surfaced that the installment/debt data model itself had to be rebuilt first → replaced by the card above, which redoes them on the new model (fold-in: quote CSV cells only when needed).
 - **Bug Fix Sweep — HIGH (Active Card, 2026-08-06):** Closed all six data-integrity/timezone bugs (add-modal no-op, JSON import dropping budgets, UTC month/day slicing, income payment-method validation bypass, lexicographic amount sort, invalid payment-method persistence) plus a dead-code pass (−410 lines, 7 dead tests removed; suite now 65 focused tests). Landed as commits 59d6302 → 380c687.
 - **Budget ranges (Active Card, 2026-08-06):** Replaced per-month navigation with From→To range creation and derived grouping (`groupBudgetsByRange` + 7 tests); create/edit/delete all range-aware with shrink/overlap confirm (ADR-0008), off-by-one clone fix. Landed as commits 066e59d → b2e31b1.
 - **Refactor plan (8 commits):** Core types/constants cleanup, type-safety patch, state-management fixes, non-blocking toast/ConfirmDialog UX, domain utility extraction, UI consistency & dark mode, original TODO bugs (isDebt toggle, negative validation), BudgetFormDialog extraction. Landed as commits 0a34bb1 → 007141d.
