@@ -21,7 +21,96 @@ import { formatCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import { useFinance } from '@/ui/context'
+import { useIsDesktop } from '@/ui/hooks/useIsDesktop'
 import BudgetFormDialog from './BudgetFormDialog'
+
+function BudgetCard({
+  range,
+  currentMonth,
+  onEdit,
+  onDelete,
+}: {
+  range: BudgetRange
+  currentMonth: string
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const label =
+    range.months.length > 1 ? `${range.startMonth} – ${range.endMonth}` : range.startMonth
+  const rel = range.months.includes(currentMonth) ? 'current' : monthRelation(range.startMonth)
+
+  return (
+    <div className="px-3 pt-0 pb-3">
+      <button
+        type="button"
+        onClick={onEdit}
+        className="flex w-full items-center gap-2 py-3 text-left"
+      >
+        <span
+          className={`min-w-0 flex-1 truncate text-sm font-medium ${rel === 'current' ? 'text-primary' : ''}`}
+        >
+          {label}
+        </span>
+        {rel === 'current' && (
+          <Badge variant="outline" className="shrink-0 text-[10px]">
+            Current
+          </Badge>
+        )}
+        {rel === 'future' && (
+          <Badge variant="outline" className="shrink-0 text-[10px] text-muted-foreground">
+            Future
+          </Badge>
+        )}
+      </button>
+
+      {range.months.length > 1 && (
+        <p className="-mt-1 mb-2 text-[10px] text-muted-foreground">
+          · {range.months.length} months
+        </p>
+      )}
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="border border-border p-2">
+          <p className="text-[10px] text-muted-foreground">Planned Income</p>
+          <p className="font-mono text-sm">{formatCurrency(range.budget.plannedIncome)}</p>
+        </div>
+        <div className="border border-border p-2">
+          <p className="text-[10px] text-muted-foreground">Meal Voucher</p>
+          <p className="font-mono text-sm">{formatCurrency(range.budget.plannedMealVoucher)}</p>
+        </div>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1">
+        {Object.entries(range.budget.categoryLimits).map(([cat, val]) => (
+          <span key={cat} className="text-xs bg-muted px-1.5 py-0.5">
+            {cat}: {formatCurrency(val)}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-1 flex justify-end gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-10"
+          onClick={onEdit}
+          aria-label="Edit budget"
+        >
+          <PencilSimpleIcon />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-10"
+          onClick={onDelete}
+          aria-label="Delete budget"
+        >
+          <TrashIcon />
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 export default function BudgetPage() {
   const { state, dispatch } = useFinance()
@@ -39,6 +128,7 @@ export default function BudgetPage() {
 
   const currentMonth = currentYM()
   const ranges = useMemo(() => groupBudgetsByRange(state.budgets).reverse(), [state.budgets])
+  const isDesktop = useIsDesktop()
 
   const existingBudget = editingMonth
     ? state.budgets.find((b) => b.referenceMonth === editingMonth)
@@ -72,107 +162,128 @@ export default function BudgetPage() {
         </Button>
       </div>
 
-      <div className="border border-border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Period</TableHead>
-              <TableHead className="text-right">Planned Income</TableHead>
-              <TableHead className="text-right">Meal Voucher</TableHead>
-              <TableHead>Categories</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {ranges.length === 0 && (
+      {isDesktop && (
+        <div className="border border-border">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={5}>
-                  <EmptyState
-                    variant="cell"
-                    message="No budgets yet. Create one to start planning."
-                  />
-                </TableCell>
+                <TableHead>Period</TableHead>
+                <TableHead className="text-right">Planned Income</TableHead>
+                <TableHead className="text-right">Meal Voucher</TableHead>
+                <TableHead>Categories</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            )}
-            {ranges.map((range) => {
-              const label =
-                range.months.length > 1
-                  ? `${range.startMonth} – ${range.endMonth}`
-                  : range.startMonth
-              const rel = range.months.includes(currentMonth)
-                ? 'current'
-                : monthRelation(range.startMonth)
-              return (
-                <TableRow
-                  key={range.startMonth}
-                  className="cursor-pointer"
-                  onClick={() => openEdit(range)}
-                >
-                  <TableCell className={`font-medium ${rel === 'current' ? 'text-primary' : ''}`}>
-                    {label}
-                    {range.months.length > 1 && (
-                      <span className="ml-2 text-[10px] text-muted-foreground">
-                        · {range.months.length} months
-                      </span>
-                    )}
-                    {rel === 'current' && (
-                      <Badge variant="outline" className="ml-2 text-[10px]">
-                        Current
-                      </Badge>
-                    )}
-                    {rel === 'future' && (
-                      <Badge variant="outline" className="ml-2 text-[10px] text-muted-foreground">
-                        Future
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(range.budget.plannedIncome)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(range.budget.plannedMealVoucher)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {Object.entries(range.budget.categoryLimits).map(([cat, val]) => (
-                        <span key={cat} className="text-xs bg-muted px-1.5 py-0.5">
-                          {cat}: {formatCurrency(val)}
-                        </span>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex gap-1 justify-end">
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          openEdit(range)
-                        }}
-                        aria-label="Edit budget"
-                      >
-                        <PencilSimpleIcon />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDelete(range)
-                        }}
-                        aria-label="Delete budget"
-                      >
-                        <TrashIcon />
-                      </Button>
-                    </div>
+            </TableHeader>
+            <TableBody>
+              {ranges.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5}>
+                    <EmptyState
+                      variant="cell"
+                      message="No budgets yet. Create one to start planning."
+                    />
                   </TableCell>
                 </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </div>
+              )}
+              {ranges.map((range) => {
+                const label =
+                  range.months.length > 1
+                    ? `${range.startMonth} – ${range.endMonth}`
+                    : range.startMonth
+                const rel = range.months.includes(currentMonth)
+                  ? 'current'
+                  : monthRelation(range.startMonth)
+                return (
+                  <TableRow
+                    key={range.startMonth}
+                    className="cursor-pointer"
+                    onClick={() => openEdit(range)}
+                  >
+                    <TableCell className={`font-medium ${rel === 'current' ? 'text-primary' : ''}`}>
+                      {label}
+                      {range.months.length > 1 && (
+                        <span className="ml-2 text-[10px] text-muted-foreground">
+                          · {range.months.length} months
+                        </span>
+                      )}
+                      {rel === 'current' && (
+                        <Badge variant="outline" className="ml-2 text-[10px]">
+                          Current
+                        </Badge>
+                      )}
+                      {rel === 'future' && (
+                        <Badge variant="outline" className="ml-2 text-[10px] text-muted-foreground">
+                          Future
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(range.budget.plannedIncome)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(range.budget.plannedMealVoucher)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {Object.entries(range.budget.categoryLimits).map(([cat, val]) => (
+                          <span key={cat} className="text-xs bg-muted px-1.5 py-0.5">
+                            {cat}: {formatCurrency(val)}
+                          </span>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-1 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openEdit(range)
+                          }}
+                          aria-label="Edit budget"
+                        >
+                          <PencilSimpleIcon />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDelete(range)
+                          }}
+                          aria-label="Delete budget"
+                        >
+                          <TrashIcon />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {!isDesktop && (
+        <div className="border border-border">
+          {ranges.length === 0 ? (
+            <EmptyState message="No budgets yet. Create one to start planning." />
+          ) : (
+            ranges.map((range) => (
+              <div key={range.startMonth} className="border-b border-border last:border-b-0">
+                <BudgetCard
+                  range={range}
+                  currentMonth={currentMonth}
+                  onEdit={() => openEdit(range)}
+                  onDelete={() => handleDelete(range)}
+                />
+              </div>
+            ))
+          )}
+        </div>
+      )}
 
       <BudgetFormDialog
         open={showForm}
