@@ -118,7 +118,7 @@ export default function DebtPage() {
         <h2 className="text-lg font-semibold text-foreground">
           {showSettled ? 'All Debts' : 'Active Debts (who owes me)'}
         </h2>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
           <SegmentedControl
             aria-label="Debt view"
             value={viewMode}

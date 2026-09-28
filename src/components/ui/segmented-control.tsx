@@ -39,7 +39,7 @@ export function SegmentedControl({
             aria-checked={selected}
             onClick={() => onValueChange(option.value)}
             className={cn(
-              'flex flex-1 items-center justify-center gap-1.5 rounded-none px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors',
+              'flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-none px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors sm:min-h-6',
               selected
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground',
