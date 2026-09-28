@@ -3,6 +3,7 @@ import { Route, Switch, useLocation } from 'wouter'
 import BudgetPage from './ui/components/Budget/BudgetPage'
 import AuditLogPanel from './ui/components/Common/AuditLogPanel'
 import ErrorBoundary from './ui/components/Common/ErrorBoundary'
+import MobileNav from './ui/components/Common/MobileNav'
 import Tabs from './ui/components/Common/Tabs'
 import DashboardPage from './ui/components/Dashboard/DashboardPage'
 import TrendsPage from './ui/components/Dashboard/TrendsPage'
@@ -63,11 +64,14 @@ function AppShell() {
       <header className="bg-card border-b border-border sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <h1 className="text-base font-heading font-bold">Finances</h1>
+          <MobileNav tabs={tabs} active={activeTab} onChange={(key) => navigate(key)} />
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
-        <Tabs tabs={tabs} active={activeTab} onChange={(key) => navigate(key)} />
+        <div className="hidden sm:block">
+          <Tabs tabs={tabs} active={activeTab} onChange={(key) => navigate(key)} />
+        </div>
 
         <Switch>
           <Route path="/" component={TransactionTable} />
