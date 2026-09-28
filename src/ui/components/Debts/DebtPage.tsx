@@ -18,6 +18,7 @@ import type { Transaction } from '@/domain/entities'
 import { addCurrency, formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import { useFinance } from '@/ui/context'
+import { useIsDesktop } from '@/ui/hooks/useIsDesktop'
 
 const BADGE_GREEN = 'text-green-600 bg-green-50 '
 const BADGE_AMBER = 'text-amber-600 bg-amber-50 '
@@ -34,6 +35,140 @@ function DebtUrgency({ days }: { days: number }) {
     <Badge variant="outline" className={urgency.color}>
       {urgency.label} ({days}d)
     </Badge>
+  )
+}
+
+function PersonCard({ person, onOpen }: { person: PersonData; onOpen: () => void }) {
+  return (
+    <div className={`px-3 pt-0 pb-3 ${person.allSettled ? 'opacity-50' : ''}`}>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex w-full items-center gap-2 py-3 text-left"
+      >
+        <UserIcon className="size-3 shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">{person.name}</span>
+        {person.allSettled ? (
+          <Badge variant="outline" className={BADGE_GREEN}>
+            All paid
+          </Badge>
+        ) : person.anySettled ? (
+          <Badge variant="outline" className={BADGE_AMBER}>
+            Partial
+          </Badge>
+        ) : (
+          <Badge variant="outline" className={BADGE_RED}>
+            Pending
+          </Badge>
+        )}
+      </button>
+      <div className="-mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span>
+          Unsettled{' '}
+          <span className="font-mono text-foreground">
+            {formatCurrency(person.unsettledAmount)}
+          </span>
+        </span>
+        <span>
+          Total lent{' '}
+          <span className="font-mono text-foreground">{formatCurrency(person.totalAmount)}</span>
+        </span>
+        <span>{person.txCount} transactions</span>
+      </div>
+    </div>
+  )
+}
+
+function DebtorCard({
+  tx,
+  onOpen,
+  onToggleSettle,
+  onSettleAll,
+}: {
+  tx: Transaction
+  onOpen: () => void
+  onToggleSettle: (name: string) => void
+  onSettleAll: () => void
+}) {
+  const days = daysSince(tx.date)
+  const allSettled = tx.debts?.every((d) => d.settled) ?? true
+  const debtNames = [...new Set(tx.debts?.map((d) => d.name) ?? [])]
+  const splitCount = tx.debts?.length ?? 0
+  const singleSplit = tx.debts?.[0]
+
+  return (
+    <div className={`px-3 pt-0 pb-3 ${allSettled ? 'opacity-50' : ''}`}>
+      <button type="button" onClick={onOpen} className="w-full py-3 text-left">
+        <span className="flex items-start gap-2">
+          <span className="flex min-w-0 flex-1 items-center gap-1 text-sm font-medium">
+            <UserIcon className="size-3 shrink-0" />
+            <span className="truncate">{debtNames.length === 1 ? debtNames[0] : 'Multiple'}</span>
+          </span>
+          <span className="shrink-0 font-mono text-sm">{formatCurrency(tx.amount)}</span>
+        </span>
+        <span className="mt-1 block truncate text-xs">{tx.description}</span>
+        <span className="mt-1.5 flex flex-wrap items-center gap-2">
+          {allSettled ? (
+            <Badge variant="outline" className={BADGE_GREEN}>
+              Paid
+            </Badge>
+          ) : (
+            <DebtUrgency days={days} />
+          )}
+          <span className="text-xs text-muted-foreground">lent {tx.date}</span>
+        </span>
+      </button>
+
+      <div className="mt-1 space-y-1 border-t border-border pt-2">
+        {splitCount > 1 ? (
+          tx.debts?.map((d) => (
+            <div key={d.name} className="flex items-center justify-between gap-2">
+              <span className={`text-xs text-muted-foreground ${d.settled ? 'line-through' : ''}`}>
+                {d.name}: {formatCurrency(d.amount)}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-10"
+                onClick={() => onToggleSettle(d.name)}
+                title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
+                aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
+              >
+                <CheckCircleIcon />
+              </Button>
+            </div>
+          ))
+        ) : singleSplit ? (
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 px-3 text-xs"
+              onClick={() => onToggleSettle(singleSplit.name)}
+              title={singleSplit.settled ? 'Unsettle' : 'Settle'}
+              aria-label={singleSplit.settled ? 'Unsettle' : 'Settle'}
+            >
+              {singleSplit.settled ? 'Settled' : '100%'}
+            </Button>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">—</p>
+        )}
+
+        <div className="flex justify-end">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-10"
+            onClick={onSettleAll}
+            title={allSettled ? 'Unsettle all' : 'Settle all'}
+            aria-label={allSettled ? 'Unsettle all' : 'Settle all'}
+          >
+            <CheckCircleIcon />
+          </Button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -83,6 +218,7 @@ function aggregatePersonData(transactions: Transaction[]): PersonData[] {
 
 export default function DebtPage() {
   const { state, dispatch } = useFinance()
+  const isDesktop = useIsDesktop()
   const [, navigate] = useLocation()
   const [showSettled, setShowSettled] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('transaction')
@@ -148,7 +284,7 @@ export default function DebtPage() {
         </div>
       </div>
 
-      {viewMode === 'person' && personView.length > 0 ? (
+      {isDesktop && viewMode === 'person' && personView.length > 0 && (
         <div className="border border-border">
           <Table>
             <TableHeader>
@@ -202,7 +338,9 @@ export default function DebtPage() {
             </TableBody>
           </Table>
         </div>
-      ) : (
+      )}
+
+      {isDesktop && !(viewMode === 'person' && personView.length > 0) && (
         <div className="border border-border">
           <Table>
             <TableHeader>
@@ -321,6 +459,38 @@ export default function DebtPage() {
               })}
             </TableBody>
           </Table>
+        </div>
+      )}
+
+      {!isDesktop && viewMode === 'person' && personView.length > 0 && (
+        <div className="border border-border">
+          {personView.map((p) => (
+            <div key={p.name} className="border-b border-border last:border-b-0">
+              <PersonCard
+                person={p}
+                onOpen={() => navigate(`/?debtor=${encodeURIComponent(p.name)}`)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!isDesktop && !(viewMode === 'person' && personView.length > 0) && (
+        <div className="border border-border">
+          {debts.length === 0 ? (
+            <EmptyState message={`No ${showSettled ? 'debts' : 'active debts'}.`} />
+          ) : (
+            debts.map((tx) => (
+              <div key={tx.id} className="border-b border-border last:border-b-0">
+                <DebtorCard
+                  tx={tx}
+                  onOpen={() => navigate(`/?tx=${tx.id}`)}
+                  onToggleSettle={(name) => handleToggleSettle(tx.id, name)}
+                  onSettleAll={() => handleSettleAll(tx.id)}
+                />
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>
