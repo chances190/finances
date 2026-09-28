@@ -149,7 +149,7 @@ export default function SmartTransactionInput({
               if (suggestions.length > 0) setShowSuggestions(true)
             }}
             placeholder="Description 25,90 #Food @Debit hoje"
-            className="h-7 text-xs font-mono"
+            className="h-10 text-xs font-mono sm:h-7"
             aria-label="Quick add transaction"
           />
           {showSuggestions && (
@@ -179,10 +179,15 @@ export default function SmartTransactionInput({
         </div>
 
         <div className="flex items-center gap-1">
-          <Button size="icon-xs" onClick={attemptSubmit} aria-label="Add transaction from input">
+          <Button
+            size="icon-xs"
+            className="size-10 sm:size-6"
+            onClick={attemptSubmit}
+            aria-label="Add transaction from input"
+          >
             <PlusIcon />
           </Button>
-          <Button variant="outline" size="xs" className="h-7 text-xs" onClick={onOpenModal}>
+          <Button variant="outline" size="xs" className="h-10 text-xs sm:h-7" onClick={onOpenModal}>
             Add
           </Button>
         </div>
