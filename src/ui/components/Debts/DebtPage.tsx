@@ -100,13 +100,13 @@ function DebtorCard({
     <div className={`px-3 pt-0 pb-3 ${allSettled ? 'opacity-50' : ''}`}>
       <button type="button" onClick={onOpen} className="w-full py-3 text-left">
         <span className="flex items-start gap-2">
-          <span className="flex min-w-0 flex-1 items-center gap-1 text-sm font-medium">
-            <UserIcon className="size-3 shrink-0" />
-            <span className="truncate">{debtNames.length === 1 ? debtNames[0] : 'Multiple'}</span>
-          </span>
+          <span className="min-w-0 flex-1 text-sm font-medium break-words">{tx.description}</span>
           <span className="shrink-0 font-mono text-sm">{formatCurrency(tx.amount)}</span>
         </span>
-        <span className="mt-1 block truncate text-xs">{tx.description}</span>
+        <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+          <UserIcon className="size-3 shrink-0" />
+          {debtNames.length === 1 ? debtNames[0] : 'Multiple'}
+        </span>
         <span className="mt-1.5 flex flex-wrap items-center gap-2">
           {allSettled ? (
             <Badge variant="outline" className={BADGE_GREEN}>
@@ -157,14 +157,14 @@ function DebtorCard({
 
         <div className="flex justify-end">
           <Button
-            variant="ghost"
-            size="icon"
-            className="size-10"
+            variant="outline"
+            size="sm"
+            className="h-10 px-3 text-xs"
             onClick={onSettleAll}
             title={allSettled ? 'Unsettle all' : 'Settle all'}
             aria-label={allSettled ? 'Unsettle all' : 'Settle all'}
           >
-            <CheckCircleIcon />
+            {allSettled ? 'Unsettle all' : 'Settle all'}
           </Button>
         </div>
       </div>
@@ -252,7 +252,7 @@ export default function DebtPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-foreground">
-          {showSettled ? 'All Debts' : 'Active Debts (who owes me)'}
+          {showSettled ? 'All Debts' : 'Active Debts'}
         </h2>
         <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
           <SegmentedControl

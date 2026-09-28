@@ -28,7 +28,7 @@ export default function MobileNav({ tabs, active, onChange }: MobileNavProps) {
         <ListIcon />
       </DialogTrigger>
 
-      <DialogContent side="left" showCloseButton={false} className="flex w-72 flex-col gap-0 p-0">
+      <DialogContent side="right" showCloseButton={false} className="flex w-72 flex-col gap-0 p-0">
         <DialogHeader className="border-b border-border p-4">
           <DialogTitle>Navigate</DialogTitle>
         </DialogHeader>

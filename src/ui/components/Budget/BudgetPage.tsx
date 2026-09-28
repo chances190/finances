@@ -80,7 +80,7 @@ function BudgetCard({
         </div>
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-1">
+      <div className="mt-2 grid grid-cols-2 gap-1">
         {Object.entries(range.budget.categoryLimits).map(([cat, val]) => (
           <span key={cat} className="text-xs bg-muted px-1.5 py-0.5">
             {cat}: {formatCurrency(val)}

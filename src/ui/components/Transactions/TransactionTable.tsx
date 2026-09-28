@@ -84,7 +84,7 @@ function TransactionCard({
         onClick={onEdit}
         className="flex w-full items-start gap-2 py-3 text-left"
       >
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{tx.description}</span>
+        <span className="min-w-0 flex-1 text-sm font-medium break-words">{tx.description}</span>
         {debts.length > 0 && debts.every((d) => d.settled) && (
           <Badge variant="outline" className="shrink-0 text-[10px] text-green-600 bg-green-50">
             Paid
@@ -153,6 +153,177 @@ function TransactionCard({
 function getParamList(params: URLSearchParams, key: string): string[] {
   const val = params.get(key)
   return val ? val.split(',').filter(Boolean) : []
+}
+
+function FilterGroup({
+  idPrefix,
+  label,
+  options,
+  selected,
+  count,
+  onToggle,
+  wide,
+}: {
+  idPrefix: string
+  label: string
+  options: string[]
+  selected: string[]
+  count: number
+  onToggle: (option: string, on: boolean) => void
+  wide: boolean
+}) {
+  const list = (
+    <div className="space-y-1">
+      {options.map((option) => (
+        <span key={option} className="flex items-center gap-2 py-1 cursor-pointer">
+          <Checkbox
+            id={`${idPrefix}-${option}`}
+            checked={selected.includes(option)}
+            onCheckedChange={(checked) => onToggle(option, checked === true)}
+          />
+          <span className="text-xs">{option}</span>
+        </span>
+      ))}
+    </div>
+  )
+
+  if (wide) {
+    return (
+      <div>
+        <p className="mb-1 text-xs text-muted-foreground">
+          {label}
+          {count > 0 && ` (${count})`}
+        </p>
+        <div className="max-h-48 overflow-y-auto">{list}</div>
+      </div>
+    )
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger render={<Button variant="outline" size="sm" />}>
+        <FunnelIcon className="size-3" />
+        {label}
+        {count > 0 && ` (${count})`}
+      </PopoverTrigger>
+      <PopoverContent className="w-48 p-2">
+        <div className="max-h-48 overflow-y-auto">{list}</div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function TransactionFilters({
+  filterType,
+  filterMonth,
+  filterCategories,
+  filterPayments,
+  filterDebtors,
+  months,
+  allCategories,
+  allDebtors,
+  updateParam,
+  wide = false,
+}: {
+  filterType: string
+  filterMonth: string
+  filterCategories: string[]
+  filterPayments: string[]
+  filterDebtors: string[]
+  months: string[]
+  allCategories: string[]
+  allDebtors: string[]
+  updateParam: (key: string, value: string | string[] | null) => void
+  wide?: boolean
+}) {
+  return (
+    <>
+      <Select value={filterType} onValueChange={(v) => updateParam('type', v)}>
+        <SelectTrigger className={wide ? 'h-9 w-full text-xs' : 'h-7 w-24 text-xs'}>
+          <SelectValue>{filterType === 'all' ? 'All types' : filterType}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All types</SelectItem>
+          <SelectItem value="Expense">Expense</SelectItem>
+          <SelectItem value="Income">Income</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Select value={filterMonth} onValueChange={(v) => updateParam('month', v)}>
+        <SelectTrigger className={wide ? 'h-9 w-full text-xs' : 'h-7 w-28 text-xs'}>
+          <SelectValue>{filterMonth === 'all' ? 'All months' : filterMonth}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All months</SelectItem>
+          {months.map((m) => {
+            const rel = monthRelation(m)
+            return (
+              <SelectItem
+                key={m}
+                value={m}
+                className={
+                  rel === 'future'
+                    ? 'text-muted-foreground/60'
+                    : rel === 'current'
+                      ? 'text-primary font-medium'
+                      : ''
+                }
+              >
+                {m}
+              </SelectItem>
+            )
+          })}
+        </SelectContent>
+      </Select>
+
+      <FilterGroup
+        idPrefix="cat-filter"
+        label="Category"
+        options={allCategories}
+        selected={filterCategories}
+        count={filterCategories.length}
+        onToggle={(cat, on) =>
+          updateParam(
+            'category',
+            on ? [...filterCategories, cat] : filterCategories.filter((c) => c !== cat),
+          )
+        }
+        wide={wide}
+      />
+
+      <FilterGroup
+        idPrefix="pay-filter"
+        label="Payment"
+        options={[...PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS]}
+        selected={filterPayments}
+        count={filterPayments.length}
+        onToggle={(pm, on) =>
+          updateParam(
+            'payment',
+            on ? [...filterPayments, pm] : filterPayments.filter((p) => p !== pm),
+          )
+        }
+        wide={wide}
+      />
+
+      {allDebtors.length > 0 && (
+        <FilterGroup
+          idPrefix="debtor-filter"
+          label="Debtor"
+          options={allDebtors}
+          selected={filterDebtors}
+          count={filterDebtors.length}
+          onToggle={(name, on) =>
+            updateParam(
+              'debtor',
+              on ? [...filterDebtors, name] : filterDebtors.filter((d) => d !== name),
+            )
+          }
+          wide={wide}
+        />
+      )}
+    </>
+  )
 }
 
 export default function TransactionTable() {
@@ -390,6 +561,18 @@ export default function TransactionTable() {
     if (!open) setEditingTx(null)
   }
 
+  const clearAll =
+    activeFilterCount > 0 || filterSearch ? (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 text-xs text-muted-foreground"
+        onClick={() => setSearchParams({}, { replace: true })}
+      >
+        Clear all
+      </Button>
+    ) : null
+
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-foreground">Transactions</h2>
@@ -408,138 +591,80 @@ export default function TransactionTable() {
           className="h-7 w-44 text-xs"
           aria-label="Search transactions"
         />
-        <Select value={filterType} onValueChange={(v) => updateParam('type', v)}>
-          <SelectTrigger className="h-7 w-24 text-xs">
-            <SelectValue>{filterType === 'all' ? 'All types' : filterType}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            <SelectItem value="Expense">Expense</SelectItem>
-            <SelectItem value="Income">Income</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterMonth} onValueChange={(v) => updateParam('month', v)}>
-          <SelectTrigger className="h-7 w-28 text-xs">
-            <SelectValue>{filterMonth === 'all' ? 'All months' : filterMonth}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All months</SelectItem>
-            {months.map((m) => {
-              const rel = monthRelation(m)
-              return (
-                <SelectItem
-                  key={m}
-                  value={m}
-                  className={
-                    rel === 'future'
-                      ? 'text-muted-foreground/60'
-                      : rel === 'current'
-                        ? 'text-primary font-medium'
-                        : ''
-                  }
-                >
-                  {m}
+        {!isDesktop && (
+          <Select
+            value={sortKey ?? 'none'}
+            onValueChange={(v) => {
+              if (v === null || v === 'none') setSortKey(null)
+              else handleSort(v)
+            }}
+          >
+            <SelectTrigger className="h-7 w-28 text-xs">
+              <SelectValue>
+                {sortKey
+                  ? `${SORT_KEYS.find(([k]) => k === sortKey)?.[1] ?? sortKey} ${sortDir === 'asc' ? '↑' : '↓'}`
+                  : 'Sort'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Default order</SelectItem>
+              {SORT_KEYS.map(([key, label]) => (
+                <SelectItem key={key} value={key}>
+                  {label}
                 </SelectItem>
-              )
-            })}
-          </SelectContent>
-        </Select>
-        <Popover>
-          <PopoverTrigger render={<Button variant="outline" size="sm" />}>
-            <FunnelIcon className="size-3" />
-            Category{filterCategories.length > 0 && ` (${filterCategories.length})`}
-          </PopoverTrigger>
-          <PopoverContent className="w-48 p-2">
-            <div className="space-y-1 max-h-48 overflow-y-auto">
-              {allCategories.map((cat) => (
-                <span key={cat} className="flex items-center gap-2 py-1 cursor-pointer">
-                  <Checkbox
-                    id={`cat-filter-${cat}`}
-                    checked={filterCategories.includes(cat)}
-                    onCheckedChange={(checked) => {
-                      updateParam(
-                        'category',
-                        checked
-                          ? [...filterCategories, cat]
-                          : filterCategories.filter((c) => c !== cat),
-                      )
-                    }}
-                  />
-                  <span className="text-xs">{cat}</span>
-                </span>
               ))}
-            </div>
-          </PopoverContent>
-        </Popover>
-        <Popover>
-          <PopoverTrigger render={<Button variant="outline" size="sm" />}>
-            <FunnelIcon className="size-3" />
-            Payment{filterPayments.length > 0 && ` (${filterPayments.length})`}
-          </PopoverTrigger>
-          <PopoverContent className="w-48 p-2">
-            <div className="space-y-1 max-h-48 overflow-y-auto">
-              {[...PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS].map((pm) => {
-                const key = pm
-                return (
-                  <span key={key} className="flex items-center gap-2 py-1 cursor-pointer">
-                    <Checkbox
-                      id={`pay-filter-${key}`}
-                      checked={filterPayments.includes(key)}
-                      onCheckedChange={(checked) => {
-                        updateParam(
-                          'payment',
-                          checked
-                            ? [...filterPayments, key]
-                            : filterPayments.filter((p) => p !== key),
-                        )
-                      }}
-                    />
-                    <span className="text-xs">{key}</span>
-                  </span>
-                )
-              })}
-            </div>
-          </PopoverContent>
-        </Popover>
-        {allDebtors.length > 0 && (
+            </SelectContent>
+          </Select>
+        )}
+        {isDesktop ? (
+          <TransactionFilters
+            filterType={filterType}
+            filterMonth={filterMonth}
+            filterCategories={filterCategories}
+            filterPayments={filterPayments}
+            filterDebtors={filterDebtors}
+            months={months}
+            allCategories={allCategories}
+            allDebtors={allDebtors}
+            updateParam={updateParam}
+          />
+        ) : (
           <Popover>
-            <PopoverTrigger render={<Button variant="outline" size="sm" />}>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant={activeFilterCount > 0 ? 'default' : 'outline'}
+                  size="icon-sm"
+                  className="size-8"
+                />
+              }
+            >
               <FunnelIcon className="size-3" />
-              Debtor{filterDebtors.length > 0 && ` (${filterDebtors.length})`}
+              <span className="sr-only">
+                {activeFilterCount > 0 ? `Filters, ${activeFilterCount} active` : 'Filters'}
+              </span>
             </PopoverTrigger>
-            <PopoverContent className="w-48 p-2">
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {allDebtors.map((name) => (
-                  <span key={name} className="flex items-center gap-2 py-1 cursor-pointer">
-                    <Checkbox
-                      id={`debtor-filter-${name}`}
-                      checked={filterDebtors.includes(name)}
-                      onCheckedChange={(checked) => {
-                        updateParam(
-                          'debtor',
-                          checked
-                            ? [...filterDebtors, name]
-                            : filterDebtors.filter((d) => d !== name),
-                        )
-                      }}
-                    />
-                    <span className="text-xs">{name}</span>
-                  </span>
-                ))}
+            <PopoverContent className="max-h-[70dvh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto p-3">
+              <div className="flex flex-col gap-3">
+                <TransactionFilters
+                  filterType={filterType}
+                  filterMonth={filterMonth}
+                  filterCategories={filterCategories}
+                  filterPayments={filterPayments}
+                  filterDebtors={filterDebtors}
+                  months={months}
+                  allCategories={allCategories}
+                  allDebtors={allDebtors}
+                  updateParam={updateParam}
+                  wide
+                />
+                {clearAll}
               </div>
             </PopoverContent>
           </Popover>
         )}
-        {activeFilterCount > 0 || filterSearch ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs text-muted-foreground"
-            onClick={() => setSearchParams({}, { replace: true })}
-          >
-            Clear all
-          </Button>
-        ) : null}
+
+        {isDesktop && clearAll}
       </div>
 
       {isDesktop && (
@@ -699,33 +824,6 @@ export default function TransactionTable() {
 
       {!isDesktop && (
         <div className="border border-border">
-          <div className="flex items-center gap-2 border-b border-border p-2">
-            <span className="text-xs text-muted-foreground">Sort</span>
-            <Select
-              value={sortKey ?? 'none'}
-              onValueChange={(v) => {
-                if (v === null || v === 'none') setSortKey(null)
-                else handleSort(v)
-              }}
-            >
-              <SelectTrigger className="h-8 flex-1 text-xs">
-                <SelectValue>
-                  {sortKey
-                    ? `${SORT_KEYS.find(([k]) => k === sortKey)?.[1] ?? sortKey} ${sortDir === 'asc' ? '↑' : '↓'}`
-                    : 'Default order'}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Default order</SelectItem>
-                {SORT_KEYS.map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           {rows.length === 0 ? (
             <EmptyState message="No transactions yet. Add one using the row above or import a CSV file." />
           ) : (

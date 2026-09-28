@@ -36,7 +36,8 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
 const SIDES = {
   center:
     'top-1/2 left-1/2 w-full max-w-[calc(100%-2rem)] sm:max-w-sm max-h-[calc(100dvh-2rem)] -translate-x-1/2 -translate-y-1/2 data-open:zoom-in-95 data-closed:zoom-out-95',
-  left: 'inset-y-0 left-0 w-72 max-w-[80vw] translate-x-0 translate-y-0 data-open:slide-in-from-left data-closed:slide-out-to-left',
+  right:
+    'inset-y-0 right-0 w-72 max-w-[80vw] translate-x-0 translate-y-0 data-open:slide-in-from-right data-closed:slide-out-to-right',
 } as const
 
 function DialogContent({
