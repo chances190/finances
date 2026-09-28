@@ -7,35 +7,49 @@
 ## Active Card
 > *There can only be ONE Active Card at a time. Finish or push to Next before opening another.*
 
-- **Mobile usability — 360px gate (opened 2026-09-28):** make every flow usable on a 5.5" 21:9 phone and stop there. This is a **hard gate, not a vibe**: the Lead Architect is the sole acceptance authority and this card iterates until they sign off. Do not self-certify it closed.
+- **Mobile design — from-scratch mobile surfaces (opened 2026-09-28, re-scoped the same day):** the desktop layout is not adapted to mobile. The two surfaces that cannot survive the adaptation get their own designs. Hard gate — the Lead Architect is the sole acceptance authority and this card iterates until they sign off. Do not self-certify it closed.
 
   **Reference device:** 5.5" diagonal, 21:9 portrait → **360 CSS px wide, 840 CSS px tall** full screen. Browser chrome (~100px) means the layout gate is **360×740**. Everything keys off the **360px width**; if a real device reports otherwise, change this one number, not the card.
 
-  **Current state (measured, not assumed):** the app is essentially desktop-fixed. Responsive classes total **8** across all of `src/ui` — `DashboardPage` 4, `TrendsPage` 2, and 1 each in `TransactionForm`, `DebtConfigModal`, `BudgetFormDialog`, `CSVImportDialog`, `ConfirmDialog`. `Common/Tabs.tsx` and `Transactions/TransactionTable.tsx` have **zero**. The 6-tab strip in `App.tsx:15-22` is a plain `flex` row of `px-4 py-2` buttons (~540px wide) with no overflow handling, so it already overflows 360px. This is greenfield work, not a retrofit.
+  **Why the responsive approach was abandoned (measured, not assumed):** six labeled tabs need ~553px (`text-sm` glyphs + `px-4` per button + `gap-1`) against **328px** of available content at 360px. `TransactionTable` carries **640px of fixed column width** (`w-24`+`w-24`+`w-20`+`w-24`+`w-16`+`w-32`+`w-20`) before the `flex-1` description column receives a single pixel; `DebtPage`'s second table has 7 columns. Neither is reachable with CSS: dropping to `text-xs` still leaves ~60px per tab against a ~73px "Transactions" label. Horizontal scrolling kept every datum reachable and made the app feel bad, so it is not the answer. Desktop scans *across* a row to compare; mobile scans *down* a list to recognise. That is a different information hierarchy and has to be designed, not transformed.
+
+  **Current state (corrected — the previous version of this note was wrong):** the app is **not** desktop-fixed. 22 responsive variants across 9 files, and the dialog, form, dashboard and segmented-control work is already responsive. `Common/Tabs.tsx` and `Transactions/TransactionTable.tsx` have **zero** — not because they are fine, but because the strip overflows the page and the table delegates scrolling to the `Table` primitive. The card is aimed at those two surfaces, not at the whole app.
+
+  **Decisions (closed — do not relitigate):**
+  - **One breakpoint: `sm` (640px).** The strip needs ~585px including shell padding, so 640px is the smallest Tailwind step above the real break point. This is an **invariant, not a default**: no per-surface thresholds, no `lg:` on a table. Two breakpoints would leave the nav and the tables disagreeing about what "desktop" means.
+  - **Nav → CSS-only.** The existing strip wraps in `hidden sm:block`; a hamburger trigger in the sticky header is `sm:hidden`. The header at `App.tsx:63-66` is already `flex items-center justify-between`, so the trigger drops in as a second child. Both read the same `tabs` array. No JS, and the desktop strip is untouched.
+  - **Drawer → a `side` variant on the existing `dialog.tsx`.** There is no `sheet.tsx` in `src/components/ui/`, and shadcn's own Sheet is a Dialog variant, so this reuses the existing overlay, ESC handling and focus trap instead of adding a primitive. Closes on navigate.
+  - **Tables → a JS branch.** A new `useMediaQuery` in `src/ui/hooks/` (`src/lib` holds pure functions only). Only one variant renders. *Mechanism rule, so the asymmetry does not look arbitrary: CSS when the duplicated subtree is static and small, a JS branch when it is data-sized.*
+  - **Nested lists — Debts and Categories are always visible inline.** Never collapsed, never truncated behind a count, no expand state. A tap is the friction this card exists to remove.
+  - **No ADR.** No new dependency, no data-model change, no boundary or paradigm change, and fully reversible. It fails the skill's own bar for the same reason ADR-0012 did.
 
   **Trade-offs / risks:**
-  - **Bottom nav vs. horizontally-scrolling tab strip — OPEN DECISION, yours.** Six tabs do not fit 360px. A bottom nav is 6 items across 360px (~60px each, needs short labels + safe-area inset) and changes the app's most persistent UI. A scrollable strip is ~10 lines and preserves the current shape. My recommendation is the **scrollable strip for this card** — bottom nav is a persistent chrome commitment, and shipping it before the app has shipped once is premature. If you want bottom nav, say so and it becomes task 1.
-  - **Table reflow is the bulk of the work and the main regression risk.** `TransactionTable`, `BudgetPage` and `DebtPage` are 6–8 column tables. Converting them to stacked cards can silently drop a datum or reorder columns relative to desktop. Whatever reflow is chosen, **both viewports must render the identical datum set** — that is the actual invariant, not "it looks fine on my phone".
-  - Dialogs are the second risk: `TransactionForm` is the widest form in the app and the most likely to need a sheet instead of a modal at 360px.
+  - **Every future table column is now designed twice.** That is the standing cost and it is accepted. It is explicitly *not* mitigated by keeping the two variants in agreement, because the desktop table is not a target for the mobile one — they are independent designs. The only invariant is that no datum becomes inaccessible on mobile.
+  - **Three designs, not three reflows, and the transaction card is the hard one** — 8 fields plus a nested debt list carrying an inline settle action per debtor. "Always visible inline" is what makes those cards tall, and that is the accepted trade.
+  - **Static analysis cannot see the render.** The CSS can be plausible and wrong in ways no gate catches. The DoD is weighted toward facts the Lead Architect can measure, and this card is not closable by `@coder`.
 
   **Acceptance Criteria (DoD):**
-  - No page produces a horizontal scrollbar at 360px (`document.documentElement.scrollWidth <= window.innerWidth`), on any of the 6 routes.
-  - All 6 tabs are reachable at 360px with no clipped or truncated label.
-  - `TransactionTable` renders **every** currently-visible datum at 360px: date, description, amount, category, payment method, debt state, and the edit/settle actions.
-  - `BudgetPage` and `DebtPage` tables render their full datum set at 360px under the same rule.
-  - Add + edit a transaction end-to-end at 360px using `TransactionForm`: every field reachable, primary action reachable, no pinch-zoom required, and the `DebtConfigModal` sub-flow intact.
-  - `CSVImportDialog`, `ConfirmDialog` and `ExportImport` are operable at 360px (dropzone, preview, buttons all reachable).
-  - Dashboard and Trends charts are legible at 360px with no clipped axis labels or legend overlap.
-  - Primary tap targets are ≥ 40×40 CSS px.
+  - **No datum is inaccessible at 360px.** For each of `TransactionTable`, `BudgetPage` and `DebtPage`, every value the desktop variant renders has a visible counterpart in the mobile variant, with debts and categories inline and untruncated. No "N more", no expand, no scroll-to-reveal.
+  - `document.documentElement.scrollWidth <= window.innerWidth` on all 6 routes at 360px.
+  - The hamburger opens a drawer listing all 6 destinations with full untruncated labels; selecting one navigates and closes the drawer.
+  - Above 640px the tab strip renders exactly as it does today — no restyle, no reflow.
+  - Add and edit a transaction end-to-end at 360px via `TransactionForm` with the `DebtConfigModal` sub-flow intact; every field and both primary actions reachable, no pinch-zoom.
+  - `CSVImportDialog` and `ConfirmDialog` are operable at 360px — dropzone, preview and buttons all reachable.
+  - Dashboard and Trends charts legible at 360px, with no clipped axis labels or legend overlap.
+  - Primary tap targets ≥ 40×40 CSS px, including the inline settle action in every debt row.
   - `bun run typecheck`, `bunx biome check src/`, `bun test`, `bun run build` all green.
   - **Lead Architect signs off in the browser at 360×740.** Until then the card stays open.
 
   **Out of Scope:**
-  - PWA / native shell / installability — no dedicated mobile UI unless PWA or native needs emerge.
+  - **The nine shared components stay single-path.** Dialogs, forms, StatCards, charts, badges, EmptyState and the input primitives get no mobile variant. Their responsive work is already done; this card must not leak into them.
+  - **Tablet-specific layouts.** One breakpoint means 640–840px uses the mobile design even where a table would technically fit. Accepted, not revisited here.
+  - Bottom nav — considered and declined in favour of a hamburger drawer.
+  - PWA / native shell / installability.
   - Skeleton loading states — separate card in `## Next Cards`.
   - Advance-pay — separate card.
-  - Desktop visual redesign. Responsive work may change desktop markup only where unavoidable; it must not restyle desktop.
-  - New touch gestures (swipe-to-delete, pull-to-refresh). Make existing flows work; do not add interaction surface.
+  - Desktop visual redesign. Above 640px nothing changes.
+  - New touch gestures (swipe-to-delete, pull-to-refresh).
+  - Row virtualization, card expansion/collapse, and per-row expand state.
 
 ---
 
