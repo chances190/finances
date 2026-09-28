@@ -182,7 +182,7 @@ export default function TransactionForm({
               ]}
             />
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label htmlFor="tx-date" className="text-xs">
                   Date
@@ -219,7 +219,7 @@ export default function TransactionForm({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {form.type === 'Expense' && (
                 <div className="space-y-1">
                   <Label htmlFor="tx-category" className="text-xs">

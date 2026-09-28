@@ -265,7 +265,7 @@ export default function BudgetFormDialog({
                   />
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label htmlFor="budget-month-from" className="text-xs">
                       From
@@ -313,7 +313,7 @@ export default function BudgetFormDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label htmlFor="budget-income" className="text-xs">
                   Planned Income (R$)
@@ -379,7 +379,7 @@ export default function BudgetFormDialog({
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+              <div className="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
                 {Object.keys(form.categoryLimits)
                   .filter((cat) => showAllCategories || form.categoryLimits[cat] !== '')
                   .map((cat) => {
