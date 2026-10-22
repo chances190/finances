@@ -159,14 +159,14 @@ export interface SpendingPaceResult {
     day: number
     reference: number
     actual: number
-    sesProjection: number | null
+    trend: number | null
     suggestion: number | null
   }[]
   cumulative: {
     day: number
     reference: number
     actual: number
-    sesProjection: number | null
+    trend: number | null
     suggestion: number | null
   }[]
   suggestionPerDay: number
@@ -209,7 +209,7 @@ export function spendingPace(
   const suggestionPerDay = remainingDays > 0 ? spendable / remainingDays : 0
 
   const sesResult = ses(dailyActual.slice(0, currentDay))
-  const lastSes = sesResult.length > 0 ? sesResult[sesResult.length - 1] : 0
+  const averagePerDay = currentDay > 0 ? spentSoFar / currentDay : 0
 
   const proRataBudget = monthDays > 0 ? (limit * currentDay) / monthDays : 0
   const status: PaceStatus =
@@ -232,11 +232,11 @@ export function spendingPace(
     const idx = d - 1
     cumActual = addCurrency(cumActual, dailyActual[idx])
 
-    let sesProj: number | null = sesResult[idx] ?? null
+    let trendValue: number | null = sesResult[idx] ?? null
     let sugProj: number | null = null
     if (d > currentDay) {
-      sesProj = lastSes
-      cumProjection = addCurrency(cumProjection, lastSes)
+      trendValue = averagePerDay
+      cumProjection = addCurrency(cumProjection, averagePerDay)
     }
     if (d >= currentDay && remainingDays > 0) {
       sugProj = suggestionPerDay
@@ -247,7 +247,7 @@ export function spendingPace(
       day: d,
       reference: referencePerDay,
       actual: dailyActual[idx],
-      sesProjection: sesProj,
+      trend: trendValue,
       suggestion: sugProj,
     })
 
@@ -255,7 +255,7 @@ export function spendingPace(
       day: d,
       reference: referencePerDay * d,
       actual: cumActual,
-      sesProjection: d > currentDay ? cumProjection : null,
+      trend: d >= currentDay ? cumProjection : null,
       suggestion: d >= currentDay && remainingDays > 0 ? cumSuggestion : null,
     })
   }

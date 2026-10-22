@@ -189,6 +189,17 @@ describe('spendingPace', () => {
     expect(spendingPace([shared], budget, 10).spentSoFar).toBe(50)
   })
 
+  test('projects the average spent per day after today', () => {
+    const spent = [
+      tx({ id: 'a', amount: 100, date: '2026-07-01' }),
+      tx({ id: 'b', amount: 100, date: '2026-07-02' }),
+    ]
+    const result = spendingPace(spent, budget, 2)
+
+    expect(result.daily.find((day) => day.day === 5)?.trend).toBe(100)
+    expect(result.cumulative.find((day) => day.day === 5)?.trend).toBe(500)
+  })
+
   test('places an installment in its reference month, not on the purchase day', () => {
     const purchase = tx({ id: 'p', amount: 200, date: '2026-06-28', installments: 2 })
 

@@ -262,7 +262,7 @@ export default function DashboardPage() {
               </span>
             </div>
             <p className="text-[10px] text-muted-foreground">
-              Planned {formatCurrency(pace.totalSalary)} − investments {formatCurrency(invested)}
+              (Planned {formatCurrency(pace.totalSalary)} − investments {formatCurrency(invested)})
             </p>
           </div>
 
@@ -271,7 +271,7 @@ export default function DashboardPage() {
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={pace.daily}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <CartesianGrid vertical={false} strokeDasharray="2 4" stroke="var(--border)" />
                   <ReferenceLine
                     x={currentDay}
                     stroke="var(--muted-foreground)"
@@ -285,6 +285,7 @@ export default function DashboardPage() {
                   />
                   <XAxis
                     dataKey="day"
+                    minTickGap={24}
                     tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
@@ -310,8 +311,8 @@ export default function DashboardPage() {
                     dataKey="actual"
                     name="Actual"
                     fill="var(--primary)"
-                    opacity={0.6}
-                    radius={[2, 2, 0, 0]}
+                    opacity={0.45}
+                    radius={0}
                   />
                   <Line
                     type="monotone"
@@ -324,7 +325,7 @@ export default function DashboardPage() {
                   />
                   <Line
                     type="monotone"
-                    dataKey="sesProjection"
+                    dataKey="trend"
                     name="Trend"
                     stroke={CHART_COLORS.projection}
                     strokeWidth={1.5}
@@ -352,7 +353,7 @@ export default function DashboardPage() {
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={pace.cumulative}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <CartesianGrid vertical={false} strokeDasharray="2 4" stroke="var(--border)" />
                   <ReferenceLine
                     x={currentDay}
                     stroke="var(--muted-foreground)"
@@ -366,6 +367,7 @@ export default function DashboardPage() {
                   />
                   <XAxis
                     dataKey="day"
+                    minTickGap={24}
                     tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
@@ -391,8 +393,8 @@ export default function DashboardPage() {
                     dataKey="actual"
                     name="Actual"
                     fill="var(--primary)"
-                    opacity={0.6}
-                    radius={[2, 2, 0, 0]}
+                    opacity={0.45}
+                    radius={0}
                   />
                   <Line
                     type="monotone"
@@ -405,7 +407,7 @@ export default function DashboardPage() {
                   />
                   <Line
                     type="monotone"
-                    dataKey="sesProjection"
+                    dataKey="trend"
                     name="Trend"
                     stroke={CHART_COLORS.projection}
                     strokeWidth={1.5}
@@ -441,7 +443,7 @@ export default function DashboardPage() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={budgetVsActualData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <CartesianGrid vertical={false} strokeDasharray="2 4" stroke="var(--border)" />
                   <XAxis
                     dataKey="category"
                     tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
