@@ -1,5 +1,5 @@
 import { addCurrency } from '../lib/currency'
-import { SAVINGS_RATE, SES_ALPHA } from './constants'
+import { SES_ALPHA } from './constants'
 import type { Budget, ExpenseFlow, IncomeFlow, Transaction } from './entities'
 import { addMonths, monthlyFlows } from './entities'
 
@@ -184,8 +184,9 @@ export function spendingPace(
 ): SpendingPaceResult {
   const plannedIncome = budget?.plannedIncome ?? 0
   const plannedMealVoucher = budget?.plannedMealVoucher ?? 0
+  const investmentRate = budget?.investmentRate ?? 0
   const totalSalary = addCurrency(plannedIncome, plannedMealVoucher)
-  const limit = addCurrency(plannedIncome * (1 - SAVINGS_RATE), plannedMealVoucher)
+  const limit = addCurrency(plannedIncome * (1 - investmentRate), plannedMealVoucher)
   const referenceMonth = budget?.referenceMonth ?? currentYM()
   const monthDays = daysInMonth(referenceMonth)
 

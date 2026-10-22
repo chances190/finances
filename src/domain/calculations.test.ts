@@ -20,7 +20,7 @@ import {
   totalByMonth,
   yearSummary,
 } from './calculations'
-import { SAVINGS_RATE } from './constants'
+import { DEFAULT_INVESTMENT_RATE } from './constants'
 import type { Budget, ExpenseTransaction, IncomeTransaction, Transaction } from './entities'
 
 type ExpenseOverrides = Partial<Omit<ExpenseTransaction, 'id' | 'type'>>
@@ -167,13 +167,14 @@ describe('spendingPace', () => {
     referenceMonth: '2026-07',
     plannedIncome: 5000,
     plannedMealVoucher: 500,
+    investmentRate: DEFAULT_INVESTMENT_RATE,
     categoryLimits: {},
   }
 
   test('applies the savings cut to income only', () => {
     const result = spendingPace([], budget, 1)
 
-    expect(result.limit).toBe(5000 * (1 - SAVINGS_RATE) + 500)
+    expect(result.limit).toBe(5000 * (1 - DEFAULT_INVESTMENT_RATE) + 500)
     expect(result.totalSalary).toBe(5500)
   })
 
@@ -232,6 +233,7 @@ describe('budgetVsActual', () => {
       referenceMonth: '2026-07',
       plannedIncome: 5000,
       plannedMealVoucher: 500,
+      investmentRate: 0,
       categoryLimits: { Food: 200, Rent: 250 },
     }
 
@@ -296,6 +298,7 @@ describe('budgetVsActualYear', () => {
         referenceMonth: '2026-07',
         plannedIncome: 5000,
         plannedMealVoucher: 500,
+        investmentRate: 0,
         categoryLimits: { Food: 1000 },
       },
     ]
@@ -319,6 +322,7 @@ function budget(
     referenceMonth: month,
     plannedIncome: income,
     plannedMealVoucher: 0,
+    investmentRate: 0,
     categoryLimits: limits,
   }
 }

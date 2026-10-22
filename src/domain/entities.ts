@@ -61,6 +61,7 @@ export interface Budget {
   referenceMonth: string
   plannedIncome: number
   plannedMealVoucher: number
+  investmentRate: number
   categoryLimits: Record<string, number>
 }
 

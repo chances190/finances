@@ -127,6 +127,7 @@ export default function DashboardPage() {
 
   const dailyQuota = monthDays > 0 ? pace.limit / monthDays : 0
   const dailyAvg = currentDay > 0 ? pace.spentSoFar / currentDay : 0
+  const invested = budget ? budget.plannedIncome * budget.investmentRate : 0
   const paceStatus = PACE_STATUS[pace.status]
 
   if (!monthData) {
@@ -221,19 +222,30 @@ export default function DashboardPage() {
             </Badge>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <StatCard
-              label="Average per day"
-              value={formatCurrency(dailyAvg)}
-              valueClassName="font-mono text-lg text-orange-500"
-              className="p-3"
-            />
-            <StatCard
-              label="Daily quota"
-              value={formatCurrency(dailyQuota)}
-              valueClassName="font-mono text-lg text-blue-500"
-              className="p-3"
-            />
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">
+              Planned {formatCurrency(pace.totalSalary)} − investments {formatCurrency(invested)} ={' '}
+              <span className="font-medium text-foreground">{formatCurrency(pace.limit)}</span>{' '}
+              available
+            </p>
+            <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs">
+              <span>
+                Spent{' '}
+                <span className="font-mono font-medium">{formatCurrency(pace.spentSoFar)}</span>
+              </span>
+              <span className="text-muted-foreground">
+                {Math.round((pace.spentSoFar / pace.limit) * 100)}% of {formatCurrency(pace.limit)}
+              </span>
+            </div>
+            <div className="h-2 w-full bg-muted">
+              <div
+                className={`h-full ${pace.spentSoFar > pace.limit ? 'bg-destructive' : 'bg-primary'}`}
+                style={{ width: `${Math.min(100, (pace.spentSoFar / pace.limit) * 100)}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <StatCard
               label="Remaining"
               value={formatCurrency(pace.remainingBudget)}
@@ -244,6 +256,12 @@ export default function DashboardPage() {
               label="Total budget"
               value={formatCurrency(pace.limit)}
               valueClassName="font-mono text-lg text-blue-500"
+              className="p-3"
+            />
+            <StatCard
+              label="Average per day"
+              value={formatCurrency(dailyAvg)}
+              valueClassName="font-mono text-lg text-orange-500"
               className="p-3"
             />
             <StatCard
@@ -309,16 +327,6 @@ export default function DashboardPage() {
                     strokeWidth={1.5}
                     dot={false}
                     strokeDasharray="4 4"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="sesProjection"
-                    name="Trend"
-                    stroke={CHART_COLORS.projection}
-                    strokeWidth={1.5}
-                    dot={false}
-                    strokeDasharray="5 3"
-                    connectNulls
                   />
                   <Line
                     type="monotone"
@@ -390,16 +398,6 @@ export default function DashboardPage() {
                     strokeWidth={1.5}
                     dot={false}
                     strokeDasharray="4 4"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="sesProjection"
-                    name="Trend"
-                    stroke={CHART_COLORS.projection}
-                    strokeWidth={1.5}
-                    dot={false}
-                    strokeDasharray="5 3"
-                    connectNulls
                   />
                   <Line
                     type="monotone"

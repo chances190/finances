@@ -1,4 +1,5 @@
 import {
+  DEFAULT_INVESTMENT_RATE,
   EXPENSE_PAYMENT_METHODS,
   INCOME_PAYMENT_METHODS,
   paymentMethodLabel,
@@ -151,18 +152,30 @@ export function validateTransaction(
   }
 }
 
-function isValidBudget(value: unknown): value is Budget {
-  if (!value || typeof value !== 'object') return false
+function parseBudget(value: unknown): Budget | null {
+  if (!value || typeof value !== 'object') return null
   const b = value as Record<string, unknown>
-  if (typeof b.referenceMonth !== 'string' || !isYearMonth(b.referenceMonth)) return false
+  if (typeof b.referenceMonth !== 'string' || !isYearMonth(b.referenceMonth)) return null
   if (!isNonNegativeFinite(b.plannedIncome) || !isNonNegativeFinite(b.plannedMealVoucher)) {
-    return false
+    return null
   }
   if (!b.categoryLimits || typeof b.categoryLimits !== 'object' || Array.isArray(b.categoryLimits))
-    return false
-  return Object.entries(b.categoryLimits).every(
+    return null
+  const validLimits = Object.entries(b.categoryLimits).every(
     ([category, limit]) => category.trim() !== '' && isNonNegativeFinite(limit),
   )
+  if (!validLimits) return null
+
+  const rate = b.investmentRate
+  if (rate != null && (!isNonNegativeFinite(rate) || rate > 1)) return null
+
+  return {
+    referenceMonth: b.referenceMonth,
+    plannedIncome: b.plannedIncome,
+    plannedMealVoucher: b.plannedMealVoucher,
+    investmentRate: rate == null ? DEFAULT_INVESTMENT_RATE : rate,
+    categoryLimits: b.categoryLimits as Record<string, number>,
+  }
 }
 
 export interface SkippedEntry {
@@ -202,11 +215,20 @@ export function validateFinanceData(value: unknown): ValidationResult {
     }
   }
 
-  const validBudgets = data.budgets.filter(isValidBudget)
+  const validBudgets: Budget[] = []
+  let skippedBudgets = 0
+  for (const value of data.budgets) {
+    const budget = parseBudget(value)
+    if (budget) {
+      validBudgets.push(budget)
+    } else {
+      skippedBudgets += 1
+    }
+  }
 
   return {
     data: { transactions: validTransactions, budgets: validBudgets },
     skippedTransactions,
-    skippedBudgets: data.budgets.length - validBudgets.length,
+    skippedBudgets,
   }
 }

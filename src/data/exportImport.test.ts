@@ -137,6 +137,7 @@ describe('importJSON', () => {
           referenceMonth: '2026-07',
           plannedIncome: 5000,
           plannedMealVoucher: 500,
+          investmentRate: 0.2,
           categoryLimits: { Food: 1000 },
         },
       ],

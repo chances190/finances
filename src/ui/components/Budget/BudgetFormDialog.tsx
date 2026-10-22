@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { addMonths } from '@/domain/calculations'
 import { budgetCategoryNames, budgetForMonth } from '@/domain/categories'
+import { DEFAULT_INVESTMENT_RATE } from '@/domain/constants'
 import type { Budget, Budget as BudgetType } from '@/domain/entities'
 import { addCurrency, formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
@@ -17,7 +18,16 @@ interface BudgetFormData {
   referenceMonth: string
   plannedIncome: string
   plannedMealVoucher: string
+  investmentRate: string
   categoryLimits: Record<string, string>
+}
+
+function formatPercent(rate: number): string {
+  return String(Math.round(rate * 1000) / 10)
+}
+
+function parsePercent(value: string): number {
+  return Math.min(100, Math.max(0, parseCurrency(value))) / 100
 }
 
 function emptyBudget(refMonth: string, budgets: Budget[]): BudgetFormData {
@@ -30,6 +40,7 @@ function emptyBudget(refMonth: string, budgets: Budget[]): BudgetFormData {
     referenceMonth: refMonth,
     plannedIncome: '',
     plannedMealVoucher: '',
+    investmentRate: formatPercent(DEFAULT_INVESTMENT_RATE),
     categoryLimits,
   }
 }
@@ -43,6 +54,7 @@ function toBudget(data: BudgetFormData): BudgetType {
     referenceMonth: data.referenceMonth,
     plannedIncome: parseCurrency(data.plannedIncome),
     plannedMealVoucher: parseCurrency(data.plannedMealVoucher),
+    investmentRate: parsePercent(data.investmentRate),
     categoryLimits: limits,
   }
 }
@@ -56,6 +68,7 @@ function formFromBudget(b: Budget): BudgetFormData {
     referenceMonth: b.referenceMonth,
     plannedIncome: formatPlainCurrency(b.plannedIncome),
     plannedMealVoucher: formatPlainCurrency(b.plannedMealVoucher),
+    investmentRate: formatPercent(b.investmentRate),
     categoryLimits: limits,
   }
 }
@@ -113,8 +126,12 @@ export default function BudgetFormDialog({
 
   const draftBudget = toBudget(form)
   const categoryTotal = Object.values(draftBudget.categoryLimits).reduce(addCurrency, 0)
-  const plannedTotal = addCurrency(draftBudget.plannedIncome, draftBudget.plannedMealVoucher)
+  const plannedTotal = addCurrency(
+    draftBudget.plannedIncome * (1 - draftBudget.investmentRate),
+    draftBudget.plannedMealVoucher,
+  )
   const budgetOverage = Math.max(0, addCurrency(categoryTotal, -plannedTotal))
+  const investedAmount = draftBudget.plannedIncome * draftBudget.investmentRate
 
   useEffect(() => {
     if (open) {
@@ -351,6 +368,27 @@ export default function BudgetFormDialog({
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label htmlFor="budget-investment" className="text-xs">
+                  Investments (%)
+                </Label>
+                <Input
+                  id="budget-investment"
+                  type="text"
+                  inputMode="decimal"
+                  value={form.investmentRate}
+                  onChange={(e) => setForm((f) => ({ ...f, investmentRate: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Invested</Label>
+                <div className="flex h-10 items-center border border-border bg-muted/30 px-2.5 font-mono text-xs sm:h-8">
+                  {formatCurrency(investedAmount)}
+                </div>
+              </div>
+            </div>
+
             <div>
               <div className="mb-2">
                 <Label className="text-xs font-medium">Category Limits</Label>
@@ -398,8 +436,8 @@ export default function BudgetFormDialog({
 
               {budgetOverage > 0 && (
                 <p className="mt-2 border border-red-200 p-2 text-xs text-red-700" role="alert">
-                  Monthly category limits exceed planned income + meal voucher by{' '}
-                  {formatCurrency(budgetOverage)}.
+                  Monthly category limits exceed the amount available to spend (planned income after
+                  investments + meal voucher) by {formatCurrency(budgetOverage)}.
                 </p>
               )}
 

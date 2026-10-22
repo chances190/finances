@@ -2,7 +2,7 @@ import type { ExpensePaymentMethod, IncomePaymentMethod, PaymentMethod } from '.
 
 export const SES_ALPHA = 0.3
 
-export const SAVINGS_RATE = 0.2
+export const DEFAULT_INVESTMENT_RATE = 0.2
 
 export const EXPENSE_PAYMENT_METHODS: readonly ExpensePaymentMethod[] = [
   'Debit',
@@ -60,7 +60,6 @@ export const CHART_COLORS = {
   expense: '#ef4444',
   primary: '#3b82f6',
   warning: '#f59e0b',
-  projection: '#f97316',
   suggestion: '#8b5cf6',
   balance: '#3b82f6',
   budgeted: '#3b82f6',

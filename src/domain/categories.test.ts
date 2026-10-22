@@ -3,7 +3,13 @@ import { allCategoryNames, budgetForMonth, categoryOptionsForMonth, monthOf } fr
 import type { Budget, ExpenseTransaction } from './entities'
 
 function budget(referenceMonth: string, categoryLimits: Record<string, number>): Budget {
-  return { referenceMonth, plannedIncome: 0, plannedMealVoucher: 0, categoryLimits }
+  return {
+    referenceMonth,
+    plannedIncome: 0,
+    plannedMealVoucher: 0,
+    investmentRate: 0,
+    categoryLimits,
+  }
 }
 
 function tx(overrides: Partial<Omit<ExpenseTransaction, 'type'>> = {}): ExpenseTransaction {
