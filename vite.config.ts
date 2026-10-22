@@ -12,9 +12,11 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
+        id: '/',
         name: 'Finances',
         short_name: 'Finances',
         description: 'Personal finance tracker',
+        categories: ['finance', 'productivity'],
         start_url: '/',
         scope: '/',
         display: 'standalone',
