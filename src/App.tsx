@@ -66,7 +66,7 @@ function AppShell() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border sticky top-0 z-40">
+      <header className="sticky top-0 z-40 border-b border-border bg-card pt-[env(safe-area-inset-top)]">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <h1 className="text-base font-heading font-bold">Finances</h1>
           <MobileNav tabs={tabs} active={activeTab} onChange={(key) => navigate(key)} />
