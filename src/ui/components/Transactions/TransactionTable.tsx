@@ -1,11 +1,5 @@
-import {
-  CheckCircleIcon,
-  FunnelIcon,
-  SortAscendingIcon,
-  SortDescendingIcon,
-  TrashIcon,
-} from '@phosphor-icons/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { FunnelIcon, SortAscendingIcon, SortDescendingIcon, TrashIcon } from '@phosphor-icons/react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { useSearchParams } from 'wouter'
 import { Badge } from '@/components/ui/badge'
@@ -28,16 +22,26 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { availableMonths, compareTransactions, monthRelation } from '@/domain/calculations'
-import { getAllCategories } from '@/domain/categories'
 import {
+  availableMonths,
+  compareTransactions,
+  currentYM,
+  monthRelation,
+  type TransactionSortKey,
+} from '@/domain/calculations'
+import { allCategoryNames, categoryOptionsForMonth } from '@/domain/categories'
+import {
+  EXPENSE_PAYMENT_METHODS,
   INCOME_PAYMENT_METHODS,
+  isExpensePaymentMethod,
+  isIncomePaymentMethod,
   PAYMENT_METHOD_BADGE_COLORS,
-  PAYMENT_METHODS,
+  PAYMENT_METHOD_LABELS,
+  paymentMethodLabel,
 } from '@/domain/constants'
-import type { MonthlyFlow, PaymentMethod, Transaction } from '@/domain/entities'
+import type { Debt, MonthlyFlow, PaymentMethod, Transaction } from '@/domain/entities'
 import { monthlyFlows } from '@/domain/entities'
-import { formatCurrency, parseCurrency } from '@/lib/currency'
+import { addCurrency, formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
@@ -53,11 +57,51 @@ const SORT_KEYS: [string, string][] = [
   ['date', 'Date'],
 ]
 
-function PaymentBadge({ method }: { method: string }) {
+const SORT_ORDER_LABELS: Record<string, [string, string]> = {
+  paymentMethod: ['Z to A', 'A to Z'],
+  amount: ['High to low', 'Low to high'],
+  description: ['Z to A', 'A to Z'],
+  category: ['Z to A', 'A to Z'],
+  date: ['Newest first', 'Oldest first'],
+}
+
+const SORT_OPTIONS = SORT_KEYS.flatMap(([key, label]) => {
+  const [desc, asc] = SORT_ORDER_LABELS[key]
+  return [
+    { value: `${key}:desc`, label: `${label}: ${desc}`, compact: `${label} ↓` },
+    { value: `${key}:asc`, label: `${label}: ${asc}`, compact: `${label} ↑` },
+  ]
+})
+
+function PaymentBadge({ method, installment }: { method: PaymentMethod; installment?: string }) {
   return (
-    <Badge variant="outline" className={PAYMENT_METHOD_BADGE_COLORS[method] ?? ''}>
-      {method}
+    <Badge variant="outline" className={PAYMENT_METHOD_BADGE_COLORS[method]}>
+      {paymentMethodLabel(method)}
+      {installment && ` · Installment ${installment}`}
     </Badge>
+  )
+}
+
+function debtsOf(tx: Transaction): Debt[] {
+  return tx.type === 'Expense' ? (tx.debts ?? []) : []
+}
+
+function othersOwe(flow: MonthlyFlow): number {
+  return addCurrency(flow.amount, -flow.ownAmount)
+}
+
+function SplitBreakdown({ flow }: { flow: MonthlyFlow }) {
+  return (
+    <div className="space-y-0.5 text-xs">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-muted-foreground">Others</span>
+        <span className="font-mono">{formatCurrency(othersOwe(flow))}</span>
+      </div>
+      <div className="flex items-baseline justify-between gap-2 font-medium">
+        <span>You</span>
+        <span className="font-mono">{formatCurrency(flow.ownAmount)}</span>
+      </div>
+    </div>
   )
 }
 
@@ -65,53 +109,62 @@ function TransactionCard({
   tx,
   flow,
   onEdit,
-  onSettleDebt,
   onDelete,
 }: {
   tx: Transaction
   flow: MonthlyFlow
   onEdit: () => void
-  onSettleDebt: (name: string) => void
   onDelete: () => void
 }) {
-  const debts = tx.debts ?? []
+  const debts = debtsOf(tx)
   const isFuture = monthRelation(flow.referenceMonth) === 'future'
 
   return (
-    <div className={`px-3 pt-0 pb-3 ${isFuture ? 'opacity-45' : ''}`}>
-      <button
-        type="button"
-        onClick={onEdit}
-        className="flex w-full items-start gap-2 py-3 text-left"
-      >
-        <span className="min-w-0 flex-1 text-sm font-medium break-words">{tx.description}</span>
-        {debts.length > 0 && debts.every((d) => d.settled) && (
-          <Badge variant="outline" className="shrink-0 text-[10px] text-green-600 bg-green-50">
-            Paid
-          </Badge>
-        )}
-        <span
-          className={`shrink-0 font-mono text-sm font-semibold ${tx.type === 'Income' ? 'text-green-600' : 'text-red-600'}`}
+    <div className={`px-3 py-1.5 ${isFuture ? 'opacity-45' : ''}`}>
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="min-w-0 flex-1 rounded-none py-1 text-left hover:bg-muted/30 focus-visible:outline focus-visible:outline-ring"
+          title="Edit transaction"
         >
-          {formatCurrency(flow.amount)}
-        </span>
-      </button>
-
-      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <PaymentBadge method={tx.paymentMethod} />
-        <span className="text-xs text-muted-foreground">
-          {flow.installmentIndex != null ? flow.referenceMonth : tx.date}
-        </span>
-        <span className="text-xs">{tx.category}</span>
-        {flow.installmentIndex != null && (
-          <Badge variant="outline" className="text-xs whitespace-nowrap">
-            {flow.installmentIndex + 1}/{flow.installmentTotal}
-          </Badge>
-        )}
+          <span className="flex items-start justify-between gap-2">
+            <span className="flex min-w-0 items-start gap-1 text-sm font-medium">
+              <span className="min-w-0 flex-1 break-words">{tx.description}</span>
+              {debts.length > 0 && debts.every((d) => d.settled) && (
+                <Badge
+                  variant="outline"
+                  className="shrink-0 text-[10px] text-green-600 bg-green-50"
+                >
+                  Paid
+                </Badge>
+              )}
+            </span>
+            <span
+              className={`shrink-0 font-mono text-sm font-semibold ${tx.type === 'Income' ? 'text-green-600' : 'text-red-600'}`}
+            >
+              {formatCurrency(flow.amount)}
+            </span>
+          </span>
+          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            <PaymentBadge
+              method={tx.paymentMethod}
+              installment={
+                flow.installmentIndex != null
+                  ? `${flow.installmentIndex + 1}/${flow.installmentTotal}`
+                  : undefined
+              }
+            />
+            <span>{flow.installmentIndex != null ? flow.referenceMonth : tx.date}</span>
+            <Badge variant="outline" className="text-[10px]">
+              {tx.category}
+            </Badge>
+          </span>
+        </button>
         <Button
           variant="ghost"
           size="icon"
-          className="ml-auto size-10"
+          className="mt-1 size-10"
           onClick={(e) => {
             e.stopPropagation()
             onDelete()
@@ -122,28 +175,9 @@ function TransactionCard({
         </Button>
       </div>
 
-      {debts.length > 0 && (
-        <div className="mt-2 space-y-1 border-t border-border pt-2">
-          {debts.map((d) => (
-            <div key={d.name} className="flex items-center justify-between gap-2">
-              <span className={`text-xs text-muted-foreground ${d.settled ? 'line-through' : ''}`}>
-                {d.name}: {formatCurrency(d.amount)}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-10"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onSettleDebt(d.name)
-                }}
-                title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
-                aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
-              >
-                <CheckCircleIcon />
-              </Button>
-            </div>
-          ))}
+      {othersOwe(flow) > 0 && (
+        <div className="ml-2 mt-1 bg-muted/30 p-2">
+          <SplitBreakdown flow={flow} />
         </div>
       )}
     </div>
@@ -163,6 +197,7 @@ function FilterGroup({
   count,
   onToggle,
   wide,
+  labels,
 }: {
   idPrefix: string
   label: string
@@ -171,18 +206,23 @@ function FilterGroup({
   count: number
   onToggle: (option: string, on: boolean) => void
   wide: boolean
+  labels?: Record<string, string>
 }) {
   const list = (
     <div className="space-y-1">
       {options.map((option) => (
-        <span key={option} className="flex items-center gap-2 py-1 cursor-pointer">
+        <label
+          key={option}
+          htmlFor={`${idPrefix}-${option}`}
+          className="flex min-h-10 cursor-pointer items-center gap-2 py-1"
+        >
           <Checkbox
             id={`${idPrefix}-${option}`}
             checked={selected.includes(option)}
             onCheckedChange={(checked) => onToggle(option, checked === true)}
           />
-          <span className="text-xs">{option}</span>
-        </span>
+          <span className="text-xs">{labels?.[option] ?? option}</span>
+        </label>
       ))}
     </div>
   )
@@ -194,7 +234,7 @@ function FilterGroup({
           {label}
           {count > 0 && ` (${count})`}
         </p>
-        <div className="max-h-48 overflow-y-auto">{list}</div>
+        <div>{list}</div>
       </div>
     )
   }
@@ -207,7 +247,7 @@ function FilterGroup({
         {count > 0 && ` (${count})`}
       </PopoverTrigger>
       <PopoverContent className="w-48 p-2">
-        <div className="max-h-48 overflow-y-auto">{list}</div>
+        <div>{list}</div>
       </PopoverContent>
     </Popover>
   )
@@ -239,7 +279,13 @@ function TransactionFilters({
   return (
     <>
       <Select value={filterType} onValueChange={(v) => updateParam('type', v)}>
-        <SelectTrigger className={wide ? 'h-9 w-full text-xs' : 'h-7 w-24 text-xs'}>
+        <SelectTrigger
+          className={
+            wide
+              ? 'h-10 w-full text-xs data-[size=default]:h-10 sm:h-7 sm:data-[size=default]:h-7'
+              : 'h-7 w-24 text-xs'
+          }
+        >
           <SelectValue>{filterType === 'all' ? 'All types' : filterType}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -250,7 +296,13 @@ function TransactionFilters({
       </Select>
 
       <Select value={filterMonth} onValueChange={(v) => updateParam('month', v)}>
-        <SelectTrigger className={wide ? 'h-9 w-full text-xs' : 'h-7 w-28 text-xs'}>
+        <SelectTrigger
+          className={
+            wide
+              ? 'h-10 w-full text-xs data-[size=default]:h-10 sm:h-7 sm:data-[size=default]:h-7'
+              : 'h-7 w-28 text-xs'
+          }
+        >
           <SelectValue>{filterMonth === 'all' ? 'All months' : filterMonth}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -277,6 +329,22 @@ function TransactionFilters({
       </Select>
 
       <FilterGroup
+        idPrefix="pay-filter"
+        label="Payment"
+        options={[...EXPENSE_PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS]}
+        selected={filterPayments}
+        count={filterPayments.length}
+        labels={PAYMENT_METHOD_LABELS}
+        onToggle={(pm, on) =>
+          updateParam(
+            'payment',
+            on ? [...filterPayments, pm] : filterPayments.filter((p) => p !== pm),
+          )
+        }
+        wide={wide}
+      />
+
+      <FilterGroup
         idPrefix="cat-filter"
         label="Category"
         options={allCategories}
@@ -286,21 +354,6 @@ function TransactionFilters({
           updateParam(
             'category',
             on ? [...filterCategories, cat] : filterCategories.filter((c) => c !== cat),
-          )
-        }
-        wide={wide}
-      />
-
-      <FilterGroup
-        idPrefix="pay-filter"
-        label="Payment"
-        options={[...PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS]}
-        selected={filterPayments}
-        count={filterPayments.length}
-        onToggle={(pm, on) =>
-          updateParam(
-            'payment',
-            on ? [...filterPayments, pm] : filterPayments.filter((p) => p !== pm),
           )
         }
         wide={wide}
@@ -414,14 +467,20 @@ export default function TransactionTable() {
   }, [state.transactions])
 
   const allCategories = useMemo(
-    () => getAllCategories(state.budgets, state.transactions),
+    () => allCategoryNames(state.budgets, state.transactions),
+    [state.budgets, state.transactions],
+  )
+
+  const categoriesForMonth = useCallback(
+    (month: string | null) =>
+      categoryOptionsForMonth(month ?? currentYM(), state.budgets, state.transactions),
     [state.budgets, state.transactions],
   )
 
   const allDebtors = useMemo(() => {
     const names = new Set<string>()
     for (const t of state.transactions) {
-      for (const d of t.debts ?? []) {
+      for (const d of debtsOf(t)) {
         if (d.name) names.add(d.name)
       }
     }
@@ -447,11 +506,11 @@ export default function TransactionTable() {
       txs = txs.filter((t) => filterPayments.includes(t.paymentMethod))
     }
     if (filterDebtors.length > 0) {
-      txs = txs.filter((t) => t.debts?.some((d) => filterDebtors.includes(d.name)))
+      txs = txs.filter((t) => debtsOf(t).some((d) => filterDebtors.includes(d.name)))
     }
     if (sortKey) {
       txs = [...txs].sort((a, b) =>
-        compareTransactions(a, b, sortKey as keyof Transaction, sortDir),
+        compareTransactions(a, b, sortKey as TransactionSortKey, sortDir),
       )
     } else {
       txs = [...txs].sort((a, b) => b.date.localeCompare(a.date))
@@ -516,39 +575,53 @@ export default function TransactionTable() {
 
   function handleSmartAdd(row: {
     description: string
-    amount: string
+    amount: number
     category: string | null
-    paymentMethod: string | null
+    paymentMethod: PaymentMethod | null
     date: string
-    error: string | null
   }) {
-    const amount = parseCurrency(row.amount)
-    if (amount <= 0) return
+    if (row.amount <= 0) return
+    const amount = row.amount
 
-    const isIncome =
-      row.paymentMethod && INCOME_PAYMENT_METHODS.includes(row.paymentMethod as PaymentMethod)
+    const method = row.paymentMethod ?? 'Debit'
 
-    const tx: Transaction = {
-      id: uuid(),
-      type: isIncome ? 'Income' : 'Expense',
-      date: row.date,
-      description: row.description,
-      amount,
-      category: isIncome ? 'Income' : (row.category ?? 'Other'),
-      paymentMethod: (row.paymentMethod ?? 'Debit') as PaymentMethod,
+    if (isIncomePaymentMethod(method)) {
+      dispatch({
+        type: 'ADD_TRANSACTIONS',
+        payload: [
+          {
+            id: uuid(),
+            type: 'Income',
+            date: row.date,
+            description: row.description,
+            amount,
+            category: 'Income',
+            paymentMethod: method,
+          },
+        ],
+      })
+    } else {
+      dispatch({
+        type: 'ADD_TRANSACTIONS',
+        payload: [
+          {
+            id: uuid(),
+            type: 'Expense',
+            date: row.date,
+            description: row.description,
+            amount,
+            category: row.category ?? 'Other',
+            paymentMethod: isExpensePaymentMethod(method) ? method : 'Debit',
+          },
+        ],
+      })
     }
-
-    dispatch({ type: 'ADD_TRANSACTIONS', payload: [tx] })
     toast('Transaction added', 'success')
   }
 
   function handleDelete(id: string) {
     dispatch({ type: 'DELETE_TRANSACTION', payload: id })
     toast('Transaction deleted', 'info')
-  }
-
-  function handleSettleDebt(id: string, debtName: string) {
-    dispatch({ type: 'SETTLE_DEBT', payload: { transactionId: id, debtName } })
   }
 
   function handleEdit(tx: Transaction) {
@@ -566,7 +639,7 @@ export default function TransactionTable() {
       <Button
         variant="ghost"
         size="sm"
-        className="h-7 text-xs text-muted-foreground"
+        className="h-10 text-xs text-muted-foreground sm:h-7"
         onClick={() => setSearchParams({}, { replace: true })}
       >
         Clear all
@@ -580,7 +653,7 @@ export default function TransactionTable() {
         onAdd={handleSmartAdd}
         onOpenModal={() => setShowAddForm(true)}
         knownDescriptions={knownDescriptions}
-        categories={allCategories}
+        categoriesForMonth={categoriesForMonth}
       />
 
       <div className="flex flex-wrap items-center gap-2">
@@ -588,29 +661,38 @@ export default function TransactionTable() {
           placeholder="Search description..."
           value={localSearch}
           onChange={(e) => setLocalSearch(e.target.value)}
-          className="h-7 w-44 text-xs"
+          className="h-10 min-w-0 flex-1 text-xs sm:h-7 sm:w-44 sm:flex-none"
           aria-label="Search transactions"
         />
         {!isDesktop && (
           <Select
-            value={sortKey ?? 'none'}
+            value={sortKey ? `${sortKey}:${sortDir}` : 'none'}
             onValueChange={(v) => {
-              if (v === null || v === 'none') setSortKey(null)
-              else handleSort(v)
+              if (v === null || v === 'none') {
+                setSortKey(null)
+                setSortDir('desc')
+              } else {
+                const [key, direction] = v.split(':')
+                setSortKey(key)
+                setSortDir(direction as 'asc' | 'desc')
+              }
             }}
           >
-            <SelectTrigger className="h-7 w-28 text-xs">
+            <SelectTrigger
+              className="h-10 w-28 text-xs data-[size=default]:h-10 sm:h-7 sm:data-[size=default]:h-7"
+              aria-label="Sort transactions"
+            >
               <SelectValue>
-                {sortKey
-                  ? `${SORT_KEYS.find(([k]) => k === sortKey)?.[1] ?? sortKey} ${sortDir === 'asc' ? '↑' : '↓'}`
-                  : 'Sort'}
+                {SORT_OPTIONS.find(
+                  (option) => option.value === (sortKey ? `${sortKey}:${sortDir}` : ''),
+                )?.compact ?? 'Sort'}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">Default order</SelectItem>
-              {SORT_KEYS.map(([key, label]) => (
-                <SelectItem key={key} value={key}>
-                  {label}
+              {SORT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -633,9 +715,9 @@ export default function TransactionTable() {
             <PopoverTrigger
               render={
                 <Button
-                  variant={activeFilterCount > 0 ? 'default' : 'outline'}
+                  variant="outline"
                   size="icon-sm"
-                  className="size-8"
+                  className={`size-10 sm:size-8 ${activeFilterCount > 0 ? 'border-primary bg-muted text-foreground' : ''}`}
                 />
               }
             >
@@ -717,8 +799,8 @@ export default function TransactionTable() {
                     Date{sortIndicator('date')}
                   </button>
                 </TableHead>
-                <TableHead className="w-16 text-center">Install</TableHead>
-                <TableHead className="w-32">Debts</TableHead>
+                <TableHead className="w-24 text-center">Installment</TableHead>
+                <TableHead className="w-28">Split</TableHead>
                 <TableHead className="text-right w-20">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -726,22 +808,27 @@ export default function TransactionTable() {
               {filtered.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8}>
-                    <EmptyState
-                      variant="cell"
-                      message="No transactions yet. Add one using the row above or import a CSV file."
-                    />
+                    <EmptyState variant="cell" message="No transactions yet." />
                   </TableCell>
                 </TableRow>
               )}
 
               {rows.map(({ tx, flow }) => {
-                const allDebtsSettled = tx.debts?.every((d) => d.settled) ?? true
+                const txDebts = debtsOf(tx)
+                const allDebtsSettled = txDebts.every((d) => d.settled)
                 const isFuture = monthRelation(flow.referenceMonth) === 'future'
                 return (
                   <TableRow
                     key={`${tx.id}-${flow.referenceMonth}-${flow.installmentIndex ?? 0}`}
-                    className={`cursor-pointer ${isFuture ? 'opacity-45' : ''}`}
+                    className={`cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${isFuture ? 'opacity-45' : ''}`}
+                    tabIndex={0}
                     onClick={() => handleEdit(tx)}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' '))
+                        return
+                      e.preventDefault()
+                      handleEdit(tx)
+                    }}
                   >
                     <TableCell>
                       <PaymentBadge method={tx.paymentMethod} />
@@ -754,7 +841,7 @@ export default function TransactionTable() {
                     <TableCell>
                       <div className="flex items-center gap-1.5">
                         <div className="max-w-48 truncate">{tx.description}</div>
-                        {tx.debts && tx.debts.length > 0 && allDebtsSettled && (
+                        {txDebts.length > 0 && allDebtsSettled && (
                           <Badge
                             variant="outline"
                             className="text-[10px] text-green-600 bg-green-50 "
@@ -765,7 +852,7 @@ export default function TransactionTable() {
                       </div>
                     </TableCell>
                     <TableCell className="text-xs">{tx.category}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-xs">
                       {flow.installmentIndex != null ? flow.referenceMonth : tx.date}
                     </TableCell>
                     <TableCell className="text-center text-xs">
@@ -775,32 +862,12 @@ export default function TransactionTable() {
                         </Badge>
                       ) : null}
                     </TableCell>
-                    <TableCell>
-                      {tx.debts && tx.debts.length > 0 ? (
-                        <div className="text-xs space-y-0.5">
-                          {tx.debts.map((d) => (
-                            <div key={d.name} className="flex items-center justify-between gap-2">
-                              <span
-                                className={`text-muted-foreground ${d.settled ? 'line-through' : ''}`}
-                              >
-                                {d.name}: {formatCurrency(d.amount)}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="icon-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleSettleDebt(tx.id, d.name)
-                                }}
-                                title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
-                                aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
-                              >
-                                <CheckCircleIcon />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
+                    <TableCell className="text-xs">
+                      {othersOwe(flow) > 0 ? (
+                        <SplitBreakdown flow={flow} />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <span className="flex gap-1 justify-end">
@@ -823,20 +890,19 @@ export default function TransactionTable() {
       )}
 
       {!isDesktop && (
-        <div className="border border-border">
+        <div className="space-y-2">
           {rows.length === 0 ? (
-            <EmptyState message="No transactions yet. Add one using the row above or import a CSV file." />
+            <EmptyState message="No transactions yet." />
           ) : (
             rows.map(({ tx, flow }) => (
               <div
                 key={`${tx.id}-${flow.referenceMonth}-${flow.installmentIndex ?? 0}`}
-                className="border-b border-border last:border-b-0"
+                className="border border-border"
               >
                 <TransactionCard
                   tx={tx}
                   flow={flow}
                   onEdit={() => handleEdit(tx)}
-                  onSettleDebt={(name) => handleSettleDebt(tx.id, name)}
                   onDelete={() => handleDelete(tx.id)}
                 />
               </div>

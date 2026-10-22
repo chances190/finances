@@ -6,9 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { addMonths } from '@/domain/calculations'
-import { DEFAULT_CATEGORIES } from '@/domain/constants'
+import { budgetCategoryNames, budgetForMonth } from '@/domain/categories'
 import type { Budget, Budget as BudgetType } from '@/domain/entities'
-import { formatPlainCurrency, parseCurrency } from '@/lib/currency'
+import { addCurrency, formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
@@ -20,20 +20,24 @@ interface BudgetFormData {
   categoryLimits: Record<string, string>
 }
 
-function emptyBudget(refMonth: string): BudgetFormData {
+function emptyBudget(refMonth: string, budgets: Budget[]): BudgetFormData {
+  const source = budgetForMonth(refMonth, budgets)
+  const categoryLimits: Record<string, string> = {}
+  if (source) {
+    for (const name of budgetCategoryNames(source)) categoryLimits[name] = ''
+  }
   return {
     referenceMonth: refMonth,
     plannedIncome: '',
     plannedMealVoucher: '',
-    categoryLimits: Object.fromEntries(DEFAULT_CATEGORIES.map((c) => [c, ''])),
+    categoryLimits,
   }
 }
 
 function toBudget(data: BudgetFormData): BudgetType {
   const limits: Record<string, number> = {}
-  for (const [cat, val] of Object.entries(data.categoryLimits)) {
-    const n = parseCurrency(val)
-    if (n > 0) limits[cat] = n
+  for (const [category, value] of Object.entries(data.categoryLimits)) {
+    limits[category] = parseCurrency(value)
   }
   return {
     referenceMonth: data.referenceMonth,
@@ -45,14 +49,8 @@ function toBudget(data: BudgetFormData): BudgetType {
 
 function formFromBudget(b: Budget): BudgetFormData {
   const limits: Record<string, string> = {}
-  for (const cat of DEFAULT_CATEGORIES) {
-    limits[cat] =
-      b.categoryLimits[cat] !== undefined ? formatPlainCurrency(b.categoryLimits[cat]) : ''
-  }
-  for (const [k, v] of Object.entries(b.categoryLimits)) {
-    if (!(DEFAULT_CATEGORIES as readonly string[]).includes(k)) {
-      limits[k] = formatPlainCurrency(v)
-    }
+  for (const [cat, value] of Object.entries(b.categoryLimits)) {
+    limits[cat] = value === 0 ? '' : formatPlainCurrency(value)
   }
   return {
     referenceMonth: b.referenceMonth,
@@ -83,6 +81,7 @@ interface PendingConflict {
 interface BudgetFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onDelete: () => void
   editingMonth: string | null
   editingRange: { startMonth: string; endMonth: string } | null
   existingBudget: Budget | undefined
@@ -92,6 +91,7 @@ interface BudgetFormDialogProps {
 export default function BudgetFormDialog({
   open,
   onOpenChange,
+  onDelete,
   editingMonth,
   editingRange,
   existingBudget,
@@ -100,19 +100,27 @@ export default function BudgetFormDialog({
   const { dispatch, state } = useFinance()
   const { toast } = useToast()
 
-  const [form, setForm] = useState<BudgetFormData>(
-    existingBudget ? formFromBudget(existingBudget) : emptyBudget(nextMonth),
+  const [form, setForm] = useState<BudgetFormData>(() =>
+    existingBudget ? formFromBudget(existingBudget) : emptyBudget(nextMonth, state.budgets),
   )
   const [rangeEnd, setRangeEnd] = useState(nextMonth)
   const [isRange, setIsRange] = useState(false)
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [showAddCategory, setShowAddCategory] = useState(false)
-  const [showAllCategories, setShowAllCategories] = useState(false)
+
+  const categoryRows = Object.keys(form.categoryLimits)
+
+  const draftBudget = toBudget(form)
+  const categoryTotal = Object.values(draftBudget.categoryLimits).reduce(addCurrency, 0)
+  const plannedTotal = addCurrency(draftBudget.plannedIncome, draftBudget.plannedMealVoucher)
+  const budgetOverage = Math.max(0, addCurrency(categoryTotal, -plannedTotal))
 
   useEffect(() => {
     if (open) {
-      setForm(existingBudget ? formFromBudget(existingBudget) : emptyBudget(nextMonth))
+      setForm(
+        existingBudget ? formFromBudget(existingBudget) : emptyBudget(nextMonth, state.budgets),
+      )
       if (editingRange) {
         setRangeEnd(editingRange.endMonth)
         setIsRange(editingRange.endMonth > editingRange.startMonth)
@@ -121,8 +129,10 @@ export default function BudgetFormDialog({
         setIsRange(false)
       }
       setPendingConflict(null)
+      setShowAddCategory(false)
+      setNewCategoryName('')
     }
-  }, [open, existingBudget, nextMonth, editingRange])
+  }, [open, existingBudget, nextMonth, editingRange, state.budgets])
 
   function handleClone() {
     const sourceMonth = editingMonth
@@ -135,6 +145,18 @@ export default function BudgetFormDialog({
     }
     const targetMonth = editingMonth ?? form.referenceMonth
     setForm({ ...formFromBudget(source), referenceMonth: targetMonth })
+  }
+
+  function handleAddCategory() {
+    const name = newCategoryName.trim()
+    if (!name) return
+    if (name in form.categoryLimits) {
+      toast('Category already exists', 'error')
+      return
+    }
+    setForm((f) => ({ ...f, categoryLimits: { ...f.categoryLimits, [name]: '' } }))
+    setNewCategoryName('')
+    setShowAddCategory(false)
   }
 
   function commitSave(months: string[], toDelete: string[], budget: BudgetType) {
@@ -156,7 +178,7 @@ export default function BudgetFormDialog({
     if (
       budget.plannedIncome === 0 &&
       budget.plannedMealVoucher === 0 &&
-      Object.keys(budget.categoryLimits).length === 0
+      Object.values(budget.categoryLimits).every((value) => value === 0)
     ) {
       toast('Budget has no values — set at least one limit or income.', 'error')
       return
@@ -205,20 +227,6 @@ export default function BudgetFormDialog({
     commitSave(newMonths, toDelete, budget)
   }
 
-  function handleAddCategory() {
-    if (!newCategoryName.trim()) return
-    if (form.categoryLimits[newCategoryName]) {
-      toast('Category already exists', 'error')
-      return
-    }
-    setForm((f) => ({
-      ...f,
-      categoryLimits: { ...f.categoryLimits, [newCategoryName]: '' },
-    }))
-    setNewCategoryName('')
-    setShowAddCategory(false)
-  }
-
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -259,22 +267,26 @@ export default function BudgetFormDialog({
                   </Label>
                   <Input
                     id="budget-month-from"
-                    type="month"
-                    value={form.referenceMonth}
-                    onChange={(e) => setForm((f) => ({ ...f, referenceMonth: e.target.value }))}
+                    type="date"
+                    value={form.referenceMonth ? `${form.referenceMonth}-01` : ''}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, referenceMonth: e.target.value.slice(0, 7) }))
+                    }
                   />
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label htmlFor="budget-month-from" className="text-xs">
                       From
                     </Label>
                     <Input
                       id="budget-month-from"
-                      type="month"
-                      value={form.referenceMonth}
-                      onChange={(e) => setForm((f) => ({ ...f, referenceMonth: e.target.value }))}
+                      type="date"
+                      value={form.referenceMonth ? `${form.referenceMonth}-01` : ''}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, referenceMonth: e.target.value.slice(0, 7) }))
+                      }
                     />
                   </div>
                   <div className="space-y-1">
@@ -283,10 +295,10 @@ export default function BudgetFormDialog({
                     </Label>
                     <Input
                       id="budget-month-to"
-                      type="month"
-                      value={rangeEnd}
-                      min={form.referenceMonth}
-                      onChange={(e) => setRangeEnd(e.target.value)}
+                      type="date"
+                      value={rangeEnd ? `${rangeEnd}-01` : ''}
+                      min={form.referenceMonth ? `${form.referenceMonth}-01` : undefined}
+                      onChange={(e) => setRangeEnd(e.target.value.slice(0, 7))}
                     />
                   </div>
                 </div>
@@ -298,22 +310,21 @@ export default function BudgetFormDialog({
                       {editingMonth ? 'Editing' : 'Creating'} budget for{' '}
                       <span className="font-medium text-foreground">
                         {monthsBetween(form.referenceMonth, rangeEnd).length} months
-                      </span>{' '}
-                      ({form.referenceMonth} – {rangeEnd})
+                      </span>
                     </span>
                   ) : (
-                    'Set To a later month to create budgets for a range.'
+                    'Choose an end month after the start month.'
                   )}
                 </div>
               )}
               <div className="flex">
                 <Button variant="outline" size="sm" onClick={handleClone}>
-                  <CopyIcon /> Clone from prev
+                  <CopyIcon /> Copy previous budget
                 </Button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label htmlFor="budget-income" className="text-xs">
                   Planned Income (R$)
@@ -341,34 +352,75 @@ export default function BudgetFormDialog({
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2">
                 <Label className="text-xs font-medium">Category Limits</Label>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="xs" onClick={() => setShowAllCategories((s) => !s)}>
-                    {showAllCategories ? 'Hide empty' : 'Show all'}
-                  </Button>
-                  <Button variant="ghost" size="xs" onClick={() => setShowAddCategory(true)}>
-                    <PlusIcon className="size-3" /> Add Category
-                  </Button>
-                </div>
               </div>
 
-              {showAddCategory && (
-                <div className="flex gap-1 mb-2">
+              <div className="grid grid-cols-2 gap-2">
+                {categoryRows.map((cat) => {
+                  const catId = `budget-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`
+                  return (
+                    <div key={cat} className="space-y-0.5 flex items-end gap-1">
+                      <div className="flex-1">
+                        <Label htmlFor={catId} className="text-[10px] text-muted-foreground">
+                          {cat}
+                        </Label>
+                        <Input
+                          id={catId}
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={form.categoryLimits[cat] ?? ''}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              categoryLimits: { ...f.categoryLimits, [cat]: e.target.value },
+                            }))
+                          }
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-10 shrink-0 text-destructive hover:text-destructive"
+                        onClick={() => {
+                          const { [cat]: _, ...rest } = form.categoryLimits
+                          setForm((f) => ({ ...f, categoryLimits: rest }))
+                        }}
+                        aria-label={`Remove category ${cat}`}
+                      >
+                        <TrashIcon className="size-3" />
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {budgetOverage > 0 && (
+                <p className="mt-2 border border-red-200 p-2 text-xs text-red-700" role="alert">
+                  Monthly category limits exceed planned income + meal voucher by{' '}
+                  {formatCurrency(budgetOverage)}.
+                </p>
+              )}
+
+              {showAddCategory ? (
+                <div className="mt-2 flex gap-1">
                   <Input
                     placeholder="Category name"
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleAddCategory()
+                      }
+                    }}
                     autoFocus
                     className="flex-1"
                   />
-                  <Button size="sm" onClick={handleAddCategory}>
-                    Add
-                  </Button>
+                  <Button onClick={handleAddCategory}>Add</Button>
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => {
                       setShowAddCategory(false)
                       setNewCategoryName('')
@@ -377,53 +429,27 @@ export default function BudgetFormDialog({
                     Cancel
                   </Button>
                 </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="mt-2 w-full"
+                  onClick={() => setShowAddCategory(true)}
+                >
+                  <PlusIcon className="size-3" /> Add Category
+                </Button>
               )}
-
-              <div className="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
-                {Object.keys(form.categoryLimits)
-                  .filter((cat) => showAllCategories || form.categoryLimits[cat] !== '')
-                  .map((cat) => {
-                    const catId = `budget-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`
-                    return (
-                      <div key={cat} className="space-y-0.5 flex items-end gap-1">
-                        <div className="flex-1">
-                          <Label htmlFor={catId} className="text-[10px] text-muted-foreground">
-                            {cat}
-                          </Label>
-                          <Input
-                            id={catId}
-                            type="text"
-                            inputMode="decimal"
-                            placeholder="0"
-                            value={form.categoryLimits[cat]}
-                            onChange={(e) =>
-                              setForm((f) => ({
-                                ...f,
-                                categoryLimits: { ...f.categoryLimits, [cat]: e.target.value },
-                              }))
-                            }
-                          />
-                        </div>
-                        {!(DEFAULT_CATEGORIES as readonly string[]).includes(cat) && (
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={() => {
-                              const { [cat]: _, ...rest } = form.categoryLimits
-                              setForm((f) => ({ ...f, categoryLimits: rest }))
-                            }}
-                            aria-label={`Remove category ${cat}`}
-                          >
-                            <TrashIcon className="size-3" />
-                          </Button>
-                        )}
-                      </div>
-                    )
-                  })}
-              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
+              {editingMonth && (
+                <Button
+                  variant="ghost"
+                  className="mr-auto h-10 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={onDelete}
+                >
+                  Delete budget
+                </Button>
+              )}
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>

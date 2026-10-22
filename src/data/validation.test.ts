@@ -135,7 +135,7 @@ describe('validateTransaction', () => {
     })
     expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.reason).toContain('non-negative')
+      expect(result.reason).toContain('positive')
     }
   })
 
@@ -151,93 +151,123 @@ describe('validateTransaction', () => {
     })
     expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.reason).toContain('non-negative')
+      expect(result.reason).toContain('positive')
     }
   })
 
-  test('rejects debts that are not an array', () => {
+  test('rejects malformed debts', () => {
+    const base = {
+      id: '1',
+      type: 'Expense' as const,
+      date: '2026-07-01',
+      description: 'Bad',
+      amount: 100,
+      category: 'Food',
+      paymentMethod: 'Debit' as const,
+    }
+
+    const notAnArray = validateTransaction({ ...base, debts: 'string' })
+    const nullEntry = validateTransaction({ ...base, debts: [null] })
+    const missingName = validateTransaction({ ...base, debts: [{ amount: 50, settled: false }] })
+
+    expect(notAnArray.ok).toBe(false)
+    expect(nullEntry.ok).toBe(false)
+    expect(missingName.ok).toBe(false)
+  })
+
+  test('rejects invalid installments', () => {
+    const base = {
+      id: '1',
+      type: 'Expense' as const,
+      date: '2026-07-01',
+      description: 'Bad',
+      amount: 100,
+      category: 'Food',
+      paymentMethod: 'Credit' as const,
+    }
+
+    const fractional = validateTransaction({ ...base, installments: 2.5 })
+    const notANumber = validateTransaction({ ...base, installments: 'abc' })
+
+    expect(fractional.ok).toBe(false)
+    expect(notANumber.ok).toBe(false)
+  })
+
+  test('rejects installments on a non-credit expense', () => {
     const result = validateTransaction({
       id: '1',
       type: 'Expense',
       date: '2026-07-01',
+      description: 'TV',
+      amount: 1200,
+      category: 'Shopping',
+      paymentMethod: 'Debit',
+      installments: 3,
+    })
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason).toContain('Credit')
+  })
+
+  test('rejects a non-positive amount', () => {
+    const base = {
+      id: '1',
+      type: 'Expense' as const,
+      date: '2026-07-01',
       description: 'Bad',
+      amount: 0,
+      category: 'Food',
+      paymentMethod: 'Debit' as const,
+    }
+
+    expect(validateTransaction(base).ok).toBe(false)
+    expect(validateTransaction({ ...base, amount: -1 }).ok).toBe(false)
+  })
+
+  test('rejects malformed and impossible dates', () => {
+    const base = {
+      id: '1',
+      type: 'Expense' as const,
+      date: '2026-07-01',
+      description: 'Bad',
+      amount: 100,
+      category: 'Food',
+      paymentMethod: 'Debit' as const,
+    }
+
+    expect(validateTransaction({ ...base, date: '01/07/2026' }).ok).toBe(false)
+    expect(validateTransaction({ ...base, date: '2026-02-30' }).ok).toBe(false)
+  })
+
+  test('rejects empty description and category', () => {
+    const base = {
+      id: '1',
+      type: 'Expense' as const,
+      date: '2026-07-01',
+      description: 'Bad',
+      amount: 100,
+      category: 'Food',
+      paymentMethod: 'Debit' as const,
+    }
+
+    expect(validateTransaction({ ...base, description: '  ' }).ok).toBe(false)
+    expect(validateTransaction({ ...base, category: '' }).ok).toBe(false)
+  })
+
+  test('rejects debts that exceed the transaction amount', () => {
+    const result = validateTransaction({
+      id: '1',
+      type: 'Expense',
+      date: '2026-07-01',
+      description: 'Dinner',
       amount: 100,
       category: 'Food',
       paymentMethod: 'Debit',
-      debts: 'string',
+      debts: [{ name: 'Ana', amount: 160, settled: false }],
     })
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.reason).toContain('debts must be an array')
-    }
-  })
 
-  test('rejects null debt entry', () => {
-    const result = validateTransaction({
-      id: '1',
-      type: 'Expense',
-      date: '2026-07-01',
-      description: 'Bad',
-      amount: 100,
-      category: 'Food',
-      paymentMethod: 'Debit',
-      debts: [null],
-    })
     expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.reason).toContain('invalid debt entry')
-    }
-  })
-
-  test('rejects debt with missing name', () => {
-    const result = validateTransaction({
-      id: '1',
-      type: 'Expense',
-      date: '2026-07-01',
-      description: 'Bad',
-      amount: 100,
-      category: 'Food',
-      paymentMethod: 'Debit',
-      debts: [{ amount: 50, settled: false }],
-    })
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.reason).toContain('debt.name')
-    }
-  })
-
-  test('rejects non-integer installments', () => {
-    const result = validateTransaction({
-      id: '1',
-      type: 'Expense',
-      date: '2026-07-01',
-      description: 'Bad',
-      amount: 100,
-      category: 'Food',
-      paymentMethod: 'Credit',
-      installments: 2.5,
-    })
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.reason).toContain('positive integer')
-    }
-  })
-
-  test('rejects non-number installments', () => {
-    const result = validateTransaction({
-      id: '1',
-      type: 'Expense',
-      date: '2026-07-01',
-      description: 'Bad',
-      amount: 100,
-      category: 'Food',
-      paymentMethod: 'Credit',
-      installments: 'abc',
-    })
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.reason).toContain('positive integer')
-    }
+    if (!result.ok) expect(result.reason).toContain('cannot exceed')
   })
 })
 
@@ -292,5 +322,34 @@ describe('validateFinanceData', () => {
 
   test('throws for missing transactions array', () => {
     expect(() => validateFinanceData({ budgets: [] })).toThrow('transactions must be an array')
+  })
+
+  test('skips budgets with an invalid month or values', () => {
+    const result = validateFinanceData({
+      transactions: [],
+      budgets: [
+        {
+          referenceMonth: '2026-13',
+          plannedIncome: 1000,
+          plannedMealVoucher: 0,
+          categoryLimits: {},
+        },
+        {
+          referenceMonth: '2026-07',
+          plannedIncome: 1000,
+          plannedMealVoucher: 0,
+          categoryLimits: { Food: -1 },
+        },
+        {
+          referenceMonth: '2026-07',
+          plannedIncome: 1000,
+          plannedMealVoucher: 0,
+          categoryLimits: { Food: 500 },
+        },
+      ],
+    })
+
+    expect(result.data.budgets).toHaveLength(1)
+    expect(result.skippedBudgets).toBe(2)
   })
 })

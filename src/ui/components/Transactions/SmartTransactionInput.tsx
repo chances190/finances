@@ -1,43 +1,38 @@
 import { PlusIcon } from '@phosphor-icons/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { localYMD } from '@/domain/calculations'
+import { paymentMethodLabel } from '@/domain/constants'
+import type { PaymentMethod } from '@/domain/entities'
 import { formatPlainCurrency } from '@/lib/currency'
-import type { SmartParseResult } from '@/lib/parseSmartInput'
-import { acceptSuggestion, getSuggestions, parseSmartInput } from '@/lib/parseSmartInput'
+import {
+  acceptSuggestion,
+  detectDateMonth,
+  getSuggestions,
+  parseSmartInput,
+} from '@/lib/parseSmartInput'
 
 type ParsedRow = {
   description: string
-  amount: string
+  amount: number
   category: string | null
-  paymentMethod: string | null
+  paymentMethod: PaymentMethod | null
   date: string
-  error: string | null
 }
 
 interface SmartInputProps {
   onAdd: (parsed: ParsedRow) => void
   onOpenModal: () => void
   knownDescriptions: string[]
-  categories: string[]
-}
-
-function toDisplayResult(r: SmartParseResult): ParsedRow {
-  return {
-    description: r.description,
-    amount: r.amount !== null ? String(r.amount) : '',
-    category: r.category,
-    paymentMethod: r.paymentMethod,
-    date: r.date ?? '',
-    error: r.error,
-  }
+  categoriesForMonth: (month: string | null) => string[]
 }
 
 export default function SmartTransactionInput({
   onAdd,
   onOpenModal,
   knownDescriptions,
-  categories,
+  categoriesForMonth,
 }: SmartInputProps) {
   const [raw, setRaw] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -47,6 +42,10 @@ export default function SmartTransactionInput({
   const [focused, setFocused] = useState(false)
   const suggestionRef = useRef<HTMLDivElement>(null)
 
+  const categories = useMemo(
+    () => categoriesForMonth(detectDateMonth(raw)),
+    [categoriesForMonth, raw],
+  )
   const parsed = parseSmartInput(raw, categories)
 
   useEffect(() => {
@@ -68,7 +67,14 @@ export default function SmartTransactionInput({
       setSubmitError(parsed.error)
       return
     }
-    onAdd(toDisplayResult(parsed))
+    if (parsed.amount === null) return
+    onAdd({
+      description: parsed.description,
+      amount: parsed.amount,
+      category: parsed.category,
+      paymentMethod: parsed.paymentMethod,
+      date: parsed.date ?? localYMD(),
+    })
     setRaw('')
     setShowSuggestions(false)
     setSubmitError(null)
@@ -109,7 +115,13 @@ export default function SmartTransactionInput({
   return (
     <div className="relative">
       {focused && (
-        <div className="mb-0.5 text-[10px] text-muted-foreground bg-muted/50 px-2 py-1 flex flex-wrap gap-x-4 gap-y-0.5">
+        <div className="mb-0.5 flex flex-nowrap gap-x-3 overflow-x-auto bg-muted/50 px-2 py-1 text-[10px] whitespace-nowrap text-muted-foreground">
+          <span>
+            Payment:{' '}
+            <span className="font-medium">
+              {parsed.paymentMethod ? paymentMethodLabel(parsed.paymentMethod) : '—'}
+            </span>
+          </span>
           <span>
             Amount:{' '}
             <span className="font-medium font-mono">
@@ -121,9 +133,6 @@ export default function SmartTransactionInput({
           </span>
           <span>
             Category: <span className="font-medium">{parsed.category || '—'}</span>
-          </span>
-          <span>
-            Payment: <span className="font-medium">{parsed.paymentMethod ?? '—'}</span>
           </span>
           <span>
             Date: <span className="font-medium">{parsed.date || '—'}</span>
@@ -161,7 +170,7 @@ export default function SmartTransactionInput({
                 <button
                   key={s}
                   type="button"
-                  className={`block w-full text-left px-2 py-1 truncate hover:bg-muted ${
+                  className={`flex min-h-10 w-full items-center px-2 py-2 text-left truncate hover:bg-muted sm:min-h-6 sm:py-1 ${
                     i === activeSuggestion ? 'bg-muted' : ''
                   }`}
                   onMouseDown={(e) => {

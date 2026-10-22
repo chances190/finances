@@ -1,12 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
-import { parsePortugueseDate } from './parsePortugueseDate'
+import { dateCompletions, parsePortugueseDate } from './dates'
 
 const ORIGINAL_DATE = Date
 
 function mockToday(ymd: string) {
   const [y, m, d] = ymd.split('-').map(Number)
   const fake = new ORIGINAL_DATE(y, m - 1, d, 12, 0, 0)
-  // @ts-expect-error test mock
   globalThis.Date = class extends ORIGINAL_DATE {
     constructor(...args: unknown[]) {
       if (args.length === 0) {
@@ -70,19 +69,49 @@ describe('calendar dates', () => {
     expect(parsePortugueseDate('12 de junho de 2025')).toBe('2025-06-12')
   })
 
-  test('joined month form without a year resolves to its next occurrence', () => {
+  test('joined month form without a year uses the current year', () => {
     expect(parsePortugueseDate('25 de dezembro')).toBe('2026-12-25')
-    expect(parsePortugueseDate('12 de junho')).toBe('2027-06-12')
+    expect(parsePortugueseDate('12 de junho')).toBe('2026-06-12')
+  })
+
+  test('month name without the "de" particle', () => {
+    expect(parsePortugueseDate('12 junho')).toBe('2026-06-12')
+    expect(parsePortugueseDate('12 junho de 2025')).toBe('2025-06-12')
+    expect(parsePortugueseDate('12 junho 2025')).toBe('2025-06-12')
+    expect(parsePortugueseDate('12 de junho 2025')).toBe('2025-06-12')
   })
 
   test('abbreviated natural date', () => {
-    expect(parsePortugueseDate('12 jun')).toBe('2027-06-12')
-    expect(parsePortugueseDate('12 jun.')).toBe('2027-06-12')
+    expect(parsePortugueseDate('12 jun')).toBe('2026-06-12')
+    expect(parsePortugueseDate('12 jun.')).toBe('2026-06-12')
   })
 
   test('iso and short date', () => {
     expect(parsePortugueseDate('2026-09-16')).toBe('2026-09-16')
     expect(parsePortugueseDate('09-16')).toBe('2026-09-16')
+  })
+})
+
+describe('completions', () => {
+  test('offers full month names without the "de" particle', () => {
+    expect(dateCompletions('12 ju')).toContain('12 junho')
+    expect(dateCompletions('12 ju')).toContain('12 julho')
+  })
+
+  test('offers full month names after "de"', () => {
+    expect(dateCompletions('12 de ju')).toContain('12 de junho')
+    expect(dateCompletions('12 de ju')).toContain('12 de julho')
+  })
+
+  test('a complete month name extends to years starting at the current year', () => {
+    expect(dateCompletions('12 junho')[0]).toBe('12 junho 2026')
+    expect(dateCompletions('12 de junho')[0]).toBe('12 de junho de 2026')
+  })
+
+  test('the "de" before the year is optional and preserved', () => {
+    expect(dateCompletions('12 junho 20')).toContain('12 junho 2026')
+    expect(dateCompletions('12 junho de 20')).toContain('12 junho de 2026')
+    expect(dateCompletions('12 de junho 20')).toContain('12 de junho 2026')
   })
 })
 

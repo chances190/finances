@@ -13,6 +13,14 @@ export function parseCurrency(input: string | number): number {
   return c(str, { precision: 2 }).value
 }
 
+const STRICT_CURRENCY = /^(?:R\$\s?)?-?(?:\d+(?:\.\d{3})*,\d{1,2}|\d+(?:\.\d+)?)$/
+
+export function parseCurrencyStrict(input: string): number | null {
+  const str = input.trim()
+  if (str === '' || !STRICT_CURRENCY.test(str)) return null
+  return parseCurrency(str)
+}
+
 export function formatCurrency(value: number): string {
   return c(value, brlOpts).format()
 }

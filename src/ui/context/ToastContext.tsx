@@ -21,9 +21,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const toast = useCallback((message: string, type: Toast['type'] = 'info') => {
     const id = nextId++
     setToasts((prev) => [...prev, { id, message, type }])
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id))
-    }, 3000)
+    setTimeout(
+      () => {
+        setToasts((prev) => prev.filter((t) => t.id !== id))
+      },
+      type === 'error' ? 6000 : 3000,
+    )
   }, [])
 
   return (
@@ -33,21 +36,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            role="status"
-            className={`flex items-center gap-2 px-3 py-2 text-xs shadow-lg border ${
-              t.type === 'error'
-                ? 'bg-red-50 border-red-200 text-red-700'
-                : t.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-blue-50 border-blue-200 text-blue-700'
-            }`}
+            role={t.type === 'error' ? 'alert' : 'status'}
+            className="flex items-center gap-2 border border-border bg-popover px-3 py-2 text-xs text-foreground shadow-lg"
           >
             <span className="flex-1">{t.message}</span>
             <button
               type="button"
               onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
               aria-label="Dismiss notification"
-              className="opacity-70 hover:opacity-100"
+              className="-my-2 -mr-2 flex size-10 shrink-0 items-center justify-center opacity-70 hover:opacity-100 sm:-my-1 sm:-mr-1 sm:size-6"
             >
               <XIcon className="size-3" />
             </button>

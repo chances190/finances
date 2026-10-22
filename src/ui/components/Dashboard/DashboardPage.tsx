@@ -1,11 +1,4 @@
-import {
-  CreditCard,
-  CurrencyDollar,
-  ForkKnife,
-  PiggyBank,
-  TrendDown,
-  TrendUp,
-} from '@phosphor-icons/react'
+import { ForkKnifeIcon, PiggyBank, TrendDownIcon, TrendUp } from '@phosphor-icons/react'
 import { useMemo } from 'react'
 import {
   Bar,
@@ -17,12 +10,13 @@ import {
   Line,
   Pie,
   PieChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
-import { useSearchParams } from 'wouter'
+import { useLocation, useSearchParams } from 'wouter'
 import { Badge } from '@/components/ui/badge'
 import {
   Select,
@@ -33,9 +27,7 @@ import {
 } from '@/components/ui/select'
 import {
   availableMonths,
-  bankExpenses,
   budgetVsActual,
-  creditInvoice,
   currentYM,
   daysInMonth,
   expensesByMonth,
@@ -43,18 +35,27 @@ import {
   incomeByPaymentMethod,
   mealVoucherBalance,
   monthRelation,
+  type PaceStatus,
   spendingPace,
   totalByMonth,
 } from '@/domain/calculations'
-import { CHART_COLORS, PAYMENT_METHOD_CHART_COLORS } from '@/domain/constants'
-import { monthlyFlows } from '@/domain/entities'
-import { addCurrency, formatAxisCurrency, formatCurrency } from '@/lib/currency'
+import { CHART_COLORS, PAYMENT_METHOD_CHART_COLORS, paymentMethodLabel } from '@/domain/constants'
+import type { PaymentMethod } from '@/domain/entities'
+import { formatAxisCurrency, formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import StatCard from '@/ui/components/Common/StatCard'
 import { useFinance } from '@/ui/context'
 
+const PACE_STATUS: Record<PaceStatus, { label: string; color: string }> = {
+  'on-track': { label: 'On track', color: 'text-green-600' },
+  caution: { label: 'Caution', color: 'text-amber-600' },
+  ahead: { label: 'Ahead of pace', color: 'text-amber-600' },
+  over: { label: 'Over budget', color: 'text-red-600' },
+}
+
 export default function DashboardPage() {
   const { state } = useFinance()
+  const [, navigate] = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const months = useMemo(() => availableMonths(state.transactions), [state.transactions])
@@ -87,8 +88,6 @@ export default function DashboardPage() {
       income,
       expenses,
       balance: income - expenses,
-      creditInvoice: creditInvoice(state.transactions, selectedMonth),
-      bankExpenses: bankExpenses(state.transactions, selectedMonth),
       mealVoucher: mealVoucherBalance(state.transactions, selectedMonth),
       incomeByMethod: incomeByPaymentMethod(state.transactions, selectedMonth),
     }
@@ -105,9 +104,9 @@ export default function DashboardPage() {
     return Object.entries(grouped)
       .filter(([, v]) => v > 0)
       .map(([method, amount]) => ({
-        name: method,
+        name: paymentMethodLabel(method),
         value: amount,
-        color: PAYMENT_METHOD_CHART_COLORS[method] ?? '#6b7280',
+        color: PAYMENT_METHOD_CHART_COLORS[method as PaymentMethod],
       }))
   }, [state.transactions, selectedMonth])
 
@@ -126,34 +125,21 @@ export default function DashboardPage() {
     [state.transactions, budget, currentDay],
   )
 
-  const dailyQuota = pace.totalSalary > 0 ? pace.limit / monthDays : 0
-
-  const spentSoFar = useMemo(() => {
-    if (!selectedMonth) return 0
-    return state.transactions
-      .filter((t) => t.type === 'Expense' && !(t.debts?.some((d) => !d.settled) ?? false))
-      .flatMap((t) => monthlyFlows(t))
-      .filter((f) => f.referenceMonth === selectedMonth)
-      .reduce((s, f) => addCurrency(s, f.amount), 0)
-  }, [state.transactions, selectedMonth])
-
-  const paceStatus = useMemo(() => {
-    if (currentDay === 0) return { label: 'No data', color: 'text-muted-foreground' }
-    const avgDay = spentSoFar / currentDay
-    if (dailyQuota === 0) return { label: 'No budget set', color: 'text-muted-foreground' }
-    if (avgDay <= dailyQuota * 1.05) return { label: 'On track', color: 'text-green-500' }
-    if (avgDay <= dailyQuota * 1.2) return { label: 'Caution', color: 'text-yellow-500' }
-    return { label: 'Over budget', color: 'text-red-500' }
-  }, [currentDay, spentSoFar, dailyQuota])
-
-  const dailyAvg = currentDay > 0 ? spentSoFar / currentDay : 0
+  const dailyQuota = monthDays > 0 ? pace.limit / monthDays : 0
+  const dailyAvg = currentDay > 0 ? pace.spentSoFar / currentDay : 0
+  const paceStatus = PACE_STATUS[pace.status]
 
   if (!monthData) {
-    return <EmptyState message="No transaction data available." />
+    return (
+      <EmptyState
+        message="No transaction data available."
+        action={{ label: 'Go to Transactions', onClick: () => navigate('/') }}
+      />
+    )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-foreground">Monthly Dashboard</h2>
         <Select value={selectedMonth} onValueChange={(v) => v && setSelectedMonth(v)}>
@@ -188,59 +174,37 @@ export default function DashboardPage() {
           label="Income"
           icon={<TrendUp className="size-3 text-green-500" />}
           value={formatCurrency(monthData.income)}
+          valueClassName="font-mono"
         />
         <StatCard
           label="Expenses"
-          icon={<TrendDown className="size-3 text-red-500" />}
+          icon={<TrendDownIcon className="size-3 text-red-500" />}
           value={formatCurrency(monthData.expenses)}
+          valueClassName="font-mono"
         />
         <StatCard
           label="Balance"
-          icon={<PiggyBank className="size-3 text-blue-500" />}
+          icon={<PiggyBank className="size-3 text-muted-foreground" />}
           value={formatCurrency(monthData.balance)}
-          valueClassName={monthData.balance >= 0 ? 'text-green-500' : 'text-red-500'}
+          valueClassName={`font-mono ${monthData.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}
         />
         <StatCard
-          label="Credit card"
-          icon={<CreditCard className="size-3 text-orange-500" />}
-          value={formatCurrency(monthData.creditInvoice)}
-        />
-        <StatCard
-          label="Meal Voucher"
-          icon={<ForkKnife className="size-3 text-purple-500" />}
+          label="Meal Voucher Balance"
+          icon={<ForkKnifeIcon className="size-3 text-pink-500" />}
           value={formatCurrency(monthData.mealVoucher)}
-          valueClassName={monthData.mealVoucher >= 0 ? 'text-green-500' : 'text-red-500'}
-        />
-        <StatCard
-          label="Bank spent"
-          icon={<CurrencyDollar className="size-3 text-cyan-500" />}
-          value={formatCurrency(monthData.bankExpenses)}
+          valueClassName={`font-mono ${monthData.mealVoucher >= 0 ? 'text-green-500' : 'text-red-500'}`}
         />
       </div>
-
-      {monthData.income > 0 && Object.keys(monthData.incomeByMethod).length > 0 && (
-        <div className="border bg-card p-4">
-          <h3 className="text-sm font-semibold mb-2">Income by Account</h3>
-          <div className="flex flex-wrap gap-4">
-            {Object.entries(monthData.incomeByMethod).map(([method, amount]) => (
-              <div key={method} className="flex items-center gap-2 text-sm">
-                <span
-                  className="inline-block size-2.5 rounded-full"
-                  style={{ background: PAYMENT_METHOD_CHART_COLORS[method] ?? '#6b7280' }}
-                />
-                <span className="text-muted-foreground text-xs">{method}:</span>
-                <span className="font-mono text-xs font-medium">{formatCurrency(amount)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {currentDay > 0 && dailyQuota === 0 && (
         <div className="border bg-card p-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <TrendDown className="size-4" />
-            <span>Set a budget to see your spending pace.</span>
+            <TrendDownIcon className="size-4" />
+            <span>
+              {budget
+                ? 'Add planned income to this budget to see your spending pace.'
+                : 'Set a budget to see your spending pace.'}
+            </span>
           </div>
         </div>
       )}
@@ -249,7 +213,7 @@ export default function DashboardPage() {
         <div className="border bg-card p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold flex items-center gap-2">
-              <TrendDown className="size-4" />
+              <TrendDownIcon className="size-4" />
               Spending Pace — Day {currentDay}/{monthDays}
             </h3>
             <Badge variant="outline" className={paceStatus.color}>
@@ -259,35 +223,33 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             <StatCard
-              label="Daily quota"
-              value={formatCurrency(dailyQuota)}
-              valueClassName="text-lg text-blue-500"
+              label="Average per day"
+              value={formatCurrency(dailyAvg)}
+              valueClassName="font-mono text-lg text-orange-500"
               className="p-3"
             />
             <StatCard
-              label="Avg / day"
-              value={formatCurrency(dailyAvg)}
-              valueClassName={
-                dailyAvg <= dailyQuota * 1.05 ? 'text-lg text-green-500' : 'text-lg text-red-500'
-              }
+              label="Daily quota"
+              value={formatCurrency(dailyQuota)}
+              valueClassName="font-mono text-lg text-blue-500"
               className="p-3"
             />
             <StatCard
               label="Remaining"
-              value={formatCurrency(pace.limit - spentSoFar)}
-              valueClassName="text-lg text-blue-500"
+              value={formatCurrency(pace.remainingBudget)}
+              valueClassName={`font-mono text-lg ${pace.remainingBudget < 0 ? 'text-red-600' : 'text-foreground'}`}
               className="p-3"
             />
             <StatCard
-              label="Suggestion"
-              value={formatCurrency(pace.suggestionPerDay)}
-              valueClassName="text-lg text-green-500"
-              className="p-3"
-            />
-            <StatCard
-              label="Total limit"
+              label="Total budget"
               value={formatCurrency(pace.limit)}
-              valueClassName="text-lg text-muted-foreground"
+              valueClassName="font-mono text-lg text-blue-500"
+              className="p-3"
+            />
+            <StatCard
+              label="Daily suggestion"
+              value={formatCurrency(pace.suggestionPerDay)}
+              valueClassName="font-mono text-lg text-violet-500"
               className="p-3"
             />
           </div>
@@ -298,6 +260,17 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={pace.daily}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <ReferenceLine
+                    x={currentDay}
+                    stroke="var(--muted-foreground)"
+                    strokeDasharray="2 2"
+                    label={{
+                      value: 'Today',
+                      position: 'insideTopRight',
+                      fontSize: 10,
+                      fill: 'var(--muted-foreground)',
+                    }}
+                  />
                   <XAxis
                     dataKey="day"
                     tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
@@ -331,7 +304,7 @@ export default function DashboardPage() {
                   <Line
                     type="monotone"
                     dataKey="reference"
-                    name="Reference"
+                    name="Daily quota"
                     stroke={CHART_COLORS.primary}
                     strokeWidth={1.5}
                     dot={false}
@@ -340,7 +313,7 @@ export default function DashboardPage() {
                   <Line
                     type="monotone"
                     dataKey="sesProjection"
-                    name="Projection (SES)"
+                    name="Trend"
                     stroke={CHART_COLORS.projection}
                     strokeWidth={1.5}
                     dot={false}
@@ -368,6 +341,17 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={pace.cumulative}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <ReferenceLine
+                    x={currentDay}
+                    stroke="var(--muted-foreground)"
+                    strokeDasharray="2 2"
+                    label={{
+                      value: 'Today',
+                      position: 'insideTopRight',
+                      fontSize: 10,
+                      fill: 'var(--muted-foreground)',
+                    }}
+                  />
                   <XAxis
                     dataKey="day"
                     tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
@@ -401,7 +385,7 @@ export default function DashboardPage() {
                   <Line
                     type="monotone"
                     dataKey="reference"
-                    name="Reference"
+                    name="Daily quota"
                     stroke={CHART_COLORS.primary}
                     strokeWidth={1.5}
                     dot={false}
@@ -410,7 +394,7 @@ export default function DashboardPage() {
                   <Line
                     type="monotone"
                     dataKey="sesProjection"
-                    name="Projection (SES)"
+                    name="Trend"
                     stroke={CHART_COLORS.projection}
                     strokeWidth={1.5}
                     dot={false}
@@ -488,14 +472,14 @@ export default function DashboardPage() {
         </div>
 
         <div className="border bg-card p-4 space-y-3">
-          <h3 className="text-sm font-semibold">Payment Methods</h3>
+          <h3 className="text-sm font-semibold">Expense payment methods</h3>
           {paymentMethodData.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-xs text-muted-foreground">
               No expenses this month.
             </div>
           ) : (
             <div className="flex flex-col items-center">
-              <div className="h-48">
+              <div className="h-48 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -534,7 +518,7 @@ export default function DashboardPage() {
                       className="inline-block size-2.5 rounded-full"
                       style={{ background: entry.color }}
                     />
-                    {entry.name}: {formatCurrency(entry.value)}
+                    {entry.name}: <span className="font-mono">{formatCurrency(entry.value)}</span>
                   </div>
                 ))}
               </div>

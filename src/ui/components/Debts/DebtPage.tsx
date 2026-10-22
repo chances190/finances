@@ -14,11 +14,17 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { daysSince } from '@/domain/calculations'
-import type { Transaction } from '@/domain/entities'
+import type { Debt, ExpenseTransaction, Transaction } from '@/domain/entities'
 import { addCurrency, formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import { useFinance } from '@/ui/context'
 import { useIsDesktop } from '@/ui/hooks/useIsDesktop'
+
+type DebtTransaction = ExpenseTransaction & { debts: Debt[] }
+
+function hasDebts(tx: Transaction): tx is DebtTransaction {
+  return tx.type === 'Expense' && Array.isArray(tx.debts) && tx.debts.length > 0
+}
 
 const BADGE_GREEN = 'text-green-600 bg-green-50 '
 const BADGE_AMBER = 'text-amber-600 bg-amber-50 '
@@ -40,11 +46,11 @@ function DebtUrgency({ days }: { days: number }) {
 
 function PersonCard({ person, onOpen }: { person: PersonData; onOpen: () => void }) {
   return (
-    <div className={`px-3 pt-0 pb-3 ${person.allSettled ? 'opacity-50' : ''}`}>
+    <div className={`px-3 py-1 ${person.allSettled ? 'opacity-50' : ''}`}>
       <button
         type="button"
         onClick={onOpen}
-        className="flex w-full items-center gap-2 py-3 text-left"
+        className="flex min-h-10 w-full items-center gap-2 py-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
       >
         <UserIcon className="size-3 shrink-0" />
         <span className="min-w-0 flex-1 truncate text-sm font-medium">{person.name}</span>
@@ -62,7 +68,7 @@ function PersonCard({ person, onOpen }: { person: PersonData; onOpen: () => void
           </Badge>
         )}
       </button>
-      <div className="-mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <span>
           Unsettled{' '}
           <span className="font-mono text-foreground">
@@ -85,7 +91,7 @@ function DebtorCard({
   onToggleSettle,
   onSettleAll,
 }: {
-  tx: Transaction
+  tx: DebtTransaction
   onOpen: () => void
   onToggleSettle: (name: string) => void
   onSettleAll: () => void
@@ -94,79 +100,66 @@ function DebtorCard({
   const allSettled = tx.debts?.every((d) => d.settled) ?? true
   const debtNames = [...new Set(tx.debts?.map((d) => d.name) ?? [])]
   const splitCount = tx.debts?.length ?? 0
-  const singleSplit = tx.debts?.[0]
 
   return (
-    <div className={`px-3 pt-0 pb-3 ${allSettled ? 'opacity-50' : ''}`}>
-      <button type="button" onClick={onOpen} className="w-full py-3 text-left">
-        <span className="flex items-start gap-2">
-          <span className="min-w-0 flex-1 text-sm font-medium break-words">{tx.description}</span>
-          <span className="shrink-0 font-mono text-sm">{formatCurrency(tx.amount)}</span>
-        </span>
-        <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-          <UserIcon className="size-3 shrink-0" />
-          {debtNames.length === 1 ? debtNames[0] : 'Multiple'}
-        </span>
-        <span className="mt-1.5 flex flex-wrap items-center gap-2">
-          {allSettled ? (
-            <Badge variant="outline" className={BADGE_GREEN}>
-              Paid
-            </Badge>
-          ) : (
-            <DebtUrgency days={days} />
-          )}
-          <span className="text-xs text-muted-foreground">lent {tx.date}</span>
-        </span>
-      </button>
-
-      <div className="mt-1 space-y-1 border-t border-border pt-2">
-        {splitCount > 1 ? (
-          tx.debts?.map((d) => (
-            <div key={d.name} className="flex items-center justify-between gap-2">
-              <span className={`text-xs text-muted-foreground ${d.settled ? 'line-through' : ''}`}>
-                {d.name}: {formatCurrency(d.amount)}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-10"
-                onClick={() => onToggleSettle(d.name)}
-                title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
-                aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
-              >
-                <CheckCircleIcon />
-              </Button>
-            </div>
-          ))
-        ) : singleSplit ? (
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-10 px-3 text-xs"
-              onClick={() => onToggleSettle(singleSplit.name)}
-              title={singleSplit.settled ? 'Unsettle' : 'Settle'}
-              aria-label={singleSplit.settled ? 'Unsettle' : 'Settle'}
-            >
-              {singleSplit.settled ? 'Settled' : '100%'}
-            </Button>
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">—</p>
-        )}
-
-        <div className="flex justify-end">
+    <div className={`px-3 py-2 ${allSettled ? 'opacity-50' : ''}`}>
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="min-h-10 min-w-0 flex-1 py-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          <span className="flex items-start gap-2">
+            <span className="min-w-0 flex-1 text-sm font-medium break-words">{tx.description}</span>
+            <span className="shrink-0 font-mono text-sm">{formatCurrency(tx.amount)}</span>
+          </span>
+          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            <UserIcon className="size-3 shrink-0" />
+            <span>{debtNames.length === 1 ? debtNames[0] : 'Multiple'}</span>
+            {allSettled ? (
+              <Badge variant="outline" className={BADGE_GREEN}>
+                Paid
+              </Badge>
+            ) : (
+              <DebtUrgency days={days} />
+            )}
+            <span>lent {tx.date}</span>
+          </span>
+        </button>
+        {splitCount > 1 && (
           <Button
-            variant="outline"
-            size="sm"
-            className="h-10 px-3 text-xs"
+            variant="ghost"
+            size="icon"
+            className="size-10 shrink-0"
             onClick={onSettleAll}
             title={allSettled ? 'Unsettle all' : 'Settle all'}
             aria-label={allSettled ? 'Unsettle all' : 'Settle all'}
           >
-            {allSettled ? 'Unsettle all' : 'Settle all'}
+            <CheckCircleIcon />
           </Button>
-        </div>
+        )}
+      </div>
+
+      <div className="ml-2 mt-1 grid grid-cols-2 gap-1 bg-muted/30 p-1">
+        {tx.debts?.map((d) => (
+          <div key={d.name} className="flex min-w-0 items-center gap-1">
+            <span
+              className={`min-w-0 flex-1 break-words text-xs leading-tight text-muted-foreground ${d.settled ? 'line-through' : ''}`}
+            >
+              {d.name}: <span className="font-mono">{formatCurrency(d.amount)}</span>
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-10 shrink-0"
+              onClick={() => onToggleSettle(d.name)}
+              title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
+              aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
+            >
+              <CheckCircleIcon />
+            </Button>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -183,10 +176,10 @@ interface PersonData {
   allSettled: boolean
 }
 
-function aggregatePersonData(transactions: Transaction[]): PersonData[] {
+function aggregatePersonData(transactions: DebtTransaction[]): PersonData[] {
   const map = new Map<string, Omit<PersonData, 'name'>>()
   for (const tx of transactions) {
-    const debts = tx.debts?.filter((d) => d.amount > 0) ?? []
+    const debts = tx.debts.filter((d) => d.amount > 0)
     for (const d of debts) {
       let entry = map.get(d.name)
       if (!entry) {
@@ -225,9 +218,9 @@ export default function DebtPage() {
 
   const debts = useMemo(
     () =>
-      state.transactions.filter(
-        (t) => t.debts && t.debts.length > 0 && (showSettled || t.debts.some((d) => !d.settled)),
-      ),
+      state.transactions
+        .filter(hasDebts)
+        .filter((t) => showSettled || t.debts.some((d) => !d.settled)),
     [state.transactions, showSettled],
   )
 
@@ -242,11 +235,13 @@ export default function DebtPage() {
 
   function handleSettleAll(id: string) {
     const tx = state.transactions.find((t) => t.id === id)
-    if (!tx?.debts) return
+    if (tx?.type !== 'Expense' || !tx.debts) return
     for (const d of tx.debts) {
       dispatch({ type: 'SETTLE_DEBT', payload: { transactionId: id, debtName: d.name } })
     }
   }
+
+  const emptyDebtsAction = { label: 'Go to Transactions', onClick: () => navigate('/') }
 
   return (
     <div className="space-y-4">
@@ -262,17 +257,20 @@ export default function DebtPage() {
             options={[
               {
                 value: 'transaction',
-                label: 'Per-Tx',
+                label: 'By transaction',
                 icon: <UserIcon className="size-3" />,
               },
               {
                 value: 'person',
-                label: 'Per-Person',
+                label: 'By person',
                 icon: <UsersIcon className="size-3" />,
               },
             ]}
           />
-          <span className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+          <label
+            htmlFor="show-settled"
+            className="flex min-h-10 cursor-pointer items-center gap-2 text-xs text-muted-foreground"
+          >
             <Checkbox
               id="show-settled"
               checked={showSettled}
@@ -280,7 +278,7 @@ export default function DebtPage() {
               aria-labelledby="show-settled-label"
             />
             <span id="show-settled-label">Show settled</span>
-          </span>
+          </label>
         </div>
       </div>
 
@@ -300,8 +298,14 @@ export default function DebtPage() {
               {personView.map((p) => (
                 <TableRow
                   key={p.name}
-                  className={`${p.allSettled ? 'opacity-50' : ''} cursor-pointer hover:bg-muted/50`}
+                  className={`${p.allSettled ? 'opacity-50' : ''} cursor-pointer hover:bg-muted/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring`}
+                  tabIndex={0}
                   onClick={() => navigate(`/?debtor=${encodeURIComponent(p.name)}`)}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+                    e.preventDefault()
+                    navigate(`/?debtor=${encodeURIComponent(p.name)}`)
+                  }}
                 >
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-1">
@@ -361,6 +365,7 @@ export default function DebtPage() {
                     <EmptyState
                       variant="cell"
                       message={`No ${showSettled ? 'debts' : 'active debts'}.`}
+                      action={emptyDebtsAction}
                     />
                   </TableCell>
                 </TableRow>
@@ -369,13 +374,18 @@ export default function DebtPage() {
                 const days = daysSince(tx.date)
                 const allSettled = tx.debts?.every((d) => d.settled) ?? true
                 const debtNames = [...new Set(tx.debts?.map((d) => d.name) ?? [])]
-                const splitCount = tx.debts?.length ?? 0
-                const singleSplit = tx.debts?.[0]
                 return (
                   <TableRow
                     key={tx.id}
-                    className={`${allSettled ? 'opacity-50' : ''} cursor-pointer hover:bg-muted/50`}
+                    className={`${allSettled ? 'opacity-50' : ''} cursor-pointer hover:bg-muted/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring`}
+                    tabIndex={0}
                     onClick={() => navigate(`/?tx=${tx.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' '))
+                        return
+                      e.preventDefault()
+                      navigate(`/?tx=${tx.id}`)
+                    }}
                   >
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-1">
@@ -396,49 +406,31 @@ export default function DebtPage() {
                         <DebtUrgency days={days} />
                       )}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{tx.date}</TableCell>
+                    <TableCell>{tx.date}</TableCell>
                     <TableCell>
-                      {splitCount > 1 ? (
-                        <div className="text-xs space-y-0.5">
-                          {tx.debts?.map((d) => (
-                            <div key={d.name} className="flex items-center justify-between gap-2">
-                              <span
-                                className={`text-muted-foreground ${d.settled ? 'line-through' : ''}`}
-                              >
-                                {d.name}: {formatCurrency(d.amount)}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="icon-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleToggleSettle(tx.id, d.name)
-                                }}
-                                title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
-                                aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
-                              >
-                                <CheckCircleIcon />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : singleSplit ? (
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          className="text-xs text-muted-foreground"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleToggleSettle(tx.id, singleSplit.name)
-                          }}
-                          title={singleSplit.settled ? 'Unsettle' : 'Settle'}
-                          aria-label={singleSplit.settled ? 'Unsettle' : 'Settle'}
-                        >
-                          {singleSplit.settled ? 'Settled' : '100%'}
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
+                      <div className="text-xs space-y-0.5">
+                        {tx.debts?.map((d) => (
+                          <div key={d.name} className="flex items-center justify-between gap-2">
+                            <span
+                              className={`text-muted-foreground ${d.settled ? 'line-through' : ''}`}
+                            >
+                              {d.name}: {formatCurrency(d.amount)}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleToggleSettle(tx.id, d.name)
+                              }}
+                              title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
+                              aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
+                            >
+                              <CheckCircleIcon />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
@@ -463,9 +455,9 @@ export default function DebtPage() {
       )}
 
       {!isDesktop && viewMode === 'person' && personView.length > 0 && (
-        <div className="border border-border">
+        <div className="space-y-2">
           {personView.map((p) => (
-            <div key={p.name} className="border-b border-border last:border-b-0">
+            <div key={p.name} className="border border-border">
               <PersonCard
                 person={p}
                 onOpen={() => navigate(`/?debtor=${encodeURIComponent(p.name)}`)}
@@ -476,12 +468,15 @@ export default function DebtPage() {
       )}
 
       {!isDesktop && !(viewMode === 'person' && personView.length > 0) && (
-        <div className="border border-border">
+        <div className="space-y-2">
           {debts.length === 0 ? (
-            <EmptyState message={`No ${showSettled ? 'debts' : 'active debts'}.`} />
+            <EmptyState
+              message={`No ${showSettled ? 'debts' : 'active debts'}.`}
+              action={emptyDebtsAction}
+            />
           ) : (
             debts.map((tx) => (
-              <div key={tx.id} className="border-b border-border last:border-b-0">
+              <div key={tx.id} className="border border-border">
                 <DebtorCard
                   tx={tx}
                   onOpen={() => navigate(`/?tx=${tx.id}`)}

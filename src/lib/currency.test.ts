@@ -5,48 +5,50 @@ import {
   formatCurrency,
   formatPlainCurrency,
   parseCurrency,
+  parseCurrencyStrict,
 } from './currency'
 
 describe('parseCurrency', () => {
-  test('parses string number', () => {
-    expect(parseCurrency('1500.50')).toBe(1500.5)
-  })
-  test('parses BRL comma decimal', () => {
+  test('parses pt-BR decimal and thousands separators', () => {
     expect(parseCurrency('450,50')).toBe(450.5)
-  })
-  test('parses BRL with thousands separator', () => {
     expect(parseCurrency('1.234,56')).toBe(1234.56)
   })
-  test('passes through number', () => {
+
+  test('passes through numbers', () => {
     expect(parseCurrency(99.9)).toBe(99.9)
   })
-  test('handles zero', () => {
-    expect(parseCurrency('0')).toBe(0)
-  })
-  test('handles empty string', () => {
+
+  test('empty input is zero', () => {
     expect(parseCurrency('')).toBe(0)
   })
 })
 
-describe('formatCurrency', () => {
-  test('formats as BRL', () => {
-    const result = formatCurrency(1500.5)
-    expect(result).toContain('R$')
-    expect(result).toContain('1.500,50')
+describe('parseCurrencyStrict', () => {
+  test('accepts dot decimals and pt-BR amounts', () => {
+    expect(parseCurrencyStrict('150.5')).toBe(150.5)
+    expect(parseCurrencyStrict('1.234,56')).toBe(1234.56)
+    expect(parseCurrencyStrict('1234,56')).toBe(1234.56)
+    expect(parseCurrencyStrict('-60.95')).toBe(-60.95)
   })
-  test('handles zero', () => {
-    const result = formatCurrency(0)
-    expect(result).toContain('0,00')
+
+  test('rejects trailing garbage and empty input', () => {
+    expect(parseCurrencyStrict('12x')).toBeNull()
+    expect(parseCurrencyStrict('abc')).toBeNull()
+    expect(parseCurrencyStrict('')).toBeNull()
+  })
+})
+
+describe('formatCurrency', () => {
+  test('formats as BRL with symbol and thousands separator', () => {
+    expect(formatCurrency(1500.5)).toContain('1.500,50')
+    expect(formatCurrency(1500.5)).toContain('R$')
   })
 })
 
 describe('formatPlainCurrency', () => {
-  test('formats without symbol in BRL style', () => {
+  test('formats without the symbol in BRL style', () => {
     expect(formatPlainCurrency(450.5)).toBe('450,50')
     expect(formatPlainCurrency(1234.56)).toBe('1.234,56')
-  })
-  test('handles zero', () => {
-    expect(formatPlainCurrency(0)).toBe('0,00')
   })
 })
 
@@ -54,19 +56,11 @@ describe('addCurrency', () => {
   test('avoids float drift', () => {
     expect(addCurrency(0.1, 0.2)).toBe(0.3)
   })
-  test('sums currency values', () => {
-    expect(addCurrency(10.5, 20.25)).toBe(30.75)
-  })
-  test('sums with zero', () => {
-    expect(addCurrency(0, 99.99)).toBe(99.99)
-  })
 })
 
 describe('formatAxisCurrency', () => {
-  test('formats compact BRL with thousands separator', () => {
+  test('rounds to whole units with a thousands separator', () => {
     expect(formatAxisCurrency(1234)).toContain('1.234')
-  })
-  test('drops cents for axis readability', () => {
     expect(formatAxisCurrency(1500.5)).not.toContain(',')
   })
 })

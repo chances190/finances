@@ -1,7 +1,34 @@
-import { INCOME_PAYMENT_METHODS, PAYMENT_METHODS, TRANSACTION_TYPES } from '../domain/constants'
+import {
+  EXPENSE_PAYMENT_METHODS,
+  INCOME_PAYMENT_METHODS,
+  isExpensePaymentMethod,
+  isIncomePaymentMethod,
+  TRANSACTION_TYPES,
+} from '../domain/constants'
 import type { Budget, FinanceData, PaymentMethod, Transaction } from '../domain/entities'
 
 export type SkipReason = string
+
+function isIsoDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return false
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(year, month - 1, day)
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+}
+
+function isYearMonth(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})$/.exec(value)
+  if (!match) return false
+  const month = Number(match[2])
+  return month >= 1 && month <= 12
+}
+
+function isNonNegativeFinite(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+}
 
 export function validateTransaction(
   value: unknown,
@@ -9,13 +36,21 @@ export function validateTransaction(
   if (!value || typeof value !== 'object') return { ok: false, reason: 'not an object' }
   const t = value as Record<string, unknown>
 
-  if (typeof t.id !== 'string') return { ok: false, reason: 'missing or invalid id' }
-  if (typeof t.date !== 'string') return { ok: false, reason: 'missing or invalid date' }
-  if (typeof t.description !== 'string')
-    return { ok: false, reason: 'missing or invalid description' }
-  if (typeof t.amount !== 'number' || Number.isNaN(t.amount) || t.amount < 0)
-    return { ok: false, reason: 'amount must be a non-negative number' }
-  if (typeof t.category !== 'string') return { ok: false, reason: 'missing or invalid category' }
+  if (typeof t.id !== 'string' || t.id === '') return { ok: false, reason: 'missing or invalid id' }
+  if (typeof t.date !== 'string' || !isIsoDate(t.date)) {
+    return { ok: false, reason: 'date must be a valid YYYY-MM-DD date' }
+  }
+  if (typeof t.description !== 'string' || t.description.trim() === '') {
+    return { ok: false, reason: 'description must be a non-empty string' }
+  }
+  if (!isNonNegativeFinite(t.amount) || t.amount === 0) {
+    return { ok: false, reason: 'amount must be a positive number' }
+  }
+  if (typeof t.category !== 'string' || t.category.trim() === '') {
+    return { ok: false, reason: 'category must be a non-empty string' }
+  }
+  if (t.importId != null && typeof t.importId !== 'string')
+    return { ok: false, reason: 'importId must be a string' }
 
   if (!TRANSACTION_TYPES.includes(t.type as (typeof TRANSACTION_TYPES)[number])) {
     return {
@@ -27,7 +62,7 @@ export function validateTransaction(
   const type = t.type as Transaction['type']
 
   if (type === 'Income') {
-    if (!INCOME_PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod)) {
+    if (!isIncomePaymentMethod(t.paymentMethod as PaymentMethod)) {
       return {
         ok: false,
         reason: `invalid payment method: "${t.paymentMethod}" for Income (expected: ${INCOME_PAYMENT_METHODS.join(', ')})`,
@@ -36,31 +71,37 @@ export function validateTransaction(
     if (t.installments != null)
       return { ok: false, reason: 'Income transaction cannot have installments' }
     if (t.debts != null) return { ok: false, reason: 'Income transaction cannot have debts' }
-  } else {
-    if (!PAYMENT_METHODS.includes(t.paymentMethod as PaymentMethod)) {
-      return {
-        ok: false,
-        reason: `invalid payment method: "${t.paymentMethod}" for Expense (expected: ${PAYMENT_METHODS.join(', ')})`,
-      }
+  } else if (!isExpensePaymentMethod(t.paymentMethod as PaymentMethod)) {
+    return {
+      ok: false,
+      reason: `invalid payment method: "${t.paymentMethod}" for Expense (expected: ${EXPENSE_PAYMENT_METHODS.join(', ')})`,
     }
   }
 
   if (t.debts != null) {
     if (!Array.isArray(t.debts)) return { ok: false, reason: 'debts must be an array' }
+    let debtCents = 0
     for (const d of t.debts) {
       if (!d || typeof d !== 'object') return { ok: false, reason: 'invalid debt entry' }
       const debt = d as Record<string, unknown>
-      if (typeof debt.name !== 'string') return { ok: false, reason: 'debt.name must be a string' }
-      if (typeof debt.amount !== 'number')
-        return { ok: false, reason: 'debt.amount must be a number' }
+      if (typeof debt.name !== 'string' || debt.name.trim() === '') {
+        return { ok: false, reason: 'debt.name must be a non-empty string' }
+      }
+      if (!isNonNegativeFinite(debt.amount))
+        return { ok: false, reason: 'debt.amount must be a non-negative number' }
       if (typeof debt.settled !== 'boolean')
         return { ok: false, reason: 'debt.settled must be a boolean' }
+      debtCents += Math.round(debt.amount * 100)
+    }
+    if (debtCents > Math.round((t.amount as number) * 100)) {
+      return { ok: false, reason: 'total debts cannot exceed the transaction amount' }
     }
   }
 
   if (t.installments != null) {
-    if (type === 'Income')
-      return { ok: false, reason: 'Income transaction cannot have installments' }
+    if (t.paymentMethod !== 'Credit') {
+      return { ok: false, reason: 'installments require the Credit payment method' }
+    }
     if (
       typeof t.installments !== 'number' ||
       !Number.isInteger(t.installments) ||
@@ -76,12 +117,14 @@ export function validateTransaction(
 function isValidBudget(value: unknown): value is Budget {
   if (!value || typeof value !== 'object') return false
   const b = value as Record<string, unknown>
-  return (
-    typeof b.referenceMonth === 'string' &&
-    typeof b.plannedIncome === 'number' &&
-    typeof b.plannedMealVoucher === 'number' &&
-    typeof b.categoryLimits === 'object' &&
-    b.categoryLimits !== null
+  if (typeof b.referenceMonth !== 'string' || !isYearMonth(b.referenceMonth)) return false
+  if (!isNonNegativeFinite(b.plannedIncome) || !isNonNegativeFinite(b.plannedMealVoucher)) {
+    return false
+  }
+  if (!b.categoryLimits || typeof b.categoryLimits !== 'object' || Array.isArray(b.categoryLimits))
+    return false
+  return Object.entries(b.categoryLimits).every(
+    ([category, limit]) => category.trim() !== '' && isNonNegativeFinite(limit),
   )
 }
 

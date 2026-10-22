@@ -13,7 +13,7 @@ export default function Tabs({ tabs, active, onChange }: TabsProps) {
             key={tab.key}
             type="button"
             onClick={() => onChange(tab.key)}
-            className={`min-h-10 shrink-0 px-4 py-2 text-sm font-medium whitespace-nowrap rounded-t-lg transition-colors ${
+            className={`min-h-10 shrink-0 px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
               active === tab.key
                 ? 'bg-card text-foreground border border-b-card border-border -mb-px'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'

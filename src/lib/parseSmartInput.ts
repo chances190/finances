@@ -1,13 +1,17 @@
-import { INCOME_PAYMENT_METHODS, PAYMENT_METHODS } from '@/domain/constants'
+import {
+  EXPENSE_PAYMENT_METHODS,
+  INCOME_PAYMENT_METHODS,
+  paymentMethodLabel,
+} from '@/domain/constants'
+import type { PaymentMethod } from '@/domain/entities'
 import { parseCurrency } from './currency'
-import { dateCompletions, matchDateAt } from './dateGrammar'
-import { parsePortugueseDate } from './parsePortugueseDate'
+import { dateCompletions, matchDateAt, parsePortugueseDate } from './dates'
 
 export interface SmartParseResult {
   amount: number | null
   description: string
   category: string | null
-  paymentMethod: string | null
+  paymentMethod: PaymentMethod | null
   date: string | null
   error: string | null
 }
@@ -27,8 +31,27 @@ const AMOUNT_RE = /(?:R\$\s?)?\d+(?:\.\d{3})*,\d{2}/iy
 const WHITESPACE_RE = /\s/
 const MAX_REGISTRY_WORDS = 3
 
-const PAYMENT_VALUES = [...PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS]
-const PAYMENT_LOOKUP = new Map(PAYMENT_VALUES.map((value) => [value.toLowerCase(), value]))
+const PAYMENT_OPTIONS = [...EXPENSE_PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS].map((value) => ({
+  value,
+  label: paymentMethodLabel(value),
+}))
+const PAYMENT_LABELS = PAYMENT_OPTIONS.map((option) => option.label)
+const PAYMENT_LOOKUP = new Map<string, PaymentMethod>()
+for (const { value, label } of PAYMENT_OPTIONS) {
+  PAYMENT_LOOKUP.set(label.toLowerCase(), value)
+}
+PAYMENT_LOOKUP.set('meal voucher', 'Meal Voucher')
+PAYMENT_LOOKUP.set('debit', 'Debit')
+
+export function detectDateMonth(text: string): string | null {
+  for (let index = 0; index < text.length; index++) {
+    const match = matchDateAt(text, index)
+    if (!match) continue
+    const iso = parsePortugueseDate(text.slice(index, match.end))
+    if (iso) return iso.slice(0, 7)
+  }
+  return null
+}
 
 function wordEnd(text: string, from: number): number {
   let index = from
@@ -252,7 +275,7 @@ export function getSuggestions(
   if (token.startsWith('@')) {
     return state.paymentMethod
       ? []
-      : prefixFilter(PAYMENT_VALUES, token.slice(1)).map((value) => `@${value}`)
+      : prefixFilter(PAYMENT_LABELS, token.slice(1)).map((value) => `@${value}`)
   }
   if (token.toLowerCase().startsWith('r$')) return []
 

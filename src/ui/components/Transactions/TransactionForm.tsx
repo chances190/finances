@@ -12,13 +12,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { localYMD } from '@/domain/calculations'
-import { getAllCategories } from '@/domain/categories'
-import { INCOME_PAYMENT_METHODS, PAYMENT_METHODS } from '@/domain/constants'
+import { currentYM, localYMD } from '@/domain/calculations'
+import { categoryOptionsForMonth, monthOf } from '@/domain/categories'
+import {
+  EXPENSE_PAYMENT_METHODS,
+  INCOME_PAYMENT_METHODS,
+  isExpensePaymentMethod,
+  isIncomePaymentMethod,
+  paymentMethodLabel,
+} from '@/domain/constants'
 import type { Debt, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
-import { addCurrency, parseCurrency } from '@/lib/currency'
+import { addCurrency, formatCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
-import CSVImportDialog from '@/ui/components/Common/CSVImportDialog'
+import ImportDialog from '@/ui/components/Common/ImportDialog'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
 import DebtConfigModal from './DebtConfigModal'
@@ -46,26 +52,33 @@ export default function TransactionForm({
 }: TransactionFormProps) {
   const { dispatch, state } = useFinance()
   const { toast } = useToast()
-
-  const categories = useMemo(
-    () => getAllCategories(state.budgets, state.transactions),
-    [state.budgets, state.transactions],
-  )
+  const defaultCategory =
+    categoryOptionsForMonth(currentYM(), state.budgets, state.transactions)[0] ?? 'Other'
 
   const [form, setForm] = useState<EditFormState>({
     type: 'Expense',
     date: '',
     amount: '',
     description: '',
-    category: 'Other',
+    category: defaultCategory,
     paymentMethod: 'Debit',
     installmentTotal: 1,
   })
+
+  const categories = useMemo(() => {
+    const month = form.date ? monthOf(form.date) : currentYM()
+    const options = categoryOptionsForMonth(month, state.budgets, state.transactions)
+    return options.includes(form.category) ? options : [form.category, ...options]
+  }, [form.date, form.category, state.budgets, state.transactions])
 
   const [debts, setDebts] = useState<Debt[]>([])
   const [showDebtConfig, setShowDebtConfig] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const [showCsvImport, setShowCsvImport] = useState(false)
+  const debtTotal = debts.reduce((sum, debt) => addCurrency(sum, debt.amount), 0)
+  const purchaseAmount = parseCurrency(form.amount)
+  const userShare = Math.max(0, addCurrency(purchaseAmount, -debtTotal))
+  const debtOverage = Math.max(0, addCurrency(debtTotal, -purchaseAmount))
 
   useEffect(() => {
     if (editTransaction) {
@@ -76,22 +89,27 @@ export default function TransactionForm({
         description: editTransaction.description,
         category: editTransaction.category,
         paymentMethod: editTransaction.paymentMethod,
-        installmentTotal: editTransaction.installments ?? 1,
+        installmentTotal:
+          editTransaction.type === 'Expense' ? (editTransaction.installments ?? 1) : 1,
       })
-      setDebts(editTransaction.debts ? [...editTransaction.debts] : [])
+      setDebts(
+        editTransaction.type === 'Expense' && editTransaction.debts
+          ? [...editTransaction.debts]
+          : [],
+      )
     } else if (open) {
       setForm({
         type: 'Expense',
         date: localYMD(),
         amount: '',
         description: '',
-        category: 'Other',
+        category: defaultCategory,
         paymentMethod: 'Debit',
         installmentTotal: 1,
       })
       setDebts([])
     }
-  }, [editTransaction, open])
+  }, [editTransaction, open, defaultCategory])
 
   function handleSave() {
     const amount = parseCurrency(form.amount)
@@ -111,43 +129,48 @@ export default function TransactionForm({
       }
     }
 
-    if (!editTransaction) {
-      const created: Transaction = {
-        id: uuid(),
-        type: form.type,
+    const category = form.type === 'Income' ? 'Income' : form.category
+    const importId = editTransaction?.importId ? { importId: editTransaction.importId } : {}
+
+    if (form.type === 'Income') {
+      if (!isIncomePaymentMethod(form.paymentMethod)) return
+      commit({
+        id: editTransaction?.id ?? uuid(),
+        type: 'Income',
         date: form.date,
         description: form.description,
         amount,
-        category: form.type === 'Income' ? 'Income' : form.category,
+        category,
         paymentMethod: form.paymentMethod,
-        ...(form.installmentTotal > 1 && form.paymentMethod === 'Credit'
-          ? { installments: form.installmentTotal }
-          : {}),
-        ...(debts.length > 0 ? { debts } : {}),
-      }
-
-      dispatch({ type: 'ADD_TRANSACTIONS', payload: [created] })
-      toast('Transaction added', 'success')
-      onOpenChange(false)
+        ...importId,
+      })
       return
     }
 
-    const updated: Transaction = {
-      ...editTransaction,
-      type: form.type,
+    if (!isExpensePaymentMethod(form.paymentMethod)) return
+    commit({
+      id: editTransaction?.id ?? uuid(),
+      type: 'Expense',
       date: form.date,
-      amount,
       description: form.description,
-      category: form.type === 'Income' ? 'Income' : form.category,
+      amount,
+      category,
       paymentMethod: form.paymentMethod,
-      installments:
-        form.paymentMethod === 'Credit' && form.installmentTotal > 1
-          ? form.installmentTotal
-          : undefined,
-      debts: debts.length > 0 ? debts : undefined,
-    }
+      ...(form.paymentMethod === 'Credit' && form.installmentTotal > 1
+        ? { installments: form.installmentTotal }
+        : {}),
+      ...(debts.length > 0 ? { debts } : {}),
+      ...importId,
+    })
+  }
 
-    dispatch({ type: 'UPDATE_TRANSACTION', payload: updated })
+  function commit(transaction: Transaction) {
+    if (editTransaction) {
+      dispatch({ type: 'UPDATE_TRANSACTION', payload: transaction })
+    } else {
+      dispatch({ type: 'ADD_TRANSACTIONS', payload: [transaction] })
+      toast('Transaction added', 'success')
+    }
     onOpenChange(false)
   }
 
@@ -219,30 +242,8 @@ export default function TransactionForm({
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {form.type === 'Expense' && (
-                <div className="space-y-1">
-                  <Label htmlFor="tx-category" className="text-xs">
-                    Category
-                  </Label>
-                  <Select
-                    value={form.category}
-                    onValueChange={(v) => setForm((f) => ({ ...f, category: v ?? 'Other' }))}
-                  >
-                    <SelectTrigger id="tx-category">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              <div className={`space-y-1 ${form.type === 'Income' ? 'col-span-2' : ''}`}>
+            <div className="grid grid-cols-2 gap-2">
+              <div className={`min-w-0 space-y-1 ${form.type === 'Income' ? 'col-span-2' : ''}`}>
                 <Label htmlFor="tx-payment" className="text-xs">
                   Payment Method
                 </Label>
@@ -256,33 +257,60 @@ export default function TransactionForm({
                     }))
                   }
                 >
-                  <SelectTrigger id="tx-payment">
-                    <SelectValue>{form.paymentMethod}</SelectValue>
+                  <SelectTrigger id="tx-payment" className="w-full min-w-0">
+                    <SelectValue>{paymentMethodLabel(form.paymentMethod)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {(form.type === 'Income' ? INCOME_PAYMENT_METHODS : PAYMENT_METHODS).map(
-                      (pm) => (
-                        <SelectItem key={pm} value={pm}>
-                          {pm}
-                        </SelectItem>
-                      ),
-                    )}
+                    {(form.type === 'Income'
+                      ? INCOME_PAYMENT_METHODS
+                      : EXPENSE_PAYMENT_METHODS
+                    ).map((pm) => (
+                      <SelectItem key={pm} value={pm}>
+                        {paymentMethodLabel(pm)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+              {form.type === 'Expense' && (
+                <div className="min-w-0 space-y-1">
+                  <Label htmlFor="tx-category" className="text-xs">
+                    Category
+                  </Label>
+                  <Select
+                    value={form.category}
+                    onValueChange={(v) => setForm((f) => ({ ...f, category: v ?? 'Other' }))}
+                  >
+                    <SelectTrigger id="tx-category" className="w-full min-w-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             {form.type === 'Expense' && form.paymentMethod === 'Credit' && (
-              <div className="space-y-1">
-                <Label htmlFor="tx-installments" className="text-xs">
-                  Installments
-                </Label>
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="tx-installments" className="text-xs">
+                    Installments
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Number of monthly payments</p>
+                </div>
                 <Input
                   id="tx-installments"
                   type="number"
                   min="1"
                   max="48"
                   value={form.installmentTotal}
+                  className="h-10 w-24 text-right"
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
@@ -294,28 +322,63 @@ export default function TransactionForm({
             )}
 
             {form.type === 'Expense' && form.paymentMethod !== 'Meal Voucher' && (
-              <div className="border-t pt-3 space-y-2">
-                <div className="flex items-center gap-2">
+              <div className="space-y-2 border-t border-border pt-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Label className="text-xs font-medium">Shared expense</Label>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Split this expense with people who owe you.
+                    </p>
+                  </div>
+                  {debts.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 shrink-0"
+                      onClick={() => setShowDebtConfig(true)}
+                    >
+                      Edit split
+                    </Button>
+                  )}
+                </div>
+                {debts.length === 0 ? (
                   <Button
+                    variant="outline"
                     size="sm"
-                    variant={debts.length > 0 ? 'default' : 'outline'}
+                    className="h-10"
                     disabled={!(parseCurrency(form.amount) > 0)}
                     onClick={() => setShowDebtConfig(true)}
                   >
-                    {debts.length > 0
-                      ? `Debt (${debts.length} debtor${debts.length !== 1 ? 's' : ''})`
-                      : 'Debt'}
+                    Add people
                   </Button>
-                  {debts.length > 0 && (
-                    <button
-                      type="button"
-                      className="text-xs text-destructive hover:text-destructive/80 underline"
-                      onClick={() => setShowRemoveConfirm(true)}
-                    >
-                      Remove debt
-                    </button>
-                  )}
-                </div>
+                ) : (
+                  <>
+                    <div className="border border-border p-2 text-xs">
+                      {debts.map((debt) => (
+                        <div
+                          key={debt.name}
+                          className="flex items-baseline justify-between gap-3 py-0.5"
+                        >
+                          <span className="min-w-0 break-words">{debt.name}</span>
+                          <span className="shrink-0 font-mono">{formatCurrency(debt.amount)}</span>
+                        </div>
+                      ))}
+                      <div className="flex items-baseline justify-between gap-3 py-0.5 font-medium">
+                        <span>You</span>
+                        <span className="shrink-0 font-mono">{formatCurrency(userShare)}</span>
+                      </div>
+                      <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-border pt-1 font-medium">
+                        <span>Purchase total</span>
+                        <span className="shrink-0 font-mono">{formatCurrency(purchaseAmount)}</span>
+                      </div>
+                    </div>
+                    {debtOverage > 0 && (
+                      <p className="text-xs text-destructive">
+                        Splits exceed the purchase by {formatCurrency(debtOverage)}.
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -323,12 +386,12 @@ export default function TransactionForm({
           <div className="flex gap-2 justify-end pt-4">
             {!editTransaction && (
               <Button
-                variant="ghost"
-                size="xs"
-                className="mr-auto h-7 text-xs"
+                variant="outline"
+                size="sm"
+                className="mr-auto text-xs"
                 onClick={() => setShowCsvImport(true)}
               >
-                Import from CSV
+                Import from file
               </Button>
             )}
             <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -343,6 +406,7 @@ export default function TransactionForm({
         open={showDebtConfig}
         onOpenChange={setShowDebtConfig}
         debts={debts}
+        onRemoveAll={() => setShowRemoveConfirm(true)}
         onDebtsChange={(d) => {
           setDebts(d)
           setShowDebtConfig(false)
@@ -350,10 +414,10 @@ export default function TransactionForm({
         totalAmount={amount}
       />
 
-      <CSVImportDialog
+      <ImportDialog
         open={showCsvImport}
         onOpenChange={setShowCsvImport}
-        mode="csv"
+        mode="transactions"
         onImported={() => onOpenChange(false)}
       />
 
@@ -362,11 +426,12 @@ export default function TransactionForm({
         onOpenChange={(o) => {
           if (!o) setShowRemoveConfirm(false)
         }}
-        title="Remove debt"
-        message="This will remove all debt configuration from this transaction."
+        title="Remove shared expense?"
+        message="This will remove all people and their amounts from this expense."
         confirmLabel="Remove"
         onConfirm={() => {
           setDebts([])
+          setShowDebtConfig(false)
           setShowRemoveConfirm(false)
         }}
       />

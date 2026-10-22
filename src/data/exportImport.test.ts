@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import type { FinanceData } from '../domain/entities'
 import { importJSON } from './backup/json'
 import { importCSV } from './exchange/csv'
 
@@ -33,54 +34,46 @@ describe('importCSV', () => {
     expect(skippedRows[0].reason).toContain('wrong number of columns')
   })
 
-  test('skips rows with invalid type', () => {
-    const csv = `${H}\nr001,2026-07-05,INVALID,5000,Salary,Debit,Salary,,,,,`
-    const { transactions, skippedRows } = importCSV(csv)
-    expect(transactions).toHaveLength(0)
-    expect(skippedRows).toHaveLength(1)
-    expect(skippedRows[0].reason).toContain('invalid type')
-    expect(skippedRows[0].reason).toContain('INVALID')
-  })
+  test('skips rows that violate import rules, naming the offence', () => {
+    const invalidRows = [
+      {
+        row: 'r001,2026-07-05,INVALID,5000,Salary,Debit,Salary,,,,,',
+        reason: 'invalid type',
+        detail: 'INVALID',
+      },
+      {
+        row: 'r001,2026-07-05,Expense,5000,Food,UNKNOWN,Buy,,,,,',
+        reason: 'invalid payment method',
+        detail: 'UNKNOWN',
+      },
+      { row: 'r001,2026-07-05,Expense,abc,Food,Debit,Buy,,,,,', reason: 'invalid amount' },
+      {
+        row: 'r001,2026-07-05,Expense,100,Food,Salary,Buy,,,,,',
+        reason: 'invalid payment method',
+        detail: 'Salary',
+      },
+      {
+        row: 'r001,2026-07-05,Income,5000,Salary,Debit,Salary,,,,,',
+        reason: 'invalid payment method',
+        detail: 'Debit',
+      },
+    ]
 
-  test('skips rows with invalid payment method', () => {
-    const csv = `${H}\nr001,2026-07-05,Expense,5000,Food,UNKNOWN,Buy,,,,,`
-    const { transactions, skippedRows } = importCSV(csv)
-    expect(transactions).toHaveLength(0)
-    expect(skippedRows).toHaveLength(1)
-    expect(skippedRows[0].reason).toContain('invalid payment method')
-    expect(skippedRows[0].reason).toContain('UNKNOWN')
-  })
+    for (const { row, reason, detail } of invalidRows) {
+      const { transactions, skippedRows } = importCSV(`${H}\n${row}`)
 
-  test('skips rows with invalid amount', () => {
-    const csv = `${H}\nr001,2026-07-05,Expense,abc,Food,Debit,Buy,,,,,`
-    const { transactions, skippedRows } = importCSV(csv)
-    expect(transactions).toHaveLength(0)
-    expect(skippedRows).toHaveLength(1)
-    expect(skippedRows[0].reason).toContain('invalid amount')
-  })
-
-  test('skips rows with income payment method on expense', () => {
-    const csv = `${H}\nr001,2026-07-05,Expense,100,Food,Salary,Buy,,,,,`
-    const { transactions, skippedRows } = importCSV(csv)
-    expect(transactions).toHaveLength(0)
-    expect(skippedRows).toHaveLength(1)
-    expect(skippedRows[0].reason).toContain('invalid payment method')
-    expect(skippedRows[0].reason).toContain('Salary')
-  })
-
-  test('skips rows with expense payment method on income', () => {
-    const csv = `${H}\nr001,2026-07-05,Income,5000,Salary,Debit,Salary,,,,,`
-    const { transactions, skippedRows } = importCSV(csv)
-    expect(transactions).toHaveLength(0)
-    expect(skippedRows).toHaveLength(1)
-    expect(skippedRows[0].reason).toContain('invalid payment method')
-    expect(skippedRows[0].reason).toContain('Debit')
+      expect(transactions).toHaveLength(0)
+      expect(skippedRows).toHaveLength(1)
+      expect(skippedRows[0].reason).toContain(reason)
+      if (detail) expect(skippedRows[0].reason).toContain(detail)
+    }
   })
 
   test('imports a debt with 1NF splits', () => {
     const csv = `${H}\nr001,2026-07-10,Expense,300,Food,Debit,Dinner,,,,Alice,100\nr001,2026-07-10,Expense,300,Food,Debit,Dinner,,,,Bob,200`
     const { transactions } = importCSV(csv)
     const [t] = transactions
+    if (t.type !== 'Expense') throw new Error('expected an expense')
     expect(t.debts).toHaveLength(2)
     expect(t.debts?.[0].name).toBe('Alice')
     expect(t.debts?.[0].amount).toBe(100)
@@ -89,11 +82,13 @@ describe('importCSV', () => {
   })
 
   test('imports head-anchored installments', () => {
-    const csv = `${H}\nr001,2026-07-01,Expense,1200,Electronics,Debit,TV,3,1,,,\nr002,2026-08-01,Expense,1200,Electronics,Debit,TV,,2,r001,,\nr003,2026-09-01,Expense,1200,Electronics,Debit,TV,,3,r001,,`
+    const csv = `${H}\nr001,2026-07-01,Expense,1200,Electronics,Credit,TV,3,1,,,\nr002,2026-08-01,Expense,1200,Electronics,Credit,TV,,2,r001,,\nr003,2026-09-01,Expense,1200,Electronics,Credit,TV,,3,r001,,`
     const { transactions } = importCSV(csv)
     expect(transactions).toHaveLength(1)
-    expect(transactions[0].installments).toBe(3)
-    expect(transactions[0].amount).toBe(1200)
+    const [t] = transactions
+    if (t.type !== 'Expense') throw new Error('expected an expense')
+    expect(t.installments).toBe(3)
+    expect(t.amount).toBe(1200)
   })
 
   test('reports multiple skipped rows with reasons', () => {
@@ -117,7 +112,7 @@ describe('CSV round-trip', () => {
 
 describe('importJSON', () => {
   test('round-trips transactions and budgets', () => {
-    const data = {
+    const data: FinanceData = {
       transactions: [
         {
           id: 'tx-1',

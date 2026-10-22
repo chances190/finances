@@ -1,44 +1,84 @@
 import { describe, expect, test } from 'bun:test'
-import { getAllCategories } from './categories'
-import { DEFAULT_CATEGORIES } from './constants'
-import type { Budget, Transaction } from './entities'
+import { allCategoryNames, budgetForMonth, categoryOptionsForMonth, monthOf } from './categories'
+import type { Budget, ExpenseTransaction } from './entities'
 
-const baseTx: Transaction = {
-  id: '1',
-  type: 'Expense',
-  date: '2026-08-01',
-  description: 'x',
-  amount: 10,
-  category: 'Food',
-  paymentMethod: 'Debit',
+function budget(referenceMonth: string, categoryLimits: Record<string, number>): Budget {
+  return { referenceMonth, plannedIncome: 0, plannedMealVoucher: 0, categoryLimits }
 }
 
-const budget = (categoryLimits: Record<string, number>): Budget => ({
-  referenceMonth: '2026-08',
-  plannedIncome: 0,
-  plannedMealVoucher: 0,
-  categoryLimits,
+function tx(overrides: Partial<Omit<ExpenseTransaction, 'type'>> = {}): ExpenseTransaction {
+  return {
+    id: '1',
+    type: 'Expense',
+    date: '2025-07-04',
+    description: 'x',
+    amount: 10,
+    category: 'Family',
+    paymentMethod: 'Debit',
+    ...overrides,
+  }
+}
+
+const budgets = [budget('2026-09', { Food: 500, Rent: 1500 }), budget('2026-10', { Food: 600 })]
+
+describe('budgetForMonth', () => {
+  test('uses the budget of the requested month', () => {
+    expect(budgetForMonth('2026-09', budgets)?.referenceMonth).toBe('2026-09')
+  })
+
+  test('falls back to the latest budget when the month has none', () => {
+    expect(budgetForMonth('2025-03', budgets)?.referenceMonth).toBe('2026-10')
+    expect(budgetForMonth('2026-12', budgets)?.referenceMonth).toBe('2026-10')
+  })
+
+  test('returns null without budgets', () => {
+    expect(budgetForMonth('2026-10', [])).toBeNull()
+  })
 })
 
-describe('getAllCategories', () => {
-  test('returns defaults when no budgets or transactions', () => {
-    expect(getAllCategories([], [])).toEqual([...DEFAULT_CATEGORIES])
+describe('categoryOptionsForMonth', () => {
+  test('offers exactly the categories of the month budget', () => {
+    expect(categoryOptionsForMonth('2026-09', budgets, [])).toEqual(['Food', 'Rent'])
   })
-  test('includes custom budget categories', () => {
-    const cats = getAllCategories([budget({ Pets: 100 })], [])
-    expect(cats).toContain('Pets')
+
+  test('falls back to every known category when the month has none', () => {
+    expect(categoryOptionsForMonth('2025-03', budgets, [])).toEqual(['Food', 'Rent'])
   })
-  test('includes transaction categories not in defaults', () => {
-    const cats = getAllCategories([], [{ ...baseTx, id: '2', category: 'Pets' }])
-    expect(cats).toContain('Pets')
+
+  test('new events in the current month use the current budget', () => {
+    expect(categoryOptionsForMonth('2026-10', budgets, [tx()])).toEqual(['Food'])
   })
-  test('defaults come first, customs sorted alphabetically', () => {
-    const cats = getAllCategories([budget({ Zebra: 1, Alpha: 2 })], [])
-    expect(cats[0]).toBe('Food')
-    expect(cats.indexOf('Alpha')).toBeLessThan(cats.indexOf('Zebra'))
+
+  test('with no budgets at all, offers categories already present in the data', () => {
+    expect(
+      categoryOptionsForMonth('2026-10', [], [tx(), tx({ id: '2', category: 'Pets' })]),
+    ).toEqual(['Family', 'Pets'])
   })
-  test('does not duplicate default categories', () => {
-    const cats = getAllCategories([budget({ Food: 10 })], [])
-    expect(cats.filter((c) => c === 'Food')).toHaveLength(1)
+
+  test('a budget with a zeroed category still exposes it', () => {
+    expect(categoryOptionsForMonth('2026-10', [budget('2026-10', { Food: 0 })], [])).toEqual([
+      'Food',
+    ])
+  })
+})
+
+describe('allCategoryNames', () => {
+  test('unions every budget with every expense category, sorted', () => {
+    expect(
+      allCategoryNames(
+        [budget('2025-01', { Rent: 1 }), budget('2026-10', { Food: 1 })],
+        [tx({ category: 'Christmas gift' })],
+      ),
+    ).toEqual(['Christmas gift', 'Food', 'Rent'])
+  })
+
+  test('keeps categories that no budget mentions', () => {
+    expect(allCategoryNames([], [tx({ category: 'Family' })])).toEqual(['Family'])
+  })
+})
+
+describe('monthOf', () => {
+  test('extracts the reference month', () => {
+    expect(monthOf('2026-10-21')).toBe('2026-10')
   })
 })

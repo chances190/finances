@@ -1,37 +1,56 @@
-import type { PaymentMethod } from './entities'
+import type { ExpensePaymentMethod, IncomePaymentMethod, PaymentMethod } from './entities'
 
 export const SES_ALPHA = 0.3
 
-export const DEFAULT_CATEGORIES = [
-  'Food',
-  'Transport',
-  'Rent',
-  'Leisure',
-  'Utilities',
-  'Health',
-  'Education',
-  'Shopping',
-  'Other',
-] as const
+export const SAVINGS_RATE = 0.2
 
-export const PAYMENT_METHODS: PaymentMethod[] = ['Debit', 'Credit', 'Meal Voucher']
-export const INCOME_PAYMENT_METHODS: PaymentMethod[] = ['Salary', 'Transfer', 'Voucher']
-export const TRANSACTION_TYPES = ['Income', 'Expense'] as const
+export const EXPENSE_PAYMENT_METHODS: readonly ExpensePaymentMethod[] = [
+  'Debit',
+  'Credit',
+  'Meal Voucher',
+]
+export const INCOME_PAYMENT_METHODS: readonly IncomePaymentMethod[] = [
+  'Salary',
+  'Transfer',
+  'Voucher',
+]
 
-export const PAYMENT_METHOD_BADGE_COLORS: Record<string, string> = {
-  Credit: 'bg-amber-100 text-amber-800  ',
-  Debit: 'bg-blue-100 text-blue-800  ',
-  'Meal Voucher': 'bg-teal-100 text-teal-800  ',
-  Salary: 'bg-emerald-100 text-emerald-800  ',
-  Transfer: 'bg-sky-100 text-sky-800  ',
-  Voucher: 'bg-orange-100 text-orange-800  ',
+export function isExpensePaymentMethod(method: PaymentMethod): method is ExpensePaymentMethod {
+  return (EXPENSE_PAYMENT_METHODS as readonly PaymentMethod[]).includes(method)
 }
 
-export const PAYMENT_METHOD_CHART_COLORS: Record<string, string> = {
-  Debit: '#22c55e',
-  Credit: '#ef4444',
-  'Meal Voucher': '#a855f7',
-  Salary: '#10b981',
+export function isIncomePaymentMethod(method: PaymentMethod): method is IncomePaymentMethod {
+  return (INCOME_PAYMENT_METHODS as readonly PaymentMethod[]).includes(method)
+}
+export const TRANSACTION_TYPES = ['Income', 'Expense'] as const
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  Debit: 'Debit/PIX',
+  Credit: 'Credit',
+  'Meal Voucher': 'Voucher',
+  Salary: 'Salary',
+  Transfer: 'Transfer',
+  Voucher: 'Voucher income',
+}
+
+export function paymentMethodLabel(method: string): string {
+  return PAYMENT_METHOD_LABELS[method as PaymentMethod] ?? method
+}
+
+export const PAYMENT_METHOD_BADGE_COLORS: Record<PaymentMethod, string> = {
+  Credit: 'bg-purple-100 text-purple-800',
+  Debit: 'bg-teal-100 text-teal-800',
+  'Meal Voucher': 'bg-pink-100 text-pink-800',
+  Salary: 'bg-yellow-100 text-yellow-800',
+  Transfer: 'bg-sky-100 text-sky-800',
+  Voucher: 'bg-orange-100 text-orange-800',
+}
+
+export const PAYMENT_METHOD_CHART_COLORS: Record<PaymentMethod, string> = {
+  Debit: '#32BCAD',
+  Credit: '#820AD1',
+  'Meal Voucher': '#FF2D6F',
+  Salary: '#eab308',
   Transfer: '#0ea5e9',
   Voucher: '#f97316',
 }
@@ -42,7 +61,7 @@ export const CHART_COLORS = {
   primary: '#3b82f6',
   warning: '#f59e0b',
   projection: '#f97316',
-  suggestion: '#22c55e',
+  suggestion: '#8b5cf6',
   balance: '#3b82f6',
   budgeted: '#3b82f6',
   actual: '#f59e0b',

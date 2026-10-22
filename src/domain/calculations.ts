@@ -1,14 +1,16 @@
 import { addCurrency } from '../lib/currency'
-import { SES_ALPHA } from './constants'
-import type { Budget, MonthlyFlow, Transaction } from './entities'
+import { SAVINGS_RATE, SES_ALPHA } from './constants'
+import type { Budget, ExpenseFlow, IncomeFlow, Transaction } from './entities'
 import { addMonths, monthlyFlows } from './entities'
 
 export { addMonths }
 
+export type TransactionSortKey = 'paymentMethod' | 'amount' | 'description' | 'category' | 'date'
+
 export function compareTransactions(
   a: Transaction,
   b: Transaction,
-  key: keyof Transaction,
+  key: TransactionSortKey,
   dir: 'asc' | 'desc',
 ): number {
   const cmp =
@@ -22,10 +24,6 @@ export function monthDiff(a: string, b: string): number {
   const [ay, am] = a.split('-').map(Number)
   const [by, bm] = b.split('-').map(Number)
   return ay * 12 + am - (by * 12 + bm)
-}
-
-export function parseDate(d: string): number {
-  return new Date(`${d}T12:00:00Z`).getTime()
 }
 
 export function daysSince(date: string): number {
@@ -70,16 +68,16 @@ export function yearRelation(y: string): 'past' | 'current' | 'future' {
   return 'current'
 }
 
-export function byMonth(tx: Transaction[], refMonth: string): MonthlyFlow[] {
+export function byMonth(tx: Transaction[], refMonth: string): ExpenseFlow[] {
   return tx
     .flatMap((t) => monthlyFlows(t))
-    .filter((f) => f.referenceMonth === refMonth && f.type === 'Expense')
+    .filter((f): f is ExpenseFlow => f.referenceMonth === refMonth && f.type === 'Expense')
 }
 
-export function incomeByMonth(tx: Transaction[], refMonth: string): MonthlyFlow[] {
+export function incomeByMonth(tx: Transaction[], refMonth: string): IncomeFlow[] {
   return tx
     .flatMap((t) => monthlyFlows(t))
-    .filter((f) => f.referenceMonth === refMonth && f.type === 'Income')
+    .filter((f): f is IncomeFlow => f.referenceMonth === refMonth && f.type === 'Income')
 }
 
 export function totalByMonth(tx: Transaction[], refMonth: string): number {
@@ -94,16 +92,27 @@ export function incomeByPaymentMethod(tx: Transaction[], refMonth: string): Reco
 }
 
 export function expensesByMonth(tx: Transaction[], refMonth: string): number {
-  return byMonth(tx, refMonth).reduce((s, t) => addCurrency(s, t.amount), 0)
+  return byMonth(tx, refMonth).reduce((s, t) => addCurrency(s, t.ownAmount), 0)
 }
 
-export function balance(tx: Transaction[], refMonth: string): number {
-  return totalByMonth(tx, refMonth) - expensesByMonth(tx, refMonth)
+export function splitEvenlyAcrossParticipants(
+  totalAmount: number,
+  otherParticipantCount: number,
+): number[] {
+  const totalCents = Math.round(totalAmount * 100)
+  const participantCount = otherParticipantCount + 1
+  const baseCents = Math.floor(totalCents / participantCount)
+  const remainderCents = totalCents % participantCount
+
+  return Array.from(
+    { length: otherParticipantCount },
+    (_, index) => (baseCents + (index < remainderCents ? 1 : 0)) / 100,
+  )
 }
 
 export function byCategory(tx: Transaction[], refMonth: string): Record<string, number> {
   return byMonth(tx, refMonth).reduce<Record<string, number>>((acc, t) => {
-    acc[t.category] = addCurrency(acc[t.category] || 0, t.amount)
+    acc[t.category] = addCurrency(acc[t.category] || 0, t.ownAmount)
     return acc
   }, {})
 }
@@ -113,37 +122,25 @@ export function groupedByPaymentMethod(
   refMonth: string,
 ): Record<string, number> {
   return byMonth(tx, refMonth).reduce<Record<string, number>>((acc, t) => {
-    acc[t.paymentMethod] = addCurrency(acc[t.paymentMethod] || 0, t.amount)
+    acc[t.paymentMethod] = addCurrency(acc[t.paymentMethod] || 0, t.ownAmount)
     return acc
   }, {})
 }
 
-export function bankExpenses(tx: Transaction[], refMonth: string): number {
-  return byMonth(tx, refMonth)
-    .filter((t) => t.paymentMethod !== 'Meal Voucher' && t.paymentMethod !== 'Credit')
-    .reduce((s, t) => addCurrency(s, t.amount), 0)
-}
-
 export function mealVoucherIncome(tx: Transaction[], refMonth: string): number {
   return incomeByMonth(tx, refMonth)
-    .filter((t) => t.paymentMethod === 'Meal Voucher')
+    .filter((t) => t.paymentMethod === 'Voucher')
     .reduce((s, t) => addCurrency(s, t.amount), 0)
 }
 
 export function mealVoucherExpenses(tx: Transaction[], refMonth: string): number {
   return byMonth(tx, refMonth)
     .filter((t) => t.paymentMethod === 'Meal Voucher')
-    .reduce((s, t) => addCurrency(s, t.amount), 0)
+    .reduce((s, t) => addCurrency(s, t.ownAmount), 0)
 }
 
 export function mealVoucherBalance(tx: Transaction[], refMonth: string): number {
   return mealVoucherIncome(tx, refMonth) - mealVoucherExpenses(tx, refMonth)
-}
-
-export function creditInvoice(tx: Transaction[], refMonth: string): number {
-  return byMonth(tx, refMonth)
-    .filter((t) => t.paymentMethod === 'Credit')
-    .reduce((s, t) => addCurrency(s, t.amount), 0)
 }
 
 export function ses(expenses: number[]): number[] {
@@ -154,6 +151,8 @@ export function ses(expenses: number[]): number[] {
   }
   return result
 }
+
+export type PaceStatus = 'on-track' | 'caution' | 'ahead' | 'over'
 
 export interface SpendingPaceResult {
   daily: {
@@ -173,6 +172,9 @@ export interface SpendingPaceResult {
   suggestionPerDay: number
   limit: number
   totalSalary: number
+  spentSoFar: number
+  remainingBudget: number
+  status: PaceStatus
 }
 
 export function spendingPace(
@@ -180,50 +182,63 @@ export function spendingPace(
   budget: Budget | undefined,
   currentDay: number,
 ): SpendingPaceResult {
-  const totalSalary = (budget?.plannedIncome ?? 0) + (budget?.plannedMealVoucher ?? 0)
-  const limit = totalSalary * 0.8
-  const monthDays = daysInMonth(budget?.referenceMonth ?? currentYM())
-  const referencePerDay = totalSalary / monthDays
+  const plannedIncome = budget?.plannedIncome ?? 0
+  const plannedMealVoucher = budget?.plannedMealVoucher ?? 0
+  const totalSalary = addCurrency(plannedIncome, plannedMealVoucher)
+  const limit = addCurrency(plannedIncome * (1 - SAVINGS_RATE), plannedMealVoucher)
+  const referenceMonth = budget?.referenceMonth ?? currentYM()
+  const monthDays = daysInMonth(referenceMonth)
 
-  const dailyActual: number[] = []
-  for (let d = 1; d <= monthDays; d++) {
-    dailyActual.push(
-      byMonth(tx, budget?.referenceMonth ?? '')
-        .filter((t) => {
-          const day = parseInt(t.date.split('-')[2], 10)
-          return day === d
-        })
-        .reduce((s, t) => addCurrency(s, t.amount), 0),
-    )
+  const dailyActual = Array.from({ length: monthDays }, () => 0)
+  if (budget) {
+    for (const flow of byMonth(tx, referenceMonth)) {
+      // An installment is a monthly obligation, not a purchase on its original day.
+      const purchaseDay = Number(flow.date.slice(8, 10)) || 1
+      const day = flow.installmentIndex != null ? 1 : Math.min(Math.max(purchaseDay, 1), monthDays)
+      dailyActual[day - 1] = addCurrency(dailyActual[day - 1], flow.ownAmount)
+    }
   }
+
+  const spentSoFar = dailyActual.slice(0, currentDay).reduce((s, v) => addCurrency(s, v), 0)
+  const committedAhead = dailyActual.slice(currentDay).reduce((s, v) => addCurrency(s, v), 0)
+  const remainingDays = currentDay >= monthDays ? 0 : monthDays - currentDay + 1
+  // Money already committed later this month is not available to spend.
+  const remainingBudget = addCurrency(addCurrency(limit, -spentSoFar), -committedAhead)
+  const spendable = Math.max(0, remainingBudget)
+  const suggestionPerDay = remainingDays > 0 ? spendable / remainingDays : 0
 
   const sesResult = ses(dailyActual.slice(0, currentDay))
   const lastSes = sesResult.length > 0 ? sesResult[sesResult.length - 1] : 0
 
-  const accumulatedSpent = dailyActual.slice(0, currentDay).reduce((s, v) => addCurrency(s, v), 0)
-  const remainingDays = monthDays - currentDay
-  const suggestionPerDay =
-    remainingDays > 0 ? Math.max(0, (limit - accumulatedSpent) / remainingDays) : 0
+  const proRataBudget = monthDays > 0 ? (limit * currentDay) / monthDays : 0
+  const status: PaceStatus =
+    spentSoFar > limit
+      ? 'over'
+      : spentSoFar > proRataBudget * 1.2
+        ? 'ahead'
+        : spentSoFar > proRataBudget * 1.05
+          ? 'caution'
+          : 'on-track'
 
   const daily: SpendingPaceResult['daily'] = []
   const cumulative: SpendingPaceResult['cumulative'] = []
+  const referencePerDay = limit / monthDays
   let cumActual = 0
-  let cumProjection = accumulatedSpent
-  let cumSuggestion = accumulatedSpent
+  let cumProjection = spentSoFar
+  let cumSuggestion = spentSoFar
 
   for (let d = 1; d <= monthDays; d++) {
     const idx = d - 1
     cumActual = addCurrency(cumActual, dailyActual[idx])
 
-    let sesProj: number | null = null
+    let sesProj: number | null = sesResult[idx] ?? null
     let sugProj: number | null = null
-    if (d <= currentDay) {
-      sesProj = sesResult[idx] ?? null
-      sugProj = null
-    } else {
+    if (d > currentDay) {
       sesProj = lastSes
-      sugProj = suggestionPerDay
       cumProjection = addCurrency(cumProjection, lastSes)
+    }
+    if (d >= currentDay && remainingDays > 0) {
+      sugProj = suggestionPerDay
       cumSuggestion = addCurrency(cumSuggestion, suggestionPerDay)
     }
 
@@ -240,11 +255,20 @@ export function spendingPace(
       reference: referencePerDay * d,
       actual: cumActual,
       sesProjection: d > currentDay ? cumProjection : null,
-      suggestion: d > currentDay ? cumSuggestion : null,
+      suggestion: d >= currentDay && remainingDays > 0 ? cumSuggestion : null,
     })
   }
 
-  return { daily, cumulative, suggestionPerDay, limit, totalSalary }
+  return {
+    daily,
+    cumulative,
+    suggestionPerDay,
+    limit,
+    totalSalary,
+    spentSoFar,
+    remainingBudget,
+    status,
+  }
 }
 
 export function budgetVsActual(
@@ -262,6 +286,7 @@ export function budgetVsActual(
       budgeted: budget.categoryLimits[category] ?? 0,
       actual: actuals[category] ?? 0,
     }))
+    .filter(({ budgeted, actual }) => budgeted > 0 || actual > 0)
 }
 
 export interface FutureCommitment {
@@ -300,14 +325,12 @@ export function futureCommitments(tx: Transaction[], months: number = 12): Futur
 
 export function categoryTimeSeries(
   tx: Transaction[],
-  months: number = 6,
+  months: string[],
 ): { month: string; [category: string]: number | string }[] {
-  const now = new Date()
   const allCategories = new Set<string>()
   const monthlyData: { month: string; [category: string]: number | string }[] = []
 
-  for (let i = months - 1; i >= 0; i--) {
-    const ym = addMonths(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, -i)
+  for (const ym of months) {
     const cats = byCategory(tx, ym)
     for (const cat of Object.keys(cats)) {
       allCategories.add(cat)
@@ -379,6 +402,7 @@ export function budgetVsActualYear(
 
   return Object.entries(categoryTotals)
     .map(([category, v]) => ({ category, ...v }))
+    .filter(({ budgeted, actual }) => budgeted > 0 || actual > 0)
     .sort((a, b) => b.actual - a.actual)
 }
 

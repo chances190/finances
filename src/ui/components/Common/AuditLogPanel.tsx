@@ -6,13 +6,15 @@ import {
 } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import CSVImportDialog from '@/ui/components/Common/CSVImportDialog'
+import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import ExportImport from '@/ui/components/Common/ExportImport'
+import ImportDialog from '@/ui/components/Common/ImportDialog'
 import { useFinance } from '@/ui/context'
 
 export default function AuditLogPanel() {
   const { state, dispatch } = useFinance()
   const [showImport, setShowImport] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
 
   function handleUndo(entryId: string) {
     dispatch({ type: 'UNDO', payload: entryId })
@@ -42,7 +44,7 @@ export default function AuditLogPanel() {
             <Button
               variant="ghost"
               size="xs"
-              onClick={() => dispatch({ type: 'CLEAR_AUDIT' })}
+              onClick={() => setShowClearConfirm(true)}
               aria-label="Clear history"
             >
               <TrashIcon /> Clear
@@ -99,8 +101,17 @@ export default function AuditLogPanel() {
             Import backup
           </Button>
         </div>
-        <CSVImportDialog open={showImport} onOpenChange={setShowImport} mode="all" />
+        <ImportDialog open={showImport} onOpenChange={setShowImport} mode="backup" />
       </div>
+
+      <ConfirmDialog
+        open={showClearConfirm}
+        onOpenChange={setShowClearConfirm}
+        title="Clear action history?"
+        message="This removes the history used to undo past actions. It does not change transactions or budgets."
+        confirmLabel="Clear history"
+        onConfirm={() => dispatch({ type: 'CLEAR_AUDIT' })}
+      />
     </div>
   )
 }

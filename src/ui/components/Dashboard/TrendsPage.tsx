@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { useSearchParams } from 'wouter'
+import { useLocation, useSearchParams } from 'wouter'
 import {
   Select,
   SelectContent,
@@ -36,6 +36,7 @@ import { useFinance } from '@/ui/context'
 
 export default function TrendsPage() {
   const { state } = useFinance()
+  const [, navigate] = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const years = useMemo(() => {
@@ -75,14 +76,22 @@ export default function TrendsPage() {
     [state.transactions, selectedYear],
   )
 
+  const timeSeriesMonths = useMemo(() => {
+    const year = Number(selectedYear)
+    const elapsed = year === new Date().getFullYear() ? new Date().getMonth() + 1 : 12
+    return Array.from({ length: elapsed }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`)
+  }, [selectedYear])
+
   const timeSeriesData = useMemo(
     () =>
-      categoryTimeSeries(state.transactions, 6) as {
+      categoryTimeSeries(state.transactions, timeSeriesMonths) as {
         month: string
         [cat: string]: number | string
       }[],
-    [state.transactions],
+    [state.transactions, timeSeriesMonths],
   )
+
+  const isCurrentYear = Number(selectedYear) === new Date().getFullYear()
 
   const commitmentsData = useMemo(
     () => futureCommitments(state.transactions, 12),
@@ -116,11 +125,16 @@ export default function TrendsPage() {
   }, [timeSeriesData])
 
   if (years.length === 0) {
-    return <EmptyState message="No data available." />
+    return (
+      <EmptyState
+        message="No data available."
+        action={{ label: 'Go to Transactions', onClick: () => navigate('/') }}
+      />
+    )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-foreground">Trends</h2>
         <Select value={selectedYear} onValueChange={(v) => v && setSelectedYear(v)}>
@@ -155,17 +169,19 @@ export default function TrendsPage() {
           label="Total Income"
           icon={<ArrowUp className="size-3 text-green-500" />}
           value={formatCurrency(yearData.totalIncome)}
+          valueClassName="font-mono"
         />
         <StatCard
           label="Total Expenses"
           icon={<ArrowDown className="size-3 text-red-500" />}
           value={formatCurrency(yearData.totalExpenses)}
+          valueClassName="font-mono"
         />
         <StatCard
           label="Net Balance"
-          icon={<PiggyBank className="size-3 text-blue-500" />}
+          icon={<PiggyBank className="size-3 text-muted-foreground" />}
           value={formatCurrency(yearData.totalBalance)}
-          valueClassName={yearData.totalBalance >= 0 ? 'text-green-500' : 'text-red-500'}
+          valueClassName={`font-mono ${yearData.totalBalance >= 0 ? 'text-green-500' : 'text-red-500'}`}
         />
         <StatCard
           label="Savings Rate"
@@ -216,7 +232,7 @@ export default function TrendsPage() {
                 radius={[2, 2, 0, 0]}
               />
               <Bar
-                dataKey="expense"
+                dataKey="expenses"
                 name="Expenses"
                 fill={CHART_COLORS.expense}
                 radius={[2, 2, 0, 0]}
@@ -226,9 +242,9 @@ export default function TrendsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${isCurrentYear ? 'lg:grid-cols-2' : ''}`}>
         <div className="border bg-card p-4 space-y-3">
-          <h3 className="text-sm font-semibold">Category Trends (6 months)</h3>
+          <h3 className="text-sm font-semibold">Category Trends · {selectedYear}</h3>
           {timeSeriesData.length === 0 || topCategories.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-xs text-muted-foreground">
               Not enough data.
@@ -279,52 +295,54 @@ export default function TrendsPage() {
           )}
         </div>
 
-        <div className="border bg-card p-4 space-y-3">
-          <h3 className="text-sm font-semibold">Future Credit Commitments</h3>
-          {commitmentsData.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-xs text-muted-foreground">
-              No upcoming credit commitments.
-            </div>
-          ) : (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={commitmentsData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis
-                    dataKey="referenceMonth"
-                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(v: number) => formatAxisCurrency(v)}
-                    domain={commitmentsMax > 0 ? [0, commitmentsMax] : undefined}
-                    allowDataOverflow={true}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'var(--popover)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--foreground)',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                    }}
-                    formatter={(value: number) => formatCurrency(value)}
-                  />
-                  <Bar
-                    dataKey="total"
-                    name="Total"
-                    fill={CHART_COLORS.expense}
-                    radius={[2, 2, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
+        {isCurrentYear && (
+          <div className="border bg-card p-4 space-y-3">
+            <h3 className="text-sm font-semibold">Future Credit Commitments</h3>
+            {commitmentsData.length === 0 ? (
+              <div className="flex items-center justify-center h-48 text-xs text-muted-foreground">
+                No upcoming credit commitments.
+              </div>
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={commitmentsData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis
+                      dataKey="referenceMonth"
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v: number) => formatAxisCurrency(v)}
+                      domain={commitmentsMax > 0 ? [0, commitmentsMax] : undefined}
+                      allowDataOverflow={true}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: 'var(--popover)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--foreground)',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                      }}
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                    <Bar
+                      dataKey="total"
+                      name="Total"
+                      fill={CHART_COLORS.expense}
+                      radius={[2, 2, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="border bg-card p-4 space-y-3">

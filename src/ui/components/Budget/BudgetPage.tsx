@@ -1,4 +1,4 @@
-import { PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
+import { PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,24 +28,22 @@ function BudgetCard({
   range,
   currentMonth,
   onEdit,
-  onDelete,
 }: {
   range: BudgetRange
   currentMonth: string
   onEdit: () => void
-  onDelete: () => void
 }) {
   const label =
     range.months.length > 1 ? `${range.startMonth} – ${range.endMonth}` : range.startMonth
   const rel = range.months.includes(currentMonth) ? 'current' : monthRelation(range.startMonth)
 
   return (
-    <div className="px-3 pt-0 pb-3">
-      <button
-        type="button"
-        onClick={onEdit}
-        className="flex w-full items-center gap-2 py-3 text-left"
-      >
+    <button
+      type="button"
+      onClick={onEdit}
+      className="block w-full p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+    >
+      <div className="flex items-center gap-2">
         <span
           className={`min-w-0 flex-1 truncate text-sm font-medium ${rel === 'current' ? 'text-primary' : ''}`}
         >
@@ -61,54 +59,42 @@ function BudgetCard({
             Future
           </Badge>
         )}
-      </button>
+        <PencilSimpleIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+      </div>
 
       {range.months.length > 1 && (
-        <p className="-mt-1 mb-2 text-[10px] text-muted-foreground">
-          · {range.months.length} months
-        </p>
+        <p className="mt-1 text-[10px] text-muted-foreground">· {range.months.length} months</p>
       )}
 
       <div className="grid grid-cols-2 gap-2">
-        <div className="border border-border p-2">
-          <p className="text-[10px] text-muted-foreground">Planned Income</p>
-          <p className="font-mono text-sm">{formatCurrency(range.budget.plannedIncome)}</p>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">Planned Income</p>
+          <p className="text-right font-mono text-sm">
+            {formatCurrency(range.budget.plannedIncome)}
+          </p>
         </div>
-        <div className="border border-border p-2">
-          <p className="text-[10px] text-muted-foreground">Meal Voucher</p>
-          <p className="font-mono text-sm">{formatCurrency(range.budget.plannedMealVoucher)}</p>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">Meal Voucher</p>
+          <p className="text-right font-mono text-sm">
+            {formatCurrency(range.budget.plannedMealVoucher)}
+          </p>
         </div>
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-1">
-        {Object.entries(range.budget.categoryLimits).map(([cat, val]) => (
-          <span key={cat} className="text-xs bg-muted px-1.5 py-0.5">
-            {cat}: {formatCurrency(val)}
-          </span>
-        ))}
+        {Object.entries(range.budget.categoryLimits)
+          .filter(([, val]) => val > 0)
+          .map(([cat, val]) => (
+            <span
+              key={cat}
+              className="flex items-baseline justify-between gap-1 bg-muted px-1.5 py-0.5 text-xs"
+            >
+              <span className="truncate">{cat}</span>
+              <span className="font-mono">{formatCurrency(val)}</span>
+            </span>
+          ))}
       </div>
-
-      <div className="mt-1 flex justify-end gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-10"
-          onClick={onEdit}
-          aria-label="Edit budget"
-        >
-          <PencilSimpleIcon />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-10"
-          onClick={onDelete}
-          aria-label="Delete budget"
-        >
-          <TrashIcon />
-        </Button>
-      </div>
-    </div>
+    </button>
   )
 }
 
@@ -132,6 +118,9 @@ export default function BudgetPage() {
 
   const existingBudget = editingMonth
     ? state.budgets.find((b) => b.referenceMonth === editingMonth)
+    : undefined
+  const editingBudgetRange = editingRange
+    ? ranges.find((range) => range.startMonth === editingRange.startMonth)
     : undefined
 
   const nextMonth = sorted.length > 0 ? addMonths(sorted[0].referenceMonth, 1) : currentYM()
@@ -171,13 +160,12 @@ export default function BudgetPage() {
                 <TableHead className="text-right">Planned Income</TableHead>
                 <TableHead className="text-right">Meal Voucher</TableHead>
                 <TableHead>Categories</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {ranges.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5}>
+                  <TableCell colSpan={4}>
                     <EmptyState
                       variant="cell"
                       message="No budgets yet. Create one to start planning."
@@ -196,8 +184,15 @@ export default function BudgetPage() {
                 return (
                   <TableRow
                     key={range.startMonth}
-                    className="cursor-pointer"
+                    className="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                    tabIndex={0}
                     onClick={() => openEdit(range)}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' '))
+                        return
+                      e.preventDefault()
+                      openEdit(range)
+                    }}
                   >
                     <TableCell className={`font-medium ${rel === 'current' ? 'text-primary' : ''}`}>
                       {label}
@@ -225,37 +220,13 @@ export default function BudgetPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {Object.entries(range.budget.categoryLimits).map(([cat, val]) => (
-                          <span key={cat} className="text-xs bg-muted px-1.5 py-0.5">
-                            {cat}: {formatCurrency(val)}
-                          </span>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            openEdit(range)
-                          }}
-                          aria-label="Edit budget"
-                        >
-                          <PencilSimpleIcon />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDelete(range)
-                          }}
-                          aria-label="Delete budget"
-                        >
-                          <TrashIcon />
-                        </Button>
+                        {Object.entries(range.budget.categoryLimits)
+                          .filter(([, val]) => val > 0)
+                          .map(([cat, val]) => (
+                            <span key={cat} className="text-xs bg-muted px-1.5 py-0.5">
+                              {cat}: {formatCurrency(val)}
+                            </span>
+                          ))}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -267,17 +238,16 @@ export default function BudgetPage() {
       )}
 
       {!isDesktop && (
-        <div className="border border-border">
+        <div className="space-y-2">
           {ranges.length === 0 ? (
             <EmptyState message="No budgets yet. Create one to start planning." />
           ) : (
             ranges.map((range) => (
-              <div key={range.startMonth} className="border-b border-border last:border-b-0">
+              <div key={range.startMonth} className="border border-border">
                 <BudgetCard
                   range={range}
                   currentMonth={currentMonth}
                   onEdit={() => openEdit(range)}
-                  onDelete={() => handleDelete(range)}
                 />
               </div>
             ))
@@ -298,6 +268,7 @@ export default function BudgetPage() {
         editingRange={editingRange}
         existingBudget={existingBudget}
         nextMonth={nextMonth}
+        onDelete={() => editingBudgetRange && handleDelete(editingBudgetRange)}
       />
 
       <ConfirmDialog
@@ -320,6 +291,9 @@ export default function BudgetPage() {
               dispatch({ type: 'DELETE_BUDGET', payload: month })
             }
             setConfirmDeleteRange(null)
+            setShowForm(false)
+            setEditingMonth(null)
+            setEditingRange(null)
           }
         }}
       />

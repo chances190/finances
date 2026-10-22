@@ -8,7 +8,6 @@ import {
 } from 'react'
 import { v4 as uuid } from 'uuid'
 import { loadData, saveData } from '../../data/repository'
-import { generateSeed } from '../../data/seed'
 import type { AuditEntry, Budget, FinanceData, Transaction } from '../../domain/entities'
 
 export interface FinanceState {
@@ -27,7 +26,6 @@ export type FinanceAction =
   | { type: 'SETTLE_DEBT'; payload: { transactionId: string; debtName: string } }
   | { type: 'UPSERT_BUDGET'; payload: Budget }
   | { type: 'DELETE_BUDGET'; payload: string }
-  | { type: 'SEED' }
   | { type: 'IMPORT'; payload: FinanceData }
   | { type: 'UNDO'; payload: string }
   | { type: 'REDO' }
@@ -53,8 +51,6 @@ function describeAction(action: FinanceAction): string {
       return `Deleted budget for ${action.payload}`
     case 'IMPORT':
       return `Imported ${action.payload.transactions.length} transaction(s)`
-    case 'SEED':
-      return 'Loaded seed data'
     case 'UNDO':
       return 'Undo'
     case 'REDO':
@@ -88,7 +84,7 @@ function mutate(state: FinanceState, action: FinanceAction): FinanceState {
       return {
         ...state,
         transactions: state.transactions.map((t) => {
-          if (t.id !== transactionId || !t.debts) return t
+          if (t.id !== transactionId || t.type !== 'Expense' || !t.debts) return t
           return {
             ...t,
             debts: t.debts.map((d) => (d.name === debtName ? { ...d, settled: !d.settled } : d)),
@@ -118,9 +114,6 @@ function mutate(state: FinanceState, action: FinanceAction): FinanceState {
         budgets: action.payload.budgets,
       }
 
-    case 'SEED':
-      return { ...state, ...generateSeed(), loaded: true }
-
     default:
       return state
   }
@@ -134,7 +127,6 @@ const MUTATION_TYPES = new Set<FinanceAction['type']>([
   'UPSERT_BUDGET',
   'DELETE_BUDGET',
   'IMPORT',
-  'SEED',
 ])
 
 function reducer(state: FinanceState, action: FinanceAction): FinanceState {
@@ -214,11 +206,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = loadData()
-    if (saved) {
-      dispatch({ type: 'LOAD', payload: saved })
-    } else {
-      dispatch({ type: 'SEED' })
-    }
+    dispatch({ type: 'LOAD', payload: saved ?? { transactions: [], budgets: [] } })
   }, [])
 
   useEffect(() => {

@@ -6,7 +6,6 @@ const ORIGINAL_DATE = Date
 function mockToday(ymd: string) {
   const [y, m, d] = ymd.split('-').map(Number)
   const fake = new ORIGINAL_DATE(y, m - 1, d, 12, 0, 0)
-  // @ts-expect-error test mock
   globalThis.Date = class extends ORIGINAL_DATE {
     constructor(...args: unknown[]) {
       if (args.length === 0) {
@@ -35,6 +34,13 @@ const parse = (text: string) => parseSmartInput(text, CATS)
 describe('§2.1 amount', () => {
   test('comma decimals', () => {
     expect(parse('2,50 almoço').amount).toBe(2.5)
+  })
+
+  test('a four-digit amount after a date is not mistaken for a year', () => {
+    const result = parse('almoço 25 jun 1000,00')
+    expect(result.amount).toBe(1000)
+    expect(result.date).toBe('2026-06-25')
+    expect(result.description).toBe('almoço')
   })
 
   test('R$ with space and thousands separator', () => {
@@ -102,8 +108,9 @@ describe('§2.2 date', () => {
   test('joined portuguese month form', () => {
     expect(parse('almoço 2,50 12 de junho de 2025').date).toBe('2025-06-12')
     expect(parse('almoço 2,50 25 de dezembro').date).toBe('2026-12-25')
-    expect(parse('almoço 2,50 12 de junho').date).toBe('2027-06-12')
-    expect(parse('almoço 2,50 12 jun').date).toBe('2027-06-12')
+    expect(parse('almoço 2,50 12 de junho').date).toBe('2026-06-12')
+    expect(parse('almoço 2,50 12 junho').date).toBe('2026-06-12')
+    expect(parse('almoço 2,50 12 jun').date).toBe('2026-06-12')
   })
 
   test('iso and short date', () => {
@@ -141,6 +148,12 @@ describe('§2.3 category', () => {
 describe('§2.4 payment method', () => {
   test('resolves against the registry', () => {
     expect(parse('23,50 Almoço @Debit').paymentMethod).toBe('Debit')
+  })
+
+  test('resolves display labels to the stored value', () => {
+    expect(parse('23,50 Almoço @Debit/PIX').paymentMethod).toBe('Debit')
+    expect(parse('23,50 Almoço @Voucher').paymentMethod).toBe('Meal Voucher')
+    expect(parse('23,50 Almoço @Voucher income').paymentMethod).toBe('Voucher')
   })
 
   test('multi-word payment method is a single span', () => {
@@ -285,15 +298,15 @@ describe('§4 autocomplete', () => {
   })
 
   test('payment prefix', () => {
-    expect(suggestions('Almoço @d')).toEqual(['@Debit'])
+    expect(suggestions('Almoço @d')).toEqual(['@Debit/PIX'])
   })
 
   test('filled payment slot yields nothing', () => {
     expect(suggestions('Almoço @Debit @d')).toEqual([])
   })
 
-  test('multi-word payment prefix', () => {
-    expect(suggestions('Almoço @Meal V')).toEqual(['@Meal Voucher'])
+  test('ambiguous voucher offers both kinds', () => {
+    expect(suggestions('Almoço @Vou')).toEqual(['@Voucher', '@Voucher income'])
   })
 
   test('open description suggests historical descriptions', () => {

@@ -38,7 +38,12 @@ function AppShell() {
           target.tagName === 'TEXTAREA' ||
           target.tagName === 'SELECT' ||
           target.isContentEditable)
-      if (isTextEntry) return
+      const isInteractiveControl =
+        target instanceof HTMLElement &&
+        target.closest(
+          'button, a, [role="button"], [role="checkbox"], [role="combobox"], [role="switch"]',
+        )
+      if (isTextEntry || isInteractiveControl) return
       if (e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
         const latest = state.auditLog[0]

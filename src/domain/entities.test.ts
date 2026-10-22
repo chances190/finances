@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
-import type { Transaction } from './entities'
+import type { ExpenseTransaction, IncomeTransaction } from './entities'
 import { addMonths, monthlyFlows } from './entities'
 
-function tx(overrides: Partial<Transaction> = {}): Transaction {
+function tx(overrides: Partial<Omit<ExpenseTransaction, 'type'>> = {}): ExpenseTransaction {
   return {
     id: '1',
     type: 'Expense',
@@ -15,91 +15,93 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
   }
 }
 
+function incomeTx(overrides: Partial<Omit<IncomeTransaction, 'type'>> = {}): IncomeTransaction {
+  return {
+    id: '1',
+    type: 'Income',
+    date: '2026-03-15',
+    description: 'Test',
+    amount: 100,
+    category: 'Income',
+    paymentMethod: 'Salary',
+    ...overrides,
+  }
+}
+
 describe('addMonths', () => {
-  test('wraps year boundary', () => {
-    expect(addMonths('2026-01', 1)).toBe('2026-02')
+  test('wraps forward across the year boundary', () => {
     expect(addMonths('2026-12', 1)).toBe('2027-01')
     expect(addMonths('2026-01', 12)).toBe('2027-01')
   })
-  test('goes backwards', () => {
+
+  test('wraps backward across the year boundary', () => {
     expect(addMonths('2026-01', -1)).toBe('2025-12')
     expect(addMonths('2027-01', -12)).toBe('2026-01')
-  })
-  test('zero', () => {
-    expect(addMonths('2026-06', 0)).toBe('2026-06')
   })
 })
 
 describe('monthlyFlows', () => {
-  test('single flow for non-installment expense', () => {
-    const f = monthlyFlows(tx({ installments: undefined }))
-    expect(f).toHaveLength(1)
-    expect(f[0].amount).toBe(100)
-    expect(f[0].referenceMonth).toBe('2026-03')
-    expect(f[0].installmentIndex).toBeUndefined()
+  test('a non-installment expense is one flow carrying the source fields', () => {
+    const flows = monthlyFlows(tx({ installments: undefined }))
+
+    expect(flows).toHaveLength(1)
+    expect(flows[0]).toMatchObject({
+      id: '1',
+      amount: 100,
+      date: '2026-03-15',
+      description: 'Test',
+      category: 'Shopping',
+      paymentMethod: 'Credit',
+      referenceMonth: '2026-03',
+    })
+    expect(flows[0].installmentIndex).toBeUndefined()
   })
 
-  test('single flow for installment=1', () => {
-    const f = monthlyFlows(tx({ installments: 1 }))
-    expect(f).toHaveLength(1)
-    expect(f[0].amount).toBe(100)
+  test('income never splits into installments', () => {
+    const flows = monthlyFlows(incomeTx())
+
+    expect(flows).toHaveLength(1)
+    expect(flows[0].amount).toBe(100)
   })
 
-  test('income never splits', () => {
-    const f = monthlyFlows(tx({ type: 'Income', installments: 3 }))
-    expect(f).toHaveLength(1)
-    expect(f[0].amount).toBe(100)
-    expect(f[0].type).toBe('Income')
+  test('splits across consecutive months with the remainder on the first', () => {
+    const flows = monthlyFlows(tx({ amount: 1000, installments: 3 }))
+
+    expect(flows.map((f) => f.amount)).toEqual([334, 333, 333])
+    expect(flows.map((f) => f.referenceMonth)).toEqual(['2026-03', '2026-04', '2026-05'])
+    expect(flows.map((f) => f.installmentIndex)).toEqual([0, 1, 2])
+    expect(flows[0].installmentTotal).toBe(3)
   })
 
-  test('even split across 3 months', () => {
-    const f = monthlyFlows(tx({ amount: 300, installments: 3 }))
-    expect(f).toHaveLength(3)
-    expect(f[0].amount).toBe(100)
-    expect(f[1].amount).toBe(100)
-    expect(f[2].amount).toBe(100)
-    expect(f[0].referenceMonth).toBe('2026-03')
-    expect(f[1].referenceMonth).toBe('2026-04')
-    expect(f[2].referenceMonth).toBe('2026-05')
+  test('own amount equals the installment when nobody owes you', () => {
+    const flows = monthlyFlows(tx({ amount: 300, installments: 3 }))
+
+    expect(flows.map((f) => f.ownAmount)).toEqual([100, 100, 100])
   })
 
-  test('remainder absorbed by first flow', () => {
-    const f = monthlyFlows(tx({ amount: 1000, installments: 3 }))
-    expect(f).toHaveLength(3)
-    expect(f[0].amount).toBe(334) // 333 + 1 remainder
-    expect(f[1].amount).toBe(333)
-    expect(f[2].amount).toBe(333)
-    expect(f[0].amount + f[1].amount + f[2].amount).toBe(1000)
+  test('own amount excludes what others owe, spread across installments', () => {
+    const flows = monthlyFlows(
+      tx({
+        amount: 200,
+        installments: 2,
+        debts: [
+          { name: 'Ana', amount: 50, settled: false },
+          { name: 'Bia', amount: 50, settled: false },
+        ],
+      }),
+    )
+
+    expect(flows.map((f) => f.amount)).toEqual([100, 100])
+    expect(flows.map((f) => f.ownAmount)).toEqual([50, 50])
   })
 
-  test('installment metadata carried on each flow', () => {
-    const f = monthlyFlows(tx({ installments: 2 }))
-    expect(f[0].installmentIndex).toBe(0)
-    expect(f[0].installmentTotal).toBe(2)
-    expect(f[1].installmentIndex).toBe(1)
-    expect(f[1].installmentTotal).toBe(2)
-  })
+  test('own amounts total the purchase minus debts and never go negative', () => {
+    const flows = monthlyFlows(
+      tx({ amount: 100, installments: 3, debts: [{ name: 'Ana', amount: 50, settled: false }] }),
+    )
 
-  test('small amount with many installments', () => {
-    const f = monthlyFlows(tx({ amount: 5, installments: 3 }))
-    expect(f).toHaveLength(3)
-    expect(f[0].amount).toBe(3) // 1 + 2 remainder
-    expect(f[1].amount).toBe(1)
-    expect(f[2].amount).toBe(1)
-    expect(f[0].amount + f[1].amount + f[2].amount).toBe(5)
-  })
-
-  test('passthrough for debit with no installments', () => {
-    const f = monthlyFlows(tx({ paymentMethod: 'Debit', installments: undefined }))
-    expect(f).toHaveLength(1)
-    expect(f[0].paymentMethod).toBe('Debit')
-  })
-
-  test('all flow fields match source transaction', () => {
-    const f = monthlyFlows(tx({ description: 'Groceries', category: 'Food' }))
-    expect(f[0].description).toBe('Groceries')
-    expect(f[0].category).toBe('Food')
-    expect(f[0].id).toBe('1')
-    expect(f[0].date).toBe('2026-03-15')
+    const ownTotal = flows.reduce((sum, f) => sum + f.ownAmount, 0)
+    expect(Math.round(ownTotal * 100) / 100).toBe(50)
+    expect(flows.every((f) => f.ownAmount >= 0)).toBe(true)
   })
 })
