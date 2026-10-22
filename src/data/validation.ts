@@ -1,11 +1,16 @@
 import {
   EXPENSE_PAYMENT_METHODS,
   INCOME_PAYMENT_METHODS,
-  isExpensePaymentMethod,
-  isIncomePaymentMethod,
+  paymentMethodLabel,
   TRANSACTION_TYPES,
 } from '../domain/constants'
-import type { Budget, FinanceData, PaymentMethod, Transaction } from '../domain/entities'
+import type {
+  Budget,
+  FinanceData,
+  PaymentMethod,
+  Transaction,
+  TransactionType,
+} from '../domain/entities'
 
 export type SkipReason = string
 
@@ -30,6 +35,23 @@ function isNonNegativeFinite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
 }
 
+function canonicalType(value: unknown): TransactionType | null {
+  if (typeof value !== 'string') return null
+  const needle = value.trim().toLowerCase()
+  return TRANSACTION_TYPES.find((type) => type.toLowerCase() === needle) ?? null
+}
+
+function canonicalMethod<T extends PaymentMethod>(value: unknown, methods: readonly T[]): T | null {
+  if (typeof value !== 'string') return null
+  const needle = value.trim().toLowerCase()
+  return (
+    methods.find(
+      (method) =>
+        method.toLowerCase() === needle || paymentMethodLabel(method).toLowerCase() === needle,
+    ) ?? null
+  )
+}
+
 export function validateTransaction(
   value: unknown,
 ): { ok: true; tx: Transaction } | { ok: false; reason: SkipReason } {
@@ -52,30 +74,36 @@ export function validateTransaction(
   if (t.importId != null && typeof t.importId !== 'string')
     return { ok: false, reason: 'importId must be a string' }
 
-  if (!TRANSACTION_TYPES.includes(t.type as (typeof TRANSACTION_TYPES)[number])) {
+  const type = canonicalType(t.type)
+  if (type === null) {
     return {
       ok: false,
       reason: `invalid type: "${t.type}" (expected: ${TRANSACTION_TYPES.join(', ')})`,
     }
   }
 
-  const type = t.type as Transaction['type']
-
+  let paymentMethod: PaymentMethod
   if (type === 'Income') {
-    if (!isIncomePaymentMethod(t.paymentMethod as PaymentMethod)) {
+    const method = canonicalMethod(t.paymentMethod, INCOME_PAYMENT_METHODS)
+    if (method === null) {
       return {
         ok: false,
         reason: `invalid payment method: "${t.paymentMethod}" for Income (expected: ${INCOME_PAYMENT_METHODS.join(', ')})`,
       }
     }
+    paymentMethod = method
     if (t.installments != null)
       return { ok: false, reason: 'Income transaction cannot have installments' }
     if (t.debts != null) return { ok: false, reason: 'Income transaction cannot have debts' }
-  } else if (!isExpensePaymentMethod(t.paymentMethod as PaymentMethod)) {
-    return {
-      ok: false,
-      reason: `invalid payment method: "${t.paymentMethod}" for Expense (expected: ${EXPENSE_PAYMENT_METHODS.join(', ')})`,
+  } else {
+    const method = canonicalMethod(t.paymentMethod, EXPENSE_PAYMENT_METHODS)
+    if (method === null) {
+      return {
+        ok: false,
+        reason: `invalid payment method: "${t.paymentMethod}" for Expense (expected: ${EXPENSE_PAYMENT_METHODS.join(', ')})`,
+      }
     }
+    paymentMethod = method
   }
 
   if (t.debts != null) {
@@ -111,7 +139,16 @@ export function validateTransaction(
     }
   }
 
-  return { ok: true, tx: value as Transaction }
+  return {
+    ok: true,
+    tx: {
+      ...(t as Record<string, unknown>),
+      type,
+      paymentMethod,
+      description: (t.description as string).trim(),
+      category: (t.category as string).trim(),
+    } as Transaction,
+  }
 }
 
 function isValidBudget(value: unknown): value is Budget {

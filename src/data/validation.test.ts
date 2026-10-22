@@ -28,6 +28,43 @@ describe('validateTransaction', () => {
     expect(result.ok).toBe(true)
   })
 
+  test('canonicalizes type and payment method casing at the boundary', () => {
+    const result = validateTransaction({
+      id: '1',
+      type: 'EXPENSE',
+      date: '2026-07-01',
+      description: '  Test  ',
+      amount: 100,
+      category: '  Food  ',
+      paymentMethod: 'debit',
+    })
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.tx).toMatchObject({
+        type: 'Expense',
+        paymentMethod: 'Debit',
+        description: 'Test',
+        category: 'Food',
+      })
+    }
+  })
+
+  test('maps a display label to the stored payment method', () => {
+    const result = validateTransaction({
+      id: '1',
+      type: 'Expense',
+      date: '2026-07-01',
+      description: 'Lunch',
+      amount: 20,
+      category: 'Food',
+      paymentMethod: 'Voucher',
+    })
+
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.tx.paymentMethod).toBe('Meal Voucher')
+  })
+
   test('rejects invalid type with reason', () => {
     const result = validateTransaction({
       id: '1',

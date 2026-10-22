@@ -69,6 +69,14 @@ describe('importCSV', () => {
     }
   })
 
+  test('canonicalizes uppercase type and payment method', () => {
+    const csv = `${H}\nr001,2026-07-05,EXPENSE,10,Food,DEBIT,Buy,,,,,`
+    const { transactions, skippedRows } = importCSV(csv)
+
+    expect(skippedRows).toEqual([])
+    expect(transactions[0]).toMatchObject({ type: 'Expense', paymentMethod: 'Debit' })
+  })
+
   test('imports a debt with 1NF splits', () => {
     const csv = `${H}\nr001,2026-07-10,Expense,300,Food,Debit,Dinner,,,,Alice,100\nr001,2026-07-10,Expense,300,Food,Debit,Dinner,,,,Bob,200`
     const { transactions } = importCSV(csv)

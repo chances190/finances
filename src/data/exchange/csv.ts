@@ -1,17 +1,6 @@
 import Papa from 'papaparse'
 import { v4 as uuid } from 'uuid'
-import {
-  EXPENSE_PAYMENT_METHODS,
-  INCOME_PAYMENT_METHODS,
-  TRANSACTION_TYPES,
-} from '../../domain/constants'
-import type {
-  ExpensePaymentMethod,
-  ExpenseTransaction,
-  IncomePaymentMethod,
-  Transaction,
-  TransactionType,
-} from '../../domain/entities'
+import type { Transaction } from '../../domain/entities'
 import { monthlyFlows } from '../../domain/entities'
 import { parseCurrency, parseCurrencyStrict } from '../../lib/currency'
 import { downloadBlob } from '../download'
@@ -108,21 +97,6 @@ export interface CSVImportResult {
   skippedRows: SkippedRow[]
 }
 
-function validateType(s: string): TransactionType | null {
-  if (!TRANSACTION_TYPES.includes(s as TransactionType)) return null
-  return s as TransactionType
-}
-
-function validateIncomeMethod(s: string): IncomePaymentMethod | null {
-  if (!(INCOME_PAYMENT_METHODS as readonly string[]).includes(s)) return null
-  return s as IncomePaymentMethod
-}
-
-function validateExpenseMethod(s: string): ExpensePaymentMethod | null {
-  if (!(EXPENSE_PAYMENT_METHODS as readonly string[]).includes(s)) return null
-  return s as ExpensePaymentMethod
-}
-
 function validateAmount(s: string): number | null {
   const value = parseCurrencyStrict(s)
   if (value === null || value <= 0) return null
@@ -177,69 +151,28 @@ export function importCSV(csv: string): CSVImportResult {
     const first = rows[0]
     const line = firstIndex + 2
 
-    const type = validateType(first.type)
-    if (type === null) {
-      skippedRows.push({ line, reason: `invalid type: "${first.type}"` })
-      continue
-    }
-
     const amount = validateAmount(first.amount)
     if (amount === null) {
       skippedRows.push({ line, reason: `invalid amount: "${first.amount}"` })
       continue
     }
 
-    if (type === 'Income') {
-      const paymentMethod = validateIncomeMethod(first.paymentMethod)
-      if (paymentMethod === null) {
-        skippedRows.push({
-          line,
-          reason: `invalid payment method: "${first.paymentMethod}" for Income`,
-        })
-        continue
-      }
-      const validated = validateTransaction({
-        id: uuid(),
-        type: 'Income',
-        date: first.date,
-        description: first.description || '',
-        amount,
-        category: 'Income',
-        paymentMethod,
-      })
-      if (!validated.ok) {
-        skippedRows.push({ line, reason: validated.reason })
-        continue
-      }
-      transactions.push(validated.tx)
-      continue
-    }
-
-    const paymentMethod = validateExpenseMethod(first.paymentMethod)
-    if (paymentMethod === null) {
-      skippedRows.push({
-        line,
-        reason: `invalid payment method: "${first.paymentMethod}" for Expense`,
-      })
-      continue
-    }
-
-    const expense: ExpenseTransaction = {
+    const draft: Record<string, unknown> = {
       id: uuid(),
-      type: 'Expense',
+      type: first.type,
       date: first.date,
       description: first.description || '',
       amount,
       category: first.category || 'Other',
-      paymentMethod,
+      paymentMethod: first.paymentMethod,
     }
 
     if (first.installmentTotal && !first.installmentRef) {
-      expense.installments = parseInt(first.installmentTotal, 10) || 1
+      draft.installments = parseInt(first.installmentTotal, 10) || 1
     }
 
     if (first.debtName && rows.some((r) => r.debtName)) {
-      expense.debts = rows
+      draft.debts = rows
         .filter((r) => r.debtName)
         .map((r) => ({
           name: r.debtName,
@@ -248,7 +181,7 @@ export function importCSV(csv: string): CSVImportResult {
         }))
     }
 
-    const validated = validateTransaction(expense)
+    const validated = validateTransaction(draft)
     if (!validated.ok) {
       skippedRows.push({ line, reason: validated.reason })
       continue
