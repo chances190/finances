@@ -10,7 +10,7 @@ describe('validateTransaction', () => {
       description: 'Test',
       amount: 100,
       category: 'Food',
-      paymentMethod: 'Debit',
+      paymentMethod: 'Debit/PIX',
     })
     expect(result.ok).toBe(true)
   })
@@ -36,21 +36,21 @@ describe('validateTransaction', () => {
       description: '  Test  ',
       amount: 100,
       category: '  Food  ',
-      paymentMethod: 'debit',
+      paymentMethod: 'debit/pix',
     })
 
     expect(result.ok).toBe(true)
     if (result.ok) {
       expect(result.tx).toMatchObject({
         type: 'Expense',
-        paymentMethod: 'Debit',
+        paymentMethod: 'Debit/PIX',
         description: 'Test',
         category: 'Food',
       })
     }
   })
 
-  test('maps a display label to the stored payment method', () => {
+  test('accepts the canonical voucher debit method', () => {
     const result = validateTransaction({
       id: '1',
       type: 'Expense',
@@ -58,11 +58,11 @@ describe('validateTransaction', () => {
       description: 'Lunch',
       amount: 20,
       category: 'Food',
-      paymentMethod: 'Voucher',
+      paymentMethod: 'Voucher Debit',
     })
 
     expect(result.ok).toBe(true)
-    if (result.ok) expect(result.tx.paymentMethod).toBe('Meal Voucher')
+    if (result.ok) expect(result.tx.paymentMethod).toBe('Voucher Debit')
   })
 
   test('rejects invalid type with reason', () => {
@@ -73,7 +73,7 @@ describe('validateTransaction', () => {
       description: 'Bad',
       amount: 100,
       category: 'Other',
-      paymentMethod: 'Debit',
+      paymentMethod: 'Debit/PIX',
     })
     expect(result.ok).toBe(false)
     if (!result.ok) {
@@ -107,12 +107,12 @@ describe('validateTransaction', () => {
       description: 'Bad',
       amount: 100,
       category: 'Other',
-      paymentMethod: 'Debit',
+      paymentMethod: 'Debit/PIX',
     })
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.reason).toContain('invalid payment method')
-      expect(result.reason).toContain('Debit')
+      expect(result.reason).toContain('Debit/PIX')
     }
   })
 
@@ -168,7 +168,7 @@ describe('validateTransaction', () => {
       description: 'Bad',
       amount: -100,
       category: 'Food',
-      paymentMethod: 'Debit',
+      paymentMethod: 'Debit/PIX',
     })
     expect(result.ok).toBe(false)
     if (!result.ok) {
@@ -184,7 +184,7 @@ describe('validateTransaction', () => {
       description: 'Bad',
       amount: Number.NaN,
       category: 'Food',
-      paymentMethod: 'Debit',
+      paymentMethod: 'Debit/PIX',
     })
     expect(result.ok).toBe(false)
     if (!result.ok) {
@@ -200,7 +200,7 @@ describe('validateTransaction', () => {
       description: 'Bad',
       amount: 100,
       category: 'Food',
-      paymentMethod: 'Debit' as const,
+      paymentMethod: 'Debit/PIX' as const,
     }
 
     const notAnArray = validateTransaction({ ...base, debts: 'string' })
@@ -238,7 +238,7 @@ describe('validateTransaction', () => {
       description: 'TV',
       amount: 1200,
       category: 'Shopping',
-      paymentMethod: 'Debit',
+      paymentMethod: 'Debit/PIX',
       installments: 3,
     })
 
@@ -254,7 +254,7 @@ describe('validateTransaction', () => {
       description: 'Bad',
       amount: 0,
       category: 'Food',
-      paymentMethod: 'Debit' as const,
+      paymentMethod: 'Debit/PIX' as const,
     }
 
     expect(validateTransaction(base).ok).toBe(false)
@@ -269,7 +269,7 @@ describe('validateTransaction', () => {
       description: 'Bad',
       amount: 100,
       category: 'Food',
-      paymentMethod: 'Debit' as const,
+      paymentMethod: 'Debit/PIX' as const,
     }
 
     expect(validateTransaction({ ...base, date: '01/07/2026' }).ok).toBe(false)
@@ -284,7 +284,7 @@ describe('validateTransaction', () => {
       description: 'Bad',
       amount: 100,
       category: 'Food',
-      paymentMethod: 'Debit' as const,
+      paymentMethod: 'Debit/PIX' as const,
     }
 
     expect(validateTransaction({ ...base, description: '  ' }).ok).toBe(false)
@@ -299,7 +299,7 @@ describe('validateTransaction', () => {
       description: 'Dinner',
       amount: 100,
       category: 'Food',
-      paymentMethod: 'Debit',
+      paymentMethod: 'Debit/PIX',
       debts: [{ name: 'Ana', amount: 160, settled: false }],
     })
 
@@ -319,7 +319,7 @@ describe('validateFinanceData', () => {
           description: 'Test',
           amount: 100,
           category: 'Food',
-          paymentMethod: 'Debit',
+          paymentMethod: 'Debit/PIX',
         },
       ],
       budgets: [],
@@ -341,7 +341,7 @@ describe('validateFinanceData', () => {
           description: 'Bad',
           amount: 100,
           category: 'Other',
-          paymentMethod: 'Debit',
+          paymentMethod: 'Debit/PIX',
         },
       ],
       budgets: [],

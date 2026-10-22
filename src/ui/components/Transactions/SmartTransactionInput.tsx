@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { localYMD } from '@/domain/calculations'
-import { paymentMethodLabel } from '@/domain/constants'
 import type { PaymentMethod } from '@/domain/entities'
 import { formatPlainCurrency } from '@/lib/currency'
 import {
@@ -117,10 +116,7 @@ export default function SmartTransactionInput({
       {focused && (
         <div className="mb-0.5 flex flex-nowrap gap-x-3 overflow-x-auto bg-muted/50 px-2 py-1 text-[10px] whitespace-nowrap text-muted-foreground">
           <span>
-            Payment:{' '}
-            <span className="font-medium">
-              {parsed.paymentMethod ? paymentMethodLabel(parsed.paymentMethod) : '—'}
-            </span>
+            Payment: <span className="font-medium">{parsed.paymentMethod ?? '—'}</span>
           </span>
           <span>
             Amount:{' '}

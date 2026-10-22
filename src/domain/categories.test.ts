@@ -20,7 +20,7 @@ function tx(overrides: Partial<Omit<ExpenseTransaction, 'type'>> = {}): ExpenseT
     description: 'x',
     amount: 10,
     category: 'Family',
-    paymentMethod: 'Debit',
+    paymentMethod: 'Debit/PIX',
     ...overrides,
   }
 }

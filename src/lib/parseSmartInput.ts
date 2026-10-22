@@ -1,8 +1,4 @@
-import {
-  EXPENSE_PAYMENT_METHODS,
-  INCOME_PAYMENT_METHODS,
-  paymentMethodLabel,
-} from '@/domain/constants'
+import { EXPENSE_PAYMENT_METHODS, INCOME_PAYMENT_METHODS } from '@/domain/constants'
 import type { PaymentMethod } from '@/domain/entities'
 import { parseCurrency } from './currency'
 import { dateCompletions, matchDateAt, parsePortugueseDate } from './dates'
@@ -31,17 +27,10 @@ const AMOUNT_RE = /(?:R\$\s?)?\d+(?:\.\d{3})*,\d{2}/iy
 const WHITESPACE_RE = /\s/
 const MAX_REGISTRY_WORDS = 3
 
-const PAYMENT_OPTIONS = [...EXPENSE_PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS].map((value) => ({
-  value,
-  label: paymentMethodLabel(value),
-}))
-const PAYMENT_LABELS = PAYMENT_OPTIONS.map((option) => option.label)
-const PAYMENT_LOOKUP = new Map<string, PaymentMethod>()
-for (const { value, label } of PAYMENT_OPTIONS) {
-  PAYMENT_LOOKUP.set(label.toLowerCase(), value)
-}
-PAYMENT_LOOKUP.set('meal voucher', 'Meal Voucher')
-PAYMENT_LOOKUP.set('debit', 'Debit')
+const PAYMENT_VALUES = [...EXPENSE_PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS]
+const PAYMENT_LOOKUP = new Map<string, PaymentMethod>(
+  PAYMENT_VALUES.map((value) => [value.toLowerCase(), value]),
+)
 
 export function detectDateMonth(text: string): string | null {
   for (let index = 0; index < text.length; index++) {
@@ -275,7 +264,7 @@ export function getSuggestions(
   if (token.startsWith('@')) {
     return state.paymentMethod
       ? []
-      : prefixFilter(PAYMENT_LABELS, token.slice(1)).map((value) => `@${value}`)
+      : prefixFilter(PAYMENT_VALUES, token.slice(1)).map((value) => `@${value}`)
   }
   if (token.toLowerCase().startsWith('r$')) return []
 

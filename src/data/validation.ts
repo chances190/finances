@@ -2,7 +2,6 @@ import {
   DEFAULT_INVESTMENT_RATE,
   EXPENSE_PAYMENT_METHODS,
   INCOME_PAYMENT_METHODS,
-  paymentMethodLabel,
   TRANSACTION_TYPES,
 } from '../domain/constants'
 import type {
@@ -45,12 +44,7 @@ function canonicalType(value: unknown): TransactionType | null {
 function canonicalMethod<T extends PaymentMethod>(value: unknown, methods: readonly T[]): T | null {
   if (typeof value !== 'string') return null
   const needle = value.trim().toLowerCase()
-  return (
-    methods.find(
-      (method) =>
-        method.toLowerCase() === needle || paymentMethodLabel(method).toLowerCase() === needle,
-    ) ?? null
-  )
+  return methods.find((method) => method.toLowerCase() === needle) ?? null
 }
 
 export function validateTransaction(

@@ -20,7 +20,6 @@ import {
 import { importJSON } from '@/data/backup/json'
 import { importCSV } from '@/data/exchange/csv'
 import { importOFX } from '@/data/exchange/ofx'
-import { paymentMethodLabel } from '@/domain/constants'
 import type { Budget, Transaction } from '@/domain/entities'
 import { formatCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
@@ -331,7 +330,7 @@ export default function ImportDialog({
                       <TableCell className="text-right font-mono">
                         {formatCurrency(t.amount)}
                       </TableCell>
-                      <TableCell>{paymentMethodLabel(t.paymentMethod)}</TableCell>
+                      <TableCell>{t.paymentMethod}</TableCell>
                     </TableRow>
                   ))}
                   {preview.transactions.length > 50 && (

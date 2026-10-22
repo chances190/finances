@@ -135,7 +135,7 @@ export function mealVoucherIncome(tx: Transaction[], refMonth: string): number {
 
 export function mealVoucherExpenses(tx: Transaction[], refMonth: string): number {
   return byMonth(tx, refMonth)
-    .filter((t) => t.paymentMethod === 'Meal Voucher')
+    .filter((t) => t.paymentMethod === 'Voucher Debit')
     .reduce((s, t) => addCurrency(s, t.ownAmount), 0)
 }
 

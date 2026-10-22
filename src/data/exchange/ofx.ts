@@ -119,7 +119,7 @@ export function importOFX(content: string, existing: Transaction[]): OFXImportRe
             ...base,
             type: 'Expense',
             category: 'Other',
-            paymentMethod: source === 'card' ? 'Credit' : 'Debit',
+            paymentMethod: source === 'card' ? 'Credit' : 'Debit/PIX',
           })
 
     if (!validated.ok) {

@@ -34,7 +34,7 @@ function tx({ id, ...overrides }: ExpenseOverrides & { id: string }): ExpenseTra
     description: '',
     amount: 100,
     category: 'Other',
-    paymentMethod: 'Debit',
+    paymentMethod: 'Debit/PIX',
     ...overrides,
   }
 }
@@ -53,13 +53,13 @@ function incomeTx({ id, ...overrides }: IncomeOverrides & { id: string }): Incom
 }
 
 const sampleTransactions: Transaction[] = [
-  tx({ id: '1', amount: 100, category: 'Food', paymentMethod: 'Debit' }),
-  tx({ id: '2', amount: 200, category: 'Rent', paymentMethod: 'Debit' }),
-  tx({ id: '3', amount: 50, category: 'Food', paymentMethod: 'Meal Voucher' }),
+  tx({ id: '1', amount: 100, category: 'Food', paymentMethod: 'Debit/PIX' }),
+  tx({ id: '2', amount: 200, category: 'Rent', paymentMethod: 'Debit/PIX' }),
+  tx({ id: '3', amount: 50, category: 'Food', paymentMethod: 'Voucher Debit' }),
   incomeTx({ id: '4', amount: 5000 }),
-  tx({ id: '5', amount: 300, date: '2026-08-01', category: 'Food', paymentMethod: 'Debit' }),
+  tx({ id: '5', amount: 300, date: '2026-08-01', category: 'Food', paymentMethod: 'Debit/PIX' }),
   tx({ id: '6', amount: 150, category: 'Leisure', paymentMethod: 'Credit' }),
-  tx({ id: '7', amount: 80, category: 'Food', paymentMethod: 'Debit' }),
+  tx({ id: '7', amount: 80, category: 'Food', paymentMethod: 'Debit/PIX' }),
   incomeTx({ id: '8', amount: 800, paymentMethod: 'Voucher' }),
 ]
 
@@ -110,7 +110,7 @@ describe('groupedByPaymentMethod', () => {
   test('groups expenses by payment method', () => {
     const result = groupedByPaymentMethod(sampleTransactions, '2026-07')
 
-    expect(result).toEqual({ Debit: 380, 'Meal Voucher': 50, Credit: 150 })
+    expect(result).toEqual({ 'Debit/PIX': 380, 'Voucher Debit': 50, Credit: 150 })
   })
 })
 

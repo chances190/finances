@@ -39,7 +39,7 @@ import {
   spendingPace,
   totalByMonth,
 } from '@/domain/calculations'
-import { CHART_COLORS, PAYMENT_METHOD_CHART_COLORS, paymentMethodLabel } from '@/domain/constants'
+import { CHART_COLORS, PAYMENT_METHOD_CHART_COLORS } from '@/domain/constants'
 import type { PaymentMethod } from '@/domain/entities'
 import { formatAxisCurrency, formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
@@ -104,7 +104,7 @@ export default function DashboardPage() {
     return Object.entries(grouped)
       .filter(([, v]) => v > 0)
       .map(([method, amount]) => ({
-        name: paymentMethodLabel(method),
+        name: method,
         value: amount,
         color: PAYMENT_METHOD_CHART_COLORS[method as PaymentMethod],
       }))

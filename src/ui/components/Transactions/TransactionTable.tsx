@@ -36,8 +36,6 @@ import {
   isExpensePaymentMethod,
   isIncomePaymentMethod,
   PAYMENT_METHOD_BADGE_COLORS,
-  PAYMENT_METHOD_LABELS,
-  paymentMethodLabel,
 } from '@/domain/constants'
 import type { Debt, MonthlyFlow, PaymentMethod, Transaction } from '@/domain/entities'
 import { monthlyFlows } from '@/domain/entities'
@@ -76,7 +74,7 @@ const SORT_OPTIONS = SORT_KEYS.flatMap(([key, label]) => {
 function PaymentBadge({ method, installment }: { method: PaymentMethod; installment?: string }) {
   return (
     <Badge variant="outline" className={PAYMENT_METHOD_BADGE_COLORS[method]}>
-      {paymentMethodLabel(method)}
+      {method}
       {installment && ` · Installment ${installment}`}
     </Badge>
   )
@@ -197,7 +195,6 @@ function FilterGroup({
   count,
   onToggle,
   wide,
-  labels,
 }: {
   idPrefix: string
   label: string
@@ -206,7 +203,6 @@ function FilterGroup({
   count: number
   onToggle: (option: string, on: boolean) => void
   wide: boolean
-  labels?: Record<string, string>
 }) {
   const list = (
     <div className="space-y-1">
@@ -221,7 +217,7 @@ function FilterGroup({
             checked={selected.includes(option)}
             onCheckedChange={(checked) => onToggle(option, checked === true)}
           />
-          <span className="text-xs">{labels?.[option] ?? option}</span>
+          <span className="text-xs">{option}</span>
         </label>
       ))}
     </div>
@@ -334,7 +330,6 @@ function TransactionFilters({
         options={[...EXPENSE_PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS]}
         selected={filterPayments}
         count={filterPayments.length}
-        labels={PAYMENT_METHOD_LABELS}
         onToggle={(pm, on) =>
           updateParam(
             'payment',
@@ -581,7 +576,7 @@ export default function TransactionTable() {
     if (row.amount <= 0) return
     const amount = row.amount
 
-    const method = row.paymentMethod ?? 'Debit'
+    const method = row.paymentMethod ?? 'Debit/PIX'
 
     if (isIncomePaymentMethod(method)) {
       dispatch({
@@ -609,7 +604,7 @@ export default function TransactionTable() {
             description: row.description,
             amount,
             category: row.category ?? 'Other',
-            paymentMethod: isExpensePaymentMethod(method) ? method : 'Debit',
+            paymentMethod: isExpensePaymentMethod(method) ? method : 'Debit/PIX',
           },
         ],
       })
@@ -749,7 +744,7 @@ export default function TransactionTable() {
 
       {isDesktop && (
         <div className="border border-border">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-24">
@@ -838,11 +833,11 @@ export default function TransactionTable() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5">
-                        <div className="max-w-48 truncate">{tx.description}</div>
+                        <div className="min-w-0 flex-1 truncate">{tx.description}</div>
                         {txDebts.length > 0 && allDebtsSettled && (
                           <Badge
                             variant="outline"
-                            className="text-[10px] text-green-600 bg-green-50 "
+                            className="shrink-0 text-[10px] text-green-600 bg-green-50 "
                           >
                             Paid
                           </Badge>

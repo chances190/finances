@@ -37,7 +37,7 @@ describe('importCSV', () => {
   test('skips rows that violate import rules, naming the offence', () => {
     const invalidRows = [
       {
-        row: 'r001,2026-07-05,INVALID,5000,Salary,Debit,Salary,,,,,',
+        row: 'r001,2026-07-05,INVALID,5000,Salary,Debit/PIX,Salary,,,,,',
         reason: 'invalid type',
         detail: 'INVALID',
       },
@@ -46,16 +46,16 @@ describe('importCSV', () => {
         reason: 'invalid payment method',
         detail: 'UNKNOWN',
       },
-      { row: 'r001,2026-07-05,Expense,abc,Food,Debit,Buy,,,,,', reason: 'invalid amount' },
+      { row: 'r001,2026-07-05,Expense,abc,Food,Debit/PIX,Buy,,,,,', reason: 'invalid amount' },
       {
         row: 'r001,2026-07-05,Expense,100,Food,Salary,Buy,,,,,',
         reason: 'invalid payment method',
         detail: 'Salary',
       },
       {
-        row: 'r001,2026-07-05,Income,5000,Salary,Debit,Salary,,,,,',
+        row: 'r001,2026-07-05,Income,5000,Salary,Debit/PIX,Salary,,,,,',
         reason: 'invalid payment method',
-        detail: 'Debit',
+        detail: 'Debit/PIX',
       },
     ]
 
@@ -70,15 +70,15 @@ describe('importCSV', () => {
   })
 
   test('canonicalizes uppercase type and payment method', () => {
-    const csv = `${H}\nr001,2026-07-05,EXPENSE,10,Food,DEBIT,Buy,,,,,`
+    const csv = `${H}\nr001,2026-07-05,EXPENSE,10,Food,DEBIT/PIX,Buy,,,,,`
     const { transactions, skippedRows } = importCSV(csv)
 
     expect(skippedRows).toEqual([])
-    expect(transactions[0]).toMatchObject({ type: 'Expense', paymentMethod: 'Debit' })
+    expect(transactions[0]).toMatchObject({ type: 'Expense', paymentMethod: 'Debit/PIX' })
   })
 
   test('imports a debt with 1NF splits', () => {
-    const csv = `${H}\nr001,2026-07-10,Expense,300,Food,Debit,Dinner,,,,Alice,100\nr001,2026-07-10,Expense,300,Food,Debit,Dinner,,,,Bob,200`
+    const csv = `${H}\nr001,2026-07-10,Expense,300,Food,Debit/PIX,Dinner,,,,Alice,100\nr001,2026-07-10,Expense,300,Food,Debit/PIX,Dinner,,,,Bob,200`
     const { transactions } = importCSV(csv)
     const [t] = transactions
     if (t.type !== 'Expense') throw new Error('expected an expense')
@@ -100,7 +100,7 @@ describe('importCSV', () => {
   })
 
   test('reports multiple skipped rows with reasons', () => {
-    const csv = `${H}\nr001,2026-07-05,Income,5000,Salary,Salary,Salary,,,,,\nr002,2026-07-06,INVALID,10,Food,Debit,Bread,,,,,\nbad-row`
+    const csv = `${H}\nr001,2026-07-05,Income,5000,Salary,Salary,Salary,,,,,\nr002,2026-07-06,INVALID,10,Food,Debit/PIX,Bread,,,,,\nbad-row`
     const { skippedRows } = importCSV(csv)
     expect(skippedRows).toHaveLength(2)
     expect(skippedRows[0].reason).toContain('invalid type')
@@ -110,7 +110,7 @@ describe('importCSV', () => {
 
 describe('CSV round-trip', () => {
   test('simple transaction preserves data', () => {
-    const csv = `${H}\nr001,2026-07-15,Expense,150.5,Food,Debit,Test transaction,,,,,`
+    const csv = `${H}\nr001,2026-07-15,Expense,150.5,Food,Debit/PIX,Test transaction,,,,,`
     const { transactions } = importCSV(csv)
     const [t] = transactions
     expect(t.amount).toBe(150.5)
@@ -129,7 +129,7 @@ describe('importJSON', () => {
           description: 'Groceries',
           amount: 120.5,
           category: 'Food',
-          paymentMethod: 'Debit',
+          paymentMethod: 'Debit/PIX',
         },
       ],
       budgets: [
@@ -159,7 +159,7 @@ describe('importJSON', () => {
           description: 'Bad',
           amount: 100,
           category: 'Other',
-          paymentMethod: 'Debit',
+          paymentMethod: 'Debit/PIX',
         },
       ],
       budgets: [{ referenceMonth: '2026-07' }],
@@ -181,7 +181,7 @@ describe('importJSON', () => {
           description: 'Salary',
           amount: 5000,
           category: 'Salary',
-          paymentMethod: 'Debit',
+          paymentMethod: 'Debit/PIX',
         },
       ],
       budgets: [],
@@ -190,6 +190,6 @@ describe('importJSON', () => {
     expect(result.data.transactions).toHaveLength(0)
     expect(result.skippedTransactions).toHaveLength(1)
     expect(result.skippedTransactions[0].reason).toContain('invalid payment method')
-    expect(result.skippedTransactions[0].reason).toContain('Debit')
+    expect(result.skippedTransactions[0].reason).toContain('Debit/PIX')
   })
 })

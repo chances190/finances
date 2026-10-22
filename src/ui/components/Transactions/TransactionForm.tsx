@@ -19,7 +19,6 @@ import {
   INCOME_PAYMENT_METHODS,
   isExpensePaymentMethod,
   isIncomePaymentMethod,
-  paymentMethodLabel,
 } from '@/domain/constants'
 import type { Debt, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { addCurrency, formatCurrency, parseCurrency } from '@/lib/currency'
@@ -61,7 +60,7 @@ export default function TransactionForm({
     amount: '',
     description: '',
     category: defaultCategory,
-    paymentMethod: 'Debit',
+    paymentMethod: 'Debit/PIX',
     installmentTotal: 1,
   })
 
@@ -104,7 +103,7 @@ export default function TransactionForm({
         amount: '',
         description: '',
         category: defaultCategory,
-        paymentMethod: 'Debit',
+        paymentMethod: 'Debit/PIX',
         installmentTotal: 1,
       })
       setDebts([])
@@ -194,7 +193,7 @@ export default function TransactionForm({
                 setForm((f) => ({
                   ...f,
                   type,
-                  paymentMethod: type === 'Income' ? 'Salary' : 'Debit',
+                  paymentMethod: type === 'Income' ? 'Salary' : 'Debit/PIX',
                   ...(type === 'Income' ? { installmentTotal: 1 } : {}),
                 }))
                 setDebts([])
@@ -253,12 +252,12 @@ export default function TransactionForm({
                     setForm((f) => ({
                       ...f,
                       paymentMethod: (v ??
-                        (form.type === 'Income' ? 'Salary' : 'Debit')) as PaymentMethod,
+                        (form.type === 'Income' ? 'Salary' : 'Debit/PIX')) as PaymentMethod,
                     }))
                   }
                 >
                   <SelectTrigger id="tx-payment" className="w-full min-w-0">
-                    <SelectValue>{paymentMethodLabel(form.paymentMethod)}</SelectValue>
+                    <SelectValue>{form.paymentMethod}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {(form.type === 'Income'
@@ -266,7 +265,7 @@ export default function TransactionForm({
                       : EXPENSE_PAYMENT_METHODS
                     ).map((pm) => (
                       <SelectItem key={pm} value={pm}>
-                        {paymentMethodLabel(pm)}
+                        {pm}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -321,7 +320,7 @@ export default function TransactionForm({
               </div>
             )}
 
-            {form.type === 'Expense' && form.paymentMethod !== 'Meal Voucher' && (
+            {form.type === 'Expense' && form.paymentMethod !== 'Voucher Debit' && (
               <div className="space-y-2 border-t border-border pt-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">

@@ -1,6 +1,6 @@
 export type TransactionType = 'Income' | 'Expense'
 
-export type ExpensePaymentMethod = 'Debit' | 'Credit' | 'Meal Voucher'
+export type ExpensePaymentMethod = 'Debit/PIX' | 'Credit' | 'Voucher Debit'
 export type IncomePaymentMethod = 'Salary' | 'Transfer' | 'Voucher'
 export type PaymentMethod = ExpensePaymentMethod | IncomePaymentMethod
 

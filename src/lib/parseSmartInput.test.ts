@@ -147,17 +147,16 @@ describe('§2.3 category', () => {
 
 describe('§2.4 payment method', () => {
   test('resolves against the registry', () => {
-    expect(parse('23,50 Almoço @Debit').paymentMethod).toBe('Debit')
+    expect(parse('23,50 Almoço @Debit/PIX').paymentMethod).toBe('Debit/PIX')
   })
 
-  test('resolves display labels to the stored value', () => {
-    expect(parse('23,50 Almoço @Debit/PIX').paymentMethod).toBe('Debit')
-    expect(parse('23,50 Almoço @Voucher').paymentMethod).toBe('Meal Voucher')
-    expect(parse('23,50 Almoço @Voucher income').paymentMethod).toBe('Voucher')
+  test('voucher resolves by direction', () => {
+    expect(parse('23,50 Almoço @Voucher').paymentMethod).toBe('Voucher')
+    expect(parse('23,50 Almoço @Voucher Debit').paymentMethod).toBe('Voucher Debit')
   })
 
   test('multi-word payment method is a single span', () => {
-    expect(parse('23,50 Almoço @Meal Voucher').paymentMethod).toBe('Meal Voucher')
+    expect(parse('23,50 Almoço @Voucher Debit').paymentMethod).toBe('Voucher Debit')
   })
 
   test('unresolved token is free text', () => {
@@ -167,7 +166,7 @@ describe('§2.4 payment method', () => {
   })
 
   test('multiple payment methods', () => {
-    expect(parse('23,50 Almoço @Debit @Credit').error).toBe('Multiple payment methods')
+    expect(parse('23,50 Almoço @Debit/PIX @Credit').error).toBe('Multiple payment methods')
   })
 })
 
@@ -236,8 +235,8 @@ describe('§3 span commitment', () => {
 
 describe('§3 order independence', () => {
   test('same result regardless of order', () => {
-    const a = parse('23,50 Almoço #Food @Debit ontem')
-    const b = parse('#Food @Debit ontem 23,50 Almoço')
+    const a = parse('23,50 Almoço #Food @Debit/PIX ontem')
+    const b = parse('#Food @Debit/PIX ontem 23,50 Almoço')
     expect(b).toEqual(a)
   })
 })
@@ -302,11 +301,11 @@ describe('§4 autocomplete', () => {
   })
 
   test('filled payment slot yields nothing', () => {
-    expect(suggestions('Almoço @Debit @d')).toEqual([])
+    expect(suggestions('Almoço @Debit/PIX @d')).toEqual([])
   })
 
   test('ambiguous voucher offers both kinds', () => {
-    expect(suggestions('Almoço @Vou')).toEqual(['@Voucher', '@Voucher income'])
+    expect(suggestions('Almoço @Vou')).toEqual(['@Voucher Debit', '@Voucher'])
   })
 
   test('open description suggests historical descriptions', () => {
@@ -324,7 +323,7 @@ describe('acceptSuggestion', () => {
   })
 
   test('appends after a trailing space', () => {
-    expect(acceptSuggestion('Almoço ', '@Debit')).toBe('Almoço @Debit ')
+    expect(acceptSuggestion('Almoço ', '@Debit/PIX')).toBe('Almoço @Debit/PIX ')
   })
 
   test('replaces the whole trailing token', () => {

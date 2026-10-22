@@ -66,7 +66,7 @@ describe('importOFX', () => {
     expect(sent).toMatchObject({
       date: '2026-10-01',
       type: 'Expense',
-      paymentMethod: 'Debit',
+      paymentMethod: 'Debit/PIX',
       amount: 128,
       description: 'Francisco Gabriel de Lima Brasil',
     })
