@@ -190,7 +190,7 @@ export default function DashboardPage() {
           valueClassName={`font-mono ${monthData.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}
         />
         <StatCard
-          label="Meal Voucher Balance"
+          label="Voucher balance"
           icon={<ForkKnifeIcon className="size-3 text-pink-500" />}
           value={formatCurrency(monthData.mealVoucher)}
           valueClassName={`font-mono ${monthData.mealVoucher >= 0 ? 'text-green-500' : 'text-red-500'}`}
@@ -223,12 +223,14 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">
-              Planned {formatCurrency(pace.totalSalary)} − investments {formatCurrency(invested)} ={' '}
-              <span className="font-medium text-foreground">{formatCurrency(pace.limit)}</span>{' '}
-              available
+            <p className="text-sm">
+              <span className="font-mono font-medium">{formatCurrency(pace.limit)}</span>{' '}
+              <span className="text-muted-foreground">available</span>
             </p>
-            <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+            <p className="text-[10px] text-muted-foreground">
+              Planned {formatCurrency(pace.totalSalary)} − investments {formatCurrency(invested)}
+            </p>
+            <div className="flex flex-wrap items-baseline justify-between gap-2 pt-1 text-sm">
               <span>
                 Spent{' '}
                 <span className="font-mono font-medium">{formatCurrency(pace.spentSoFar)}</span>

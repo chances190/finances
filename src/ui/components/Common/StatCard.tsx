@@ -12,12 +12,19 @@ interface StatCardProps {
 
 export default function StatCard({ label, value, icon, valueClassName, className }: StatCardProps) {
   return (
-    <div className={cn('border bg-card p-4 space-y-1', className)}>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+    <div className={cn('space-y-1 border bg-card p-3 sm:p-4', className)}>
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         {icon}
         {label}
       </div>
-      <div className={cn('text-xl font-bold text-foreground', valueClassName)}>{value}</div>
+      <div
+        className={cn(
+          'text-lg font-bold whitespace-nowrap text-foreground sm:text-xl',
+          valueClassName,
+        )}
+      >
+        {value}
+      </div>
     </div>
   )
 }
