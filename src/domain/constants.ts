@@ -61,6 +61,7 @@ export const CHART_COLORS = {
   primary: '#3b82f6',
   warning: '#f59e0b',
   suggestion: '#8b5cf6',
+  projection: '#f97316',
   balance: '#3b82f6',
   budgeted: '#3b82f6',
   actual: '#f59e0b',

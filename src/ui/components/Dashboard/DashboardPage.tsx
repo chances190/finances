@@ -228,13 +228,18 @@ export default function DashboardPage() {
               <span className="font-medium text-foreground">{formatCurrency(pace.limit)}</span>{' '}
               available
             </p>
-            <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
               <span>
                 Spent{' '}
                 <span className="font-mono font-medium">{formatCurrency(pace.spentSoFar)}</span>
               </span>
-              <span className="text-muted-foreground">
-                {Math.round((pace.spentSoFar / pace.limit) * 100)}% of {formatCurrency(pace.limit)}
+              <span>
+                Remaining{' '}
+                <span
+                  className={`font-mono font-medium ${pace.remainingBudget < 0 ? 'text-red-600' : ''}`}
+                >
+                  {formatCurrency(pace.remainingBudget)}
+                </span>
               </span>
             </div>
             <div className="h-2 w-full bg-muted">
@@ -245,19 +250,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <StatCard
-              label="Remaining"
-              value={formatCurrency(pace.remainingBudget)}
-              valueClassName={`font-mono text-lg ${pace.remainingBudget < 0 ? 'text-red-600' : 'text-foreground'}`}
-              className="p-3"
-            />
-            <StatCard
-              label="Total budget"
-              value={formatCurrency(pace.limit)}
-              valueClassName="font-mono text-lg text-blue-500"
-              className="p-3"
-            />
+          <div className="grid grid-cols-2 gap-2">
             <StatCard
               label="Average per day"
               value={formatCurrency(dailyAvg)}
@@ -330,6 +323,16 @@ export default function DashboardPage() {
                   />
                   <Line
                     type="monotone"
+                    dataKey="sesProjection"
+                    name="Trend"
+                    stroke={CHART_COLORS.projection}
+                    strokeWidth={1.5}
+                    dot={false}
+                    strokeDasharray="5 3"
+                    connectNulls
+                  />
+                  <Line
+                    type="monotone"
                     dataKey="suggestion"
                     name="Suggestion"
                     stroke={CHART_COLORS.suggestion}
@@ -398,6 +401,16 @@ export default function DashboardPage() {
                     strokeWidth={1.5}
                     dot={false}
                     strokeDasharray="4 4"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="sesProjection"
+                    name="Trend"
+                    stroke={CHART_COLORS.projection}
+                    strokeWidth={1.5}
+                    dot={false}
+                    strokeDasharray="5 3"
+                    connectNulls
                   />
                   <Line
                     type="monotone"
