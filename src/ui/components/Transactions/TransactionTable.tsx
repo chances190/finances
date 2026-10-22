@@ -1,5 +1,5 @@
 import { FunnelIcon, SortAscendingIcon, SortDescendingIcon, TrashIcon } from '@phosphor-icons/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { useSearchParams } from 'wouter'
 import { Badge } from '@/components/ui/badge'
@@ -398,21 +398,19 @@ export default function TransactionTable() {
   const filterDebtors = getParamList(searchParams, 'debtor')
   const filterTxId = searchParams.get('tx')
 
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>()
   const [localSearch, setLocalSearch] = useState(filterSearch)
-  const [debouncedSearch, setDebouncedSearch] = useState(filterSearch)
 
   useEffect(() => {
     setLocalSearch(filterSearch)
-    setDebouncedSearch(filterSearch)
   }, [filterSearch])
 
   useEffect(() => {
-    searchTimer.current = setTimeout(() => {
+    if (localSearch === filterSearch) return
+    const timer = setTimeout(() => {
       setSearchParams(
         (prev) => {
-          if (debouncedSearch) {
-            prev.set('search', debouncedSearch)
+          if (localSearch) {
+            prev.set('search', localSearch)
           } else {
             prev.delete('search')
           }
@@ -421,8 +419,8 @@ export default function TransactionTable() {
         { replace: true },
       )
     }, 150)
-    return () => clearTimeout(searchTimer.current)
-  }, [debouncedSearch, setSearchParams])
+    return () => clearTimeout(timer)
+  }, [localSearch, filterSearch, setSearchParams])
 
   useEffect(() => {
     if (filterTxId) {
@@ -495,8 +493,8 @@ export default function TransactionTable() {
     if (filterMonth !== 'all') {
       txs = txs.filter((t) => monthlyFlows(t).some((f) => f.referenceMonth === filterMonth))
     }
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase()
+    if (filterSearch) {
+      const q = filterSearch.toLowerCase()
       txs = txs.filter((t) => t.description.toLowerCase().includes(q))
     }
     if (filterCategories.length > 0) {
@@ -520,7 +518,7 @@ export default function TransactionTable() {
     state.transactions,
     filterType,
     filterMonth,
-    debouncedSearch,
+    filterSearch,
     filterCategories,
     filterPayments,
     filterDebtors,

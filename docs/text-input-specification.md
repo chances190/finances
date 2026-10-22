@@ -19,8 +19,8 @@ Matches any valid monetary representation. Bare integers (e.g., `2`, `12`) are e
 
 Represents when the transaction occurred. Dates can be absolute, relative, or expressed in natural language (specifically Portuguese PT-BR semantics).
 
-* **ISO Date**: `('yyyy'-)?'MM-dd'`
-* **Short Date**: `MM-dd`
+* **ISO Date**: `'yyyy'-'MM'-'dd'`
+* **Short Date**: `'d'/'M'(/'yy'|'yyyy')?` — day first, then month; two-digit years are 20xx.
 * **Abbreviated Natural Date**: `d MMM`
 * **Weekday**: `('E..EEE'|'EEEE')` (with or without '-feira')
 * **Joined Portuguese Month Form**: `'d' ('de')? ('MMM'|'MMMM')( ('de')? 'yyyy')?` — a four-digit run followed by a decimal separator and digits belongs to an amount, not to the year.
@@ -77,7 +77,7 @@ Suggestions are computed against the **active segment** — the characters follo
 
 **Explicit prefixes.** A trailing word beginning with `#` suggests categories, each prefixed with `#`, if Category is unfilled. A trailing word beginning with `@` suggests payment methods, each prefixed with `@`, if Payment is unfilled. If the corresponding slot is already filled, no suggestions appear.
 
-**Date-in-progress.** The segment is date-in-progress when its trailing characters begin a date form — a day number followed by ` de`, a space and a month prefix, `/`, or `-`, or a weekday or weekday modifier (§2.2) or a prefix of one — and remain a prefix of some date form of §2.2. A character that breaks the prefix relationship returns the segment to free-form.
+**Date-in-progress.** The segment is date-in-progress when its trailing characters begin a date form — a day number followed by ` de`, a space and a month prefix, or `/`, or a year followed by `-`, or a weekday or weekday modifier (§2.2) or a prefix of one — and remain a prefix of some date form of §2.2. A character that breaks the prefix relationship returns the segment to free-form.
 
 In date-in-progress, suggestions are the date completions of §2.2 that extend the trailing date form.
 

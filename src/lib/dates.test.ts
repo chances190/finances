@@ -88,7 +88,9 @@ describe('calendar dates', () => {
 
   test('iso and short date', () => {
     expect(parsePortugueseDate('2026-09-16')).toBe('2026-09-16')
-    expect(parsePortugueseDate('09-16')).toBe('2026-09-16')
+    expect(parsePortugueseDate('12/09')).toBe('2026-09-12')
+    expect(parsePortugueseDate('12/09/25')).toBe('2025-09-12')
+    expect(parsePortugueseDate('12/09/2025')).toBe('2025-09-12')
   })
 })
 

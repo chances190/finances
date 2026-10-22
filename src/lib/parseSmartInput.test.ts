@@ -115,7 +115,7 @@ describe('§2.2 date', () => {
 
   test('iso and short date', () => {
     expect(parse('almoço 2,50 2026-09-16').date).toBe('2026-09-16')
-    expect(parse('almoço 2,50 09-16').date).toBe('2026-09-16')
+    expect(parse('almoço 2,50 12/09').date).toBe('2026-09-12')
   })
 
   test('unresolvable month stays free text', () => {
@@ -250,7 +250,7 @@ describe('§4 autocomplete', () => {
   })
 
   test('day number followed by a slash is date-in-progress', () => {
-    expect(suggestions('12/')).toContain('12/16')
+    expect(suggestions('12/')).toContain('12/09')
   })
 
   test('year part is date-in-progress', () => {

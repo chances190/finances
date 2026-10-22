@@ -106,8 +106,8 @@ function alternation(parts: string[]): string {
 }
 
 const DATE_PATTERNS: { re: RegExp; provisional: boolean }[] = [
-  { re: /\d{4}[-/]\d{1,2}[-/]\d{1,2}/iuy, provisional: false },
-  { re: /\d{1,2}[-/]\d{1,2}/iuy, provisional: false },
+  { re: /\d{4}-\d{1,2}-\d{1,2}/iuy, provisional: false },
+  { re: /\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/iuy, provisional: false },
   {
     re: new RegExp(
       String.raw`\d{1,2}\s+(?:de\s+)?${alternation(MONTHS_WITH_ABBR)}(?:\s+(?:de\s+)?\d{4}(?![.,]\d))?`,
@@ -190,11 +190,29 @@ export function parsePortugueseDate(text: string): string | null {
 
   if (form in DAY_OFFSETS) return shifted(DAY_OFFSETS[form])
 
-  const iso = form.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
-  if (iso) return toISO(new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])))
+  const iso = form.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (iso) {
+    const [year, month, day] = [Number(iso[1]), Number(iso[2]), Number(iso[3])]
+    const date = new Date(year, month - 1, day)
+    if (month < 1 || month > 12 || date.getDate() !== day) return null
+    return toISO(date)
+  }
 
-  const shortDate = form.match(/^(\d{1,2})[-/](\d{1,2})$/)
-  if (shortDate) return inMonth(Number(shortDate[1]) - 1, Number(shortDate[2]))
+  const shortDate = form.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/)
+  if (shortDate) {
+    const day = Number(shortDate[1])
+    const month = Number(shortDate[2])
+    if (month < 1 || month > 12) return null
+    const rawYear = shortDate[3]
+    const year = rawYear
+      ? rawYear.length <= 2
+        ? 2000 + Number(rawYear)
+        : Number(rawYear)
+      : new Date().getFullYear()
+    const date = new Date(year, month - 1, day)
+    if (date.getDate() !== day) return null
+    return toISO(date)
+  }
 
   const calendar = form.match(/^(\d{1,2})\s+(?:de\s+)?(\p{L}+)\.?(?:\s+(?:de\s+)?(\d{4}))?$/u)
   if (calendar) {
@@ -304,25 +322,28 @@ function yearForms(prefix: string, partial: string, separator = ' de '): string[
 }
 
 function numericCompletions(form: string): string[] {
-  const iso = form.match(/^(\d{4})([-/])(\d{1,2})([-/])(\d*)$/)
+  const iso = form.match(/^(\d{4})-(\d{1,2})-(\d*)$/)
   if (iso) {
-    const [, year, first, month, second, tail] = iso
-    return orderDays(tail).map((value) => `${year}${first}${month}${second}${value}`)
+    const [, year, month, tail] = iso
+    return orderDays(tail).map((day) => `${year}-${month}-${day}`)
   }
 
-  const yearPrefix = form.match(/^(\d{4})([-/])(\d*)$/)
-  if (yearPrefix) {
-    const [, year, separator, tail] = yearPrefix
-    if (tail.length === 2) {
-      return orderDays('').map((day) => `${year}${separator}${tail}${separator}${day}`)
-    }
-    return orderMonthNumbers(tail).map((month) => `${year}${separator}${month}`)
+  const isoMonth = form.match(/^(\d{4})-(\d*)$/)
+  if (isoMonth) {
+    const [, year, tail] = isoMonth
+    return orderMonthNumbers(tail).map((month) => `${year}-${month}`)
   }
 
-  const dayPrefix = form.match(/^(\d{1,2})([-/])(\d*)$/)
-  if (dayPrefix) {
-    const [, head, separator, tail] = dayPrefix
-    return orderDays(tail).map((day) => `${head}${separator}${day}`)
+  const slashYear = form.match(/^(\d{1,2})\/(\d{1,2})\/(\d*)$/)
+  if (slashYear) {
+    const [, day, month, year] = slashYear
+    return yearForms(`${day}/${month}`, year, '/')
+  }
+
+  const slashMonth = form.match(/^(\d{1,2})\/(\d*)$/)
+  if (slashMonth) {
+    const [, day, month] = slashMonth
+    return orderMonthNumbers(month).map((value) => `${day}/${value}`)
   }
 
   if (/^\d{1,2} de$/.test(form)) {
