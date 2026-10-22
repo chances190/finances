@@ -215,56 +215,55 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <TrendDownIcon className="size-4" />
-              Spending Pace — Day {currentDay}/{monthDays}
+              Spending Pace
             </h3>
             <Badge variant="outline" className={paceStatus.color}>
               {paceStatus.label}
             </Badge>
           </div>
 
-          <div className="space-y-1">
-            <p className="text-sm">
-              <span className="font-mono font-medium">{formatCurrency(pace.limit)}</span>{' '}
-              <span className="text-muted-foreground">available</span>
+          <div>
+            <p
+              className={`font-mono text-2xl font-bold ${pace.remainingBudget < 0 ? 'text-red-600' : 'text-foreground'}`}
+            >
+              {formatCurrency(pace.remainingBudget)}
             </p>
-            <p className="text-[10px] text-muted-foreground">
-              Planned {formatCurrency(pace.totalSalary)} − investments {formatCurrency(invested)}
-            </p>
-            <div className="flex flex-wrap items-baseline justify-between gap-2 pt-1 text-sm">
-              <span>
-                Spent{' '}
-                <span className="font-mono font-medium">{formatCurrency(pace.spentSoFar)}</span>
-              </span>
-              <span>
-                Remaining{' '}
-                <span
-                  className={`font-mono font-medium ${pace.remainingBudget < 0 ? 'text-red-600' : ''}`}
-                >
-                  {formatCurrency(pace.remainingBudget)}
-                </span>
-              </span>
+            <p className="text-xs text-muted-foreground">Remaining budget</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="font-mono text-base text-violet-500">
+                {formatCurrency(pace.suggestionPerDay)}
+              </p>
+              <p className="text-xs text-muted-foreground">Recommended per day</p>
             </div>
+            <div>
+              <p className="font-mono text-base text-orange-500">{formatCurrency(dailyAvg)}</p>
+              <p className="text-xs text-muted-foreground">Average per day</p>
+            </div>
+          </div>
+
+          <div className="space-y-1">
             <div className="h-2 w-full bg-muted">
               <div
                 className={`h-full ${pace.spentSoFar > pace.limit ? 'bg-destructive' : 'bg-primary'}`}
                 style={{ width: `${Math.min(100, (pace.spentSoFar / pace.limit) * 100)}%` }}
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <StatCard
-              label="Average per day"
-              value={formatCurrency(dailyAvg)}
-              valueClassName="font-mono text-lg text-orange-500"
-              className="p-3"
-            />
-            <StatCard
-              label="Daily suggestion"
-              value={formatCurrency(pace.suggestionPerDay)}
-              valueClassName="font-mono text-lg text-violet-500"
-              className="p-3"
-            />
+            <div className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+              <span>
+                Spent{' '}
+                <span className="font-mono text-foreground">{formatCurrency(pace.spentSoFar)}</span>{' '}
+                of <span className="font-mono text-foreground">{formatCurrency(pace.limit)}</span>
+              </span>
+              <span>
+                {currentDay}/{monthDays} days
+              </span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Planned {formatCurrency(pace.totalSalary)} − investments {formatCurrency(invested)}
+            </p>
           </div>
 
           <div>
