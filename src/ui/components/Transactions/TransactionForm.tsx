@@ -319,7 +319,7 @@ export default function TransactionForm({
               </div>
             )}
 
-            {form.type === 'Expense' && form.paymentMethod !== 'Voucher Debit' && (
+            {form.type === 'Expense' && (
               <div className="space-y-2 border-t border-border pt-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
