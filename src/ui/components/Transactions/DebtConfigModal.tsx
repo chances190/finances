@@ -10,9 +10,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
 import { splitEvenlyAcrossParticipants } from '@/domain/calculations'
 import type { Debt } from '@/domain/entities'
-import { addCurrency, formatCurrency, parseCurrency } from '@/lib/currency'
+import { addCurrency, formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
 import { useToast } from '@/ui/context/ToastContext'
 
 interface DebtSplitUI {
@@ -118,14 +119,12 @@ export default function DebtConfigModal({
                     onChange={(e) => handleUpdateSplit(split.id, { name: e.target.value })}
                     className="h-10 min-w-0 flex-1"
                   />
-                  <Input
-                    type="text"
-                    inputMode="decimal"
+                  <MoneyInput
                     placeholder="Amount"
                     aria-label={`Amount owed by ${split.name || `person ${index + 1}`}`}
-                    value={split.amount || ''}
-                    onChange={(e) =>
-                      handleUpdateSplit(split.id, { amount: parseCurrency(e.target.value) })
+                    value={split.amount ? formatPlainCurrency(split.amount) : ''}
+                    onValueChange={(amount) =>
+                      handleUpdateSplit(split.id, { amount: parseCurrency(amount) })
                     }
                     className="h-10 w-24 shrink-0 text-right font-mono"
                   />

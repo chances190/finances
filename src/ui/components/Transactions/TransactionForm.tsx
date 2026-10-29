@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { MoneyInput } from '@/components/ui/money-input'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import {
   Select,
@@ -21,7 +22,7 @@ import {
   isIncomePaymentMethod,
 } from '@/domain/constants'
 import type { Debt, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
-import { addCurrency, formatCurrency, parseCurrency } from '@/lib/currency'
+import { addCurrency, formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import ImportDialog from '@/ui/components/Common/ImportDialog'
 import { useFinance } from '@/ui/context'
@@ -84,7 +85,7 @@ export default function TransactionForm({
       setForm({
         type: editTransaction.type,
         date: editTransaction.date,
-        amount: String(editTransaction.amount),
+        amount: formatPlainCurrency(editTransaction.amount),
         description: editTransaction.description,
         category: editTransaction.category,
         paymentMethod: editTransaction.paymentMethod,
@@ -220,12 +221,10 @@ export default function TransactionForm({
                 <Label htmlFor="tx-amount" className="text-xs">
                   Amount (R$)
                 </Label>
-                <Input
+                <MoneyInput
                   id="tx-amount"
-                  type="text"
-                  inputMode="decimal"
                   value={form.amount}
-                  onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                  onValueChange={(amount) => setForm((f) => ({ ...f, amount }))}
                 />
               </div>
             </div>
