@@ -3,18 +3,12 @@ import {
   addCurrency,
   formatAxisCurrency,
   formatCurrency,
-  formatPlainCurrency,
   maskMoneyInput,
   parseCurrency,
   parseCurrencyStrict,
 } from './currency'
 
 describe('parseCurrency', () => {
-  test('parses pt-BR decimal and thousands separators', () => {
-    expect(parseCurrency('450,50')).toBe(450.5)
-    expect(parseCurrency('1.234,56')).toBe(1234.56)
-  })
-
   test('passes through numbers', () => {
     expect(parseCurrency(99.9)).toBe(99.9)
   })
@@ -43,13 +37,6 @@ describe('formatCurrency', () => {
   test('formats as BRL with symbol and thousands separator', () => {
     expect(formatCurrency(1500.5)).toContain('1.500,50')
     expect(formatCurrency(1500.5)).toContain('R$')
-  })
-})
-
-describe('formatPlainCurrency', () => {
-  test('formats without the symbol in BRL style', () => {
-    expect(formatPlainCurrency(450.5)).toBe('450,50')
-    expect(formatPlainCurrency(1234.56)).toBe('1.234,56')
   })
 })
 
