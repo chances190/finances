@@ -1,5 +1,5 @@
 import { FunnelIcon, SortAscendingIcon, SortDescendingIcon, TrashIcon } from '@phosphor-icons/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { useSearchParams } from 'wouter'
 import { Badge } from '@/components/ui/badge'
@@ -103,7 +103,7 @@ function SplitBreakdown({ flow }: { flow: MonthlyFlow }) {
   )
 }
 
-function TransactionCard({
+const TransactionCard = memo(function TransactionCard({
   tx,
   flow,
   onEdit,
@@ -111,8 +111,8 @@ function TransactionCard({
 }: {
   tx: Transaction
   flow: MonthlyFlow
-  onEdit: () => void
-  onDelete: () => void
+  onEdit: (tx: Transaction) => void
+  onDelete: (id: string) => void
 }) {
   const debts = debtsOf(tx)
   const isFuture = monthRelation(flow.referenceMonth) === 'future'
@@ -122,7 +122,7 @@ function TransactionCard({
       <div className="flex items-start gap-2">
         <button
           type="button"
-          onClick={onEdit}
+          onClick={() => onEdit(tx)}
           className="min-w-0 flex-1 rounded-none py-1 text-left hover:bg-muted/30 focus-visible:outline focus-visible:outline-ring"
           title="Edit transaction"
         >
@@ -165,7 +165,7 @@ function TransactionCard({
           className="mt-1 size-10"
           onClick={(e) => {
             e.stopPropagation()
-            onDelete()
+            onDelete(tx.id)
           }}
           aria-label="Delete transaction"
         >
@@ -180,7 +180,7 @@ function TransactionCard({
       )}
     </div>
   )
-}
+})
 
 function getParamList(params: URLSearchParams, key: string): string[] {
   const val = params.get(key)
@@ -249,7 +249,7 @@ function FilterGroup({
   )
 }
 
-function TransactionFilters({
+const TransactionFilters = memo(function TransactionFilters({
   filterType,
   filterMonth,
   filterCategories,
@@ -372,7 +372,85 @@ function TransactionFilters({
       )}
     </>
   )
-}
+})
+
+const TransactionRow = memo(function TransactionRow({
+  tx,
+  flow,
+  onEdit,
+  onDelete,
+}: {
+  tx: Transaction
+  flow: MonthlyFlow
+  onEdit: (tx: Transaction) => void
+  onDelete: (id: string) => void
+}) {
+  const txDebts = debtsOf(tx)
+  const allDebtsSettled = txDebts.every((d) => d.settled)
+  const isFuture = monthRelation(flow.referenceMonth) === 'future'
+
+  return (
+    <TableRow
+      className={`cursor-pointer [content-visibility:auto] [contain-intrinsic-size:auto_2.5rem] focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${isFuture ? 'opacity-45' : ''}`}
+      tabIndex={0}
+      onClick={() => onEdit(tx)}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+        e.preventDefault()
+        onEdit(tx)
+      }}
+    >
+      <TableCell>
+        <PaymentBadge method={tx.paymentMethod} />
+      </TableCell>
+      <TableCell
+        className={`text-right font-mono text-xs ${tx.type === 'Income' ? 'text-green-600' : 'text-red-600'}`}
+      >
+        {formatCurrency(flow.amount)}
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-1.5">
+          <div className="min-w-0 flex-1 truncate">{tx.description}</div>
+          {txDebts.length > 0 && allDebtsSettled && (
+            <Badge variant="outline" className="shrink-0 text-[10px] text-green-600 bg-green-50 ">
+              Paid
+            </Badge>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-xs">{tx.category}</TableCell>
+      <TableCell className="text-xs">
+        {flow.installmentIndex != null ? flow.referenceMonth : tx.date}
+      </TableCell>
+      <TableCell className="text-center text-xs">
+        {flow.installmentIndex != null ? (
+          <Badge variant="outline" className="text-xs whitespace-nowrap">
+            {flow.installmentIndex + 1}/{flow.installmentTotal}
+          </Badge>
+        ) : null}
+      </TableCell>
+      <TableCell className="text-xs">
+        {othersOwe(flow) > 0 ? (
+          <SplitBreakdown flow={flow} />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+        <span className="flex gap-1 justify-end">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => onDelete(tx.id)}
+            aria-label="Delete transaction"
+          >
+            <TrashIcon />
+          </Button>
+        </span>
+      </TableCell>
+    </TableRow>
+  )
+})
 
 export default function TransactionTable() {
   const { state, dispatch } = useFinance()
@@ -388,9 +466,9 @@ export default function TransactionTable() {
   const filterSearch = searchParams.get('search') ?? ''
   const filterMonth = searchParams.get('month') ?? 'all'
   const filterType = searchParams.get('type') ?? 'all'
-  const filterCategories = getParamList(searchParams, 'category')
-  const filterPayments = getParamList(searchParams, 'payment')
-  const filterDebtors = getParamList(searchParams, 'debtor')
+  const filterCategories = useMemo(() => getParamList(searchParams, 'category'), [searchParams])
+  const filterPayments = useMemo(() => getParamList(searchParams, 'payment'), [searchParams])
+  const filterDebtors = useMemo(() => getParamList(searchParams, 'debtor'), [searchParams])
   const filterTxId = searchParams.get('tx')
 
   const [localSearch, setLocalSearch] = useState(filterSearch)
@@ -434,20 +512,23 @@ export default function TransactionTable() {
     }
   }, [filterTxId, setSearchParams, state.transactions])
 
-  function updateParam(key: string, value: string | string[] | null) {
-    setSearchParams((prev) => {
-      if (value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
-        prev.delete(key)
-      } else if (Array.isArray(value)) {
-        prev.set(key, value.join(','))
-      } else if (value === 'all') {
-        prev.delete(key)
-      } else {
-        prev.set(key, value)
-      }
-      return prev
-    })
-  }
+  const updateParam = useCallback(
+    (key: string, value: string | string[] | null) => {
+      setSearchParams((prev) => {
+        if (value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
+          prev.delete(key)
+        } else if (Array.isArray(value)) {
+          prev.set(key, value.join(','))
+        } else if (value === 'all') {
+          prev.delete(key)
+        } else {
+          prev.set(key, value)
+        }
+        return prev
+      })
+    },
+    [setSearchParams],
+  )
 
   const months = useMemo(() => availableMonths(state.transactions), [state.transactions])
 
@@ -612,20 +693,23 @@ export default function TransactionTable() {
     toast('Transaction added', 'success')
   }
 
-  function handleDelete(id: string) {
-    dispatch({ type: 'DELETE_TRANSACTION', payload: id })
-    toast('Transaction deleted', 'info')
-  }
+  const handleDelete = useCallback(
+    (id: string) => {
+      dispatch({ type: 'DELETE_TRANSACTION', payload: id })
+      toast('Transaction deleted', 'info')
+    },
+    [dispatch, toast],
+  )
 
-  function handleEdit(tx: Transaction) {
+  const handleEdit = useCallback((tx: Transaction) => {
     setEditingTx(tx)
     setShowEditForm(true)
-  }
+  }, [])
 
-  function handleFormClose(open: boolean) {
+  const handleFormClose = useCallback((open: boolean) => {
     setShowEditForm(open)
     if (!open) setEditingTx(null)
-  }
+  }, [])
 
   const clearAll =
     activeFilterCount > 0 || filterSearch ? (
@@ -806,77 +890,15 @@ export default function TransactionTable() {
                 </TableRow>
               )}
 
-              {rows.map(({ tx, flow }) => {
-                const txDebts = debtsOf(tx)
-                const allDebtsSettled = txDebts.every((d) => d.settled)
-                const isFuture = monthRelation(flow.referenceMonth) === 'future'
-                return (
-                  <TableRow
-                    key={`${tx.id}-${flow.referenceMonth}-${flow.installmentIndex ?? 0}`}
-                    className={`cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${isFuture ? 'opacity-45' : ''}`}
-                    tabIndex={0}
-                    onClick={() => handleEdit(tx)}
-                    onKeyDown={(e) => {
-                      if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' '))
-                        return
-                      e.preventDefault()
-                      handleEdit(tx)
-                    }}
-                  >
-                    <TableCell>
-                      <PaymentBadge method={tx.paymentMethod} />
-                    </TableCell>
-                    <TableCell
-                      className={`text-right font-mono text-xs ${tx.type === 'Income' ? 'text-green-600' : 'text-red-600'}`}
-                    >
-                      {formatCurrency(flow.amount)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <div className="min-w-0 flex-1 truncate">{tx.description}</div>
-                        {txDebts.length > 0 && allDebtsSettled && (
-                          <Badge
-                            variant="outline"
-                            className="shrink-0 text-[10px] text-green-600 bg-green-50 "
-                          >
-                            Paid
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-xs">{tx.category}</TableCell>
-                    <TableCell className="text-xs">
-                      {flow.installmentIndex != null ? flow.referenceMonth : tx.date}
-                    </TableCell>
-                    <TableCell className="text-center text-xs">
-                      {flow.installmentIndex != null ? (
-                        <Badge variant="outline" className="text-xs whitespace-nowrap">
-                          {flow.installmentIndex + 1}/{flow.installmentTotal}
-                        </Badge>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {othersOwe(flow) > 0 ? (
-                        <SplitBreakdown flow={flow} />
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <span className="flex gap-1 justify-end">
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => handleDelete(tx.id)}
-                          aria-label="Delete transaction"
-                        >
-                          <TrashIcon />
-                        </Button>
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
+              {rows.map(({ tx, flow }) => (
+                <TransactionRow
+                  key={`${tx.id}-${flow.referenceMonth}-${flow.installmentIndex ?? 0}`}
+                  tx={tx}
+                  flow={flow}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
             </TableBody>
           </Table>
         </div>
@@ -890,14 +912,9 @@ export default function TransactionTable() {
             rows.map(({ tx, flow }) => (
               <div
                 key={`${tx.id}-${flow.referenceMonth}-${flow.installmentIndex ?? 0}`}
-                className="border border-border"
+                className="border border-border [content-visibility:auto] [contain-intrinsic-size:auto_6rem]"
               >
-                <TransactionCard
-                  tx={tx}
-                  flow={flow}
-                  onEdit={() => handleEdit(tx)}
-                  onDelete={() => handleDelete(tx.id)}
-                />
+                <TransactionCard tx={tx} flow={flow} onEdit={handleEdit} onDelete={handleDelete} />
               </div>
             ))
           )}

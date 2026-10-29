@@ -32,7 +32,9 @@ export type FinanceAction =
   | { type: 'CLEAR_AUDIT' }
 
 function snapshot(state: FinanceState): { transactions: Transaction[]; budgets: Budget[] } {
-  return { transactions: [...state.transactions], budgets: [...state.budgets] }
+  // Every reducer mutation replaces these arrays instead of mutating them, so
+  // snapshots can share the references without an O(n) copy per action.
+  return { transactions: state.transactions, budgets: state.budgets }
 }
 
 function describeAction(action: FinanceAction): string {
