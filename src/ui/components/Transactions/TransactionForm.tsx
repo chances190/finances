@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -24,10 +24,11 @@ import {
 import type { Debt, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
 import { addCurrency, formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
-import ImportDialog from '@/ui/components/Common/ImportDialog'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
 import DebtConfigModal from './DebtConfigModal'
+
+const ImportDialog = lazy(() => import('@/ui/components/Common/ImportDialog'))
 
 interface EditFormState {
   type: TransactionType
@@ -412,12 +413,16 @@ export default function TransactionForm({
         totalAmount={amount}
       />
 
-      <ImportDialog
-        open={showCsvImport}
-        onOpenChange={setShowCsvImport}
-        mode="transactions"
-        onImported={() => onOpenChange(false)}
-      />
+      {showCsvImport && (
+        <Suspense fallback={null}>
+          <ImportDialog
+            open
+            onOpenChange={setShowCsvImport}
+            mode="transactions"
+            onImported={() => onOpenChange(false)}
+          />
+        </Suspense>
+      )}
 
       <ConfirmDialog
         open={showRemoveConfirm}
