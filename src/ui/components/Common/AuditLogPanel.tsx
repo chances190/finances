@@ -88,17 +88,16 @@ export default function AuditLogPanel() {
         </div>
       )}
 
-      <div className="mt-6 border-t pt-4">
-        <h3 className="text-sm font-semibold text-foreground mb-2">Data</h3>
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="mt-6 space-y-3 border-t pt-4">
+        <h3 className="text-sm font-semibold text-foreground">Data</h3>
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">Export</p>
           <ExportImport />
-          <Button
-            variant="outline"
-            size="xs"
-            onClick={() => setShowImport(true)}
-            aria-label="Import backup"
-          >
-            Import backup
+        </div>
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">Import</p>
+          <Button variant="outline" size="xs" onClick={() => setShowImport(true)}>
+            Import Backup (.json)
           </Button>
         </div>
         <ImportDialog open={showImport} onOpenChange={setShowImport} mode="backup" />
