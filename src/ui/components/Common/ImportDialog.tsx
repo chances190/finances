@@ -1,6 +1,5 @@
 import { FileCodeIcon, FileCsvIcon, FileTextIcon } from '@phosphor-icons/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { v4 as uuid } from 'uuid'
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -197,23 +196,25 @@ export default function ImportDialog({
 
   function handleImport() {
     if (!preview) return
-    if (preview.fullBackup) {
-      dispatch({
-        type: 'IMPORT',
-        payload: { transactions: preview.transactions, budgets: preview.budgets },
-      })
-    } else {
-      dispatch({
-        type: 'ADD_TRANSACTIONS',
-        payload: preview.transactions.map((transaction) => ({
-          ...transaction,
-          id: transaction.id || uuid(),
-        })),
-      })
-      for (const budget of preview.budgets) {
-        dispatch({ type: 'UPSERT_BUDGET', payload: budget })
+    startTransition(() => {
+      if (preview.fullBackup) {
+        dispatch({
+          type: 'IMPORT',
+          payload: { transactions: preview.transactions, budgets: preview.budgets },
+        })
+      } else {
+        dispatch({
+          type: 'ADD_TRANSACTIONS',
+          payload: preview.transactions.map((transaction) => ({
+            ...transaction,
+            id: transaction.id || crypto.randomUUID(),
+          })),
+        })
+        for (const budget of preview.budgets) {
+          dispatch({ type: 'UPSERT_BUDGET', payload: budget })
+        }
       }
-    }
+    })
     setPreview(null)
     onOpenChange(false)
     onImported?.()

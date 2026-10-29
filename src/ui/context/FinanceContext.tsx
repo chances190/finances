@@ -5,10 +5,24 @@ import {
   useContext,
   useEffect,
   useReducer,
+  useRef,
 } from 'react'
-import { v4 as uuid } from 'uuid'
 import { loadData, saveData } from '../../data/repository'
 import type { AuditEntry, Budget, FinanceData, Transaction } from '../../domain/entities'
+
+function scheduleSave(callback: () => void): number {
+  return typeof window.requestIdleCallback === 'function'
+    ? window.requestIdleCallback(callback)
+    : window.setTimeout(callback, 0)
+}
+
+function cancelSave(handle: number): void {
+  if (typeof window.cancelIdleCallback === 'function') {
+    window.cancelIdleCallback(handle)
+  } else {
+    window.clearTimeout(handle)
+  }
+}
 
 export interface FinanceState {
   transactions: Transaction[]
@@ -179,7 +193,7 @@ function reducer(state: FinanceState, action: FinanceAction): FinanceState {
         ...next,
         auditLog: [
           {
-            id: uuid(),
+            id: crypto.randomUUID(),
             timestamp: Date.now(),
             description: describeAction(action),
             snapshot: before,
@@ -206,16 +220,41 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     loaded: false,
   })
 
+  const skipInitialSave = useRef(true)
+  const latestState = useRef(state)
+
+  useEffect(() => {
+    latestState.current = state
+  }, [state])
+
   useEffect(() => {
     const saved = loadData()
     dispatch({ type: 'LOAD', payload: saved ?? { transactions: [], budgets: [] } })
   }, [])
 
   useEffect(() => {
-    if (state.loaded) {
-      saveData({ transactions: state.transactions, budgets: state.budgets })
+    if (!state.loaded) return
+    if (skipInitialSave.current) {
+      skipInitialSave.current = false
+      return
     }
+    const handle = scheduleSave(() =>
+      saveData({ transactions: state.transactions, budgets: state.budgets }),
+    )
+    return () => cancelSave(handle)
   }, [state.transactions, state.budgets, state.loaded])
+
+  useEffect(() => {
+    const flush = () => {
+      if (!latestState.current.loaded) return
+      saveData({
+        transactions: latestState.current.transactions,
+        budgets: latestState.current.budgets,
+      })
+    }
+    window.addEventListener('pagehide', flush)
+    return () => window.removeEventListener('pagehide', flush)
+  }, [])
 
   return <FinanceContext.Provider value={{ state, dispatch }}>{children}</FinanceContext.Provider>
 }

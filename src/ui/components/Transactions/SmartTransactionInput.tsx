@@ -1,5 +1,5 @@
 import { PlusIcon } from '@phosphor-icons/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { localYMD } from '@/domain/calculations'
@@ -45,14 +45,15 @@ export default function SmartTransactionInput({
     () => categoriesForMonth(detectDateMonth(raw)),
     [categoriesForMonth, raw],
   )
-  const parsed = parseSmartInput(raw, categories)
+  const parsed = useMemo(() => parseSmartInput(raw, categories), [raw, categories])
+  const deferredRaw = useDeferredValue(raw)
 
   useEffect(() => {
-    const matches = getSuggestions(raw, knownDescriptions, categories)
+    const matches = getSuggestions(deferredRaw, knownDescriptions, categories)
     setSuggestions(matches)
     setShowSuggestions(matches.length > 0)
     setActiveSuggestion(matches.length > 0 ? 0 : -1)
-  }, [raw, knownDescriptions, categories])
+  }, [deferredRaw, knownDescriptions, categories])
 
   useEffect(() => {
     if (activeSuggestion < 0 || !suggestionRef.current) return

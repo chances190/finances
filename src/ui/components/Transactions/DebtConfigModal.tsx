@@ -1,6 +1,5 @@
 import { LightningAIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
-import { v4 as uuid } from 'uuid'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -39,12 +38,14 @@ export default function DebtConfigModal({
   onRemoveAll,
   totalAmount,
 }: DebtConfigModalProps) {
-  const [splits, setSplits] = useState<DebtSplitUI[]>([])
+  const [splits, setSplits] = useState<DebtSplitUI[]>(() =>
+    debts.map((d) => ({ id: crypto.randomUUID(), name: d.name, amount: d.amount })),
+  )
   const { toast } = useToast()
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: open is intentional to reset on dialog open
   useEffect(() => {
-    setSplits(debts.map((d) => ({ id: uuid(), name: d.name, amount: d.amount })))
+    setSplits(debts.map((d) => ({ id: crypto.randomUUID(), name: d.name, amount: d.amount })))
   }, [debts, open])
 
   const assignedTotal = splits.reduce((s, d) => addCurrency(s, d.amount), 0)
@@ -54,7 +55,7 @@ export default function DebtConfigModal({
   const isOver = delta < -0.01
 
   function handleAddPerson() {
-    setSplits((prev) => [...prev, { id: uuid(), name: '', amount: 0 }])
+    setSplits((prev) => [...prev, { id: crypto.randomUUID(), name: '', amount: 0 }])
   }
 
   function handleUpdateSplit(id: string, patch: Partial<DebtSplitUI>) {
@@ -89,7 +90,7 @@ export default function DebtConfigModal({
   }
 
   function handleCancel() {
-    setSplits(debts.map((d) => ({ id: uuid(), name: d.name, amount: d.amount })))
+    setSplits(debts.map((d) => ({ id: crypto.randomUUID(), name: d.name, amount: d.amount })))
     onOpenChange(false)
   }
 

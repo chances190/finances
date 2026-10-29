@@ -117,8 +117,10 @@ export default function BudgetFormDialog({
   const [form, setForm] = useState<BudgetFormData>(() =>
     existingBudget ? formFromBudget(existingBudget) : emptyBudget(nextMonth, state.budgets),
   )
-  const [rangeEnd, setRangeEnd] = useState(nextMonth)
-  const [isRange, setIsRange] = useState(false)
+  const [rangeEnd, setRangeEnd] = useState(editingRange?.endMonth ?? nextMonth)
+  const [isRange, setIsRange] = useState(
+    editingRange ? editingRange.endMonth > editingRange.startMonth : false,
+  )
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [showAddCategory, setShowAddCategory] = useState(false)

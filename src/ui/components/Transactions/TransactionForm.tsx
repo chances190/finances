@@ -1,5 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
-import { v4 as uuid } from 'uuid'
+import { lazy, Suspense, startTransition, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -46,6 +45,33 @@ interface TransactionFormProps {
   editTransaction?: Transaction | null
 }
 
+function initialForm(
+  editTransaction: Transaction | null | undefined,
+  defaultCategory: string,
+): EditFormState {
+  if (editTransaction) {
+    return {
+      type: editTransaction.type,
+      date: editTransaction.date,
+      amount: formatPlainCurrency(editTransaction.amount),
+      description: editTransaction.description,
+      category: editTransaction.category,
+      paymentMethod: editTransaction.paymentMethod,
+      installmentTotal:
+        editTransaction.type === 'Expense' ? (editTransaction.installments ?? 1) : 1,
+    }
+  }
+  return {
+    type: 'Expense',
+    date: localYMD(),
+    amount: '',
+    description: '',
+    category: defaultCategory,
+    paymentMethod: 'Debit/PIX',
+    installmentTotal: 1,
+  }
+}
+
 export default function TransactionForm({
   open,
   onOpenChange,
@@ -56,15 +82,9 @@ export default function TransactionForm({
   const defaultCategory =
     categoryOptionsForMonth(currentYM(), state.budgets, state.transactions)[0] ?? 'Other'
 
-  const [form, setForm] = useState<EditFormState>({
-    type: 'Expense',
-    date: '',
-    amount: '',
-    description: '',
-    category: defaultCategory,
-    paymentMethod: 'Debit/PIX',
-    installmentTotal: 1,
-  })
+  const [form, setForm] = useState<EditFormState>(() =>
+    initialForm(editTransaction, defaultCategory),
+  )
 
   const categories = useMemo(() => {
     const month = form.date ? monthOf(form.date) : currentYM()
@@ -72,7 +92,9 @@ export default function TransactionForm({
     return options.includes(form.category) ? options : [form.category, ...options]
   }, [form.date, form.category, state.budgets, state.transactions])
 
-  const [debts, setDebts] = useState<Debt[]>([])
+  const [debts, setDebts] = useState<Debt[]>(() =>
+    editTransaction?.type === 'Expense' && editTransaction.debts ? [...editTransaction.debts] : [],
+  )
   const [showDebtConfig, setShowDebtConfig] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const [showCsvImport, setShowCsvImport] = useState(false)
@@ -136,7 +158,7 @@ export default function TransactionForm({
     if (form.type === 'Income') {
       if (!isIncomePaymentMethod(form.paymentMethod)) return
       commit({
-        id: editTransaction?.id ?? uuid(),
+        id: editTransaction?.id ?? crypto.randomUUID(),
         type: 'Income',
         date: form.date,
         description: form.description,
@@ -150,7 +172,7 @@ export default function TransactionForm({
 
     if (!isExpensePaymentMethod(form.paymentMethod)) return
     commit({
-      id: editTransaction?.id ?? uuid(),
+      id: editTransaction?.id ?? crypto.randomUUID(),
       type: 'Expense',
       date: form.date,
       description: form.description,
@@ -166,12 +188,14 @@ export default function TransactionForm({
   }
 
   function commit(transaction: Transaction) {
-    if (editTransaction) {
-      dispatch({ type: 'UPDATE_TRANSACTION', payload: transaction })
-    } else {
-      dispatch({ type: 'ADD_TRANSACTIONS', payload: [transaction] })
-      toast('Transaction added', 'success')
-    }
+    startTransition(() => {
+      if (editTransaction) {
+        dispatch({ type: 'UPDATE_TRANSACTION', payload: transaction })
+      } else {
+        dispatch({ type: 'ADD_TRANSACTIONS', payload: [transaction] })
+      }
+    })
+    if (!editTransaction) toast('Transaction added', 'success')
     onOpenChange(false)
   }
 
@@ -401,17 +425,19 @@ export default function TransactionForm({
         </DialogContent>
       </Dialog>
 
-      <DebtConfigModal
-        open={showDebtConfig}
-        onOpenChange={setShowDebtConfig}
-        debts={debts}
-        onRemoveAll={() => setShowRemoveConfirm(true)}
-        onDebtsChange={(d) => {
-          setDebts(d)
-          setShowDebtConfig(false)
-        }}
-        totalAmount={amount}
-      />
+      {showDebtConfig && (
+        <DebtConfigModal
+          open
+          onOpenChange={setShowDebtConfig}
+          debts={debts}
+          onRemoveAll={() => setShowRemoveConfirm(true)}
+          onDebtsChange={(d) => {
+            setDebts(d)
+            setShowDebtConfig(false)
+          }}
+          totalAmount={amount}
+        />
+      )}
 
       {showCsvImport && (
         <Suspense fallback={null}>

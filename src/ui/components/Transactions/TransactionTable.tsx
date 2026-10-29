@@ -1,6 +1,6 @@
 import { FunnelIcon, SortAscendingIcon, SortDescendingIcon, TrashIcon } from '@phosphor-icons/react'
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
-import { v4 as uuid } from 'uuid'
+import { useWindowVirtualizer } from '@tanstack/react-virtual'
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'wouter'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,14 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   availableMonths,
   compareTransactions,
@@ -40,10 +33,12 @@ import {
 import type { Debt, MonthlyFlow, PaymentMethod, Transaction } from '@/domain/entities'
 import { monthlyFlows } from '@/domain/entities'
 import { addCurrency, formatCurrency } from '@/lib/currency'
+import { cn } from '@/lib/utils'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
 import { useIsDesktop } from '@/ui/hooks/useIsDesktop'
+import { useScrollMargin } from '@/ui/hooks/useScrollMargin'
 import SmartTransactionInput from './SmartTransactionInput'
 import TransactionForm from './TransactionForm'
 
@@ -374,32 +369,22 @@ const TransactionFilters = memo(function TransactionFilters({
   )
 })
 
-const TransactionRow = memo(function TransactionRow({
+type TransactionRowData = { tx: Transaction; flow: MonthlyFlow }
+
+const TransactionRowCells = memo(function TransactionRowCells({
   tx,
   flow,
-  onEdit,
   onDelete,
 }: {
   tx: Transaction
   flow: MonthlyFlow
-  onEdit: (tx: Transaction) => void
   onDelete: (id: string) => void
 }) {
   const txDebts = debtsOf(tx)
   const allDebtsSettled = txDebts.every((d) => d.settled)
-  const isFuture = monthRelation(flow.referenceMonth) === 'future'
 
   return (
-    <TableRow
-      className={`cursor-pointer [content-visibility:auto] [contain-intrinsic-size:auto_2.5rem] focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${isFuture ? 'opacity-45' : ''}`}
-      tabIndex={0}
-      onClick={() => onEdit(tx)}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
-        e.preventDefault()
-        onEdit(tx)
-      }}
-    >
+    <>
       <TableCell>
         <PaymentBadge method={tx.paymentMethod} />
       </TableCell>
@@ -448,7 +433,210 @@ const TransactionRow = memo(function TransactionRow({
           </Button>
         </span>
       </TableCell>
-    </TableRow>
+    </>
+  )
+})
+
+const DesktopTransactionList = memo(function DesktopTransactionList({
+  rows,
+  onEdit,
+  onDelete,
+  onSort,
+  sortKey,
+  sortDir,
+}: {
+  rows: TransactionRowData[]
+  onEdit: (tx: Transaction) => void
+  onDelete: (id: string) => void
+  onSort: (key: string) => void
+  sortKey: string | null
+  sortDir: 'asc' | 'desc'
+}) {
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
+  const scrollMargin = useScrollMargin(bodyRef)
+  const rowVirtualizer = useWindowVirtualizer({
+    count: rows.length,
+    estimateSize: () => 41,
+    overscan: 8,
+    scrollMargin,
+  })
+  const virtualRows = rowVirtualizer.getVirtualItems()
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start - scrollMargin : 0
+  const paddingBottom =
+    virtualRows.length > 0
+      ? rowVirtualizer.getTotalSize() - (virtualRows[virtualRows.length - 1].end - scrollMargin)
+      : 0
+
+  const indicator = (key: string) => {
+    if (sortKey !== key) return null
+    return sortDir === 'asc' ? (
+      <SortAscendingIcon className="size-3 inline ml-0.5" />
+    ) : (
+      <SortDescendingIcon className="size-3 inline ml-0.5" />
+    )
+  }
+
+  return (
+    <div className="border border-border">
+      <Table className="table-fixed">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-24">
+              <button
+                type="button"
+                onClick={() => onSort('paymentMethod')}
+                className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
+              >
+                Payment{indicator('paymentMethod')}
+              </button>
+            </TableHead>
+            <TableHead className="text-right w-24">
+              <button
+                type="button"
+                onClick={() => onSort('amount')}
+                className="flex w-full cursor-pointer select-none items-center justify-end gap-0.5 text-right font-medium"
+              >
+                Amount{indicator('amount')}
+              </button>
+            </TableHead>
+            <TableHead className="flex-1">
+              <button
+                type="button"
+                onClick={() => onSort('description')}
+                className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
+              >
+                Description{indicator('description')}
+              </button>
+            </TableHead>
+            <TableHead className="w-20">
+              <button
+                type="button"
+                onClick={() => onSort('category')}
+                className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
+              >
+                Category{indicator('category')}
+              </button>
+            </TableHead>
+            <TableHead className="w-24">
+              <button
+                type="button"
+                onClick={() => onSort('date')}
+                className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
+              >
+                Date{indicator('date')}
+              </button>
+            </TableHead>
+            <TableHead className="w-24 text-center">Installment</TableHead>
+            <TableHead className="w-28">Split</TableHead>
+            <TableHead className="text-right w-20">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <tbody ref={bodyRef} className="[&_tr:last-child]:border-0">
+          {rows.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={8}>
+                <EmptyState variant="cell" message="No transactions yet." />
+              </TableCell>
+            </TableRow>
+          )}
+
+          {paddingTop > 0 && (
+            <tr aria-hidden>
+              <td colSpan={8} style={{ height: paddingTop }} />
+            </tr>
+          )}
+
+          {virtualRows.map((virtualRow) => {
+            const row = rows[virtualRow.index]
+            const isFuture = monthRelation(row.flow.referenceMonth) === 'future'
+            return (
+              <tr
+                key={`${row.tx.id}-${row.flow.referenceMonth}-${row.flow.installmentIndex ?? 0}`}
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
+                className={cn(
+                  'cursor-pointer border-b transition-colors hover:bg-muted/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring',
+                  isFuture && 'opacity-45',
+                )}
+                tabIndex={0}
+                onClick={() => onEdit(row.tx)}
+                onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+                  e.preventDefault()
+                  onEdit(row.tx)
+                }}
+              >
+                <TransactionRowCells tx={row.tx} flow={row.flow} onDelete={onDelete} />
+              </tr>
+            )
+          })}
+
+          {paddingBottom > 0 && (
+            <tr aria-hidden>
+              <td colSpan={8} style={{ height: paddingBottom }} />
+            </tr>
+          )}
+        </tbody>
+      </Table>
+    </div>
+  )
+})
+
+const MobileTransactionList = memo(function MobileTransactionList({
+  rows,
+  onEdit,
+  onDelete,
+}: {
+  rows: TransactionRowData[]
+  onEdit: (tx: Transaction) => void
+  onDelete: (id: string) => void
+}) {
+  const listRef = useRef<HTMLDivElement>(null)
+  const scrollMargin = useScrollMargin(listRef)
+  const rowVirtualizer = useWindowVirtualizer({
+    count: rows.length,
+    estimateSize: () => 96,
+    overscan: 8,
+    gap: 8,
+    scrollMargin,
+  })
+  const virtualRows = rowVirtualizer.getVirtualItems()
+
+  return (
+    <div
+      ref={listRef}
+      style={
+        rows.length > 0
+          ? { height: rowVirtualizer.getTotalSize(), position: 'relative' }
+          : undefined
+      }
+    >
+      {rows.length === 0 ? (
+        <EmptyState message="No transactions yet." />
+      ) : (
+        virtualRows.map((virtualRow) => {
+          const row = rows[virtualRow.index]
+          return (
+            <div
+              key={`${row.tx.id}-${row.flow.referenceMonth}-${row.flow.installmentIndex ?? 0}`}
+              data-index={virtualRow.index}
+              ref={rowVirtualizer.measureElement}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+              }}
+            >
+              <div className="border border-border">
+                <TransactionCard tx={row.tx} flow={row.flow} onEdit={onEdit} onDelete={onDelete} />
+              </div>
+            </div>
+          )
+        })
+      )}
+    </div>
   )
 })
 
@@ -624,28 +812,22 @@ export default function TransactionTable() {
     filterPayments.length +
     filterDebtors.length
 
-  function handleSort(key: string) {
-    if (sortKey === key) {
-      if (sortDir === 'desc') {
-        setSortDir('asc')
+  const handleSort = useCallback(
+    (key: string) => {
+      if (sortKey === key) {
+        if (sortDir === 'desc') {
+          setSortDir('asc')
+        } else {
+          setSortKey(null)
+          setSortDir('desc')
+        }
       } else {
-        setSortKey(null)
+        setSortKey(key)
         setSortDir('desc')
       }
-    } else {
-      setSortKey(key)
-      setSortDir('desc')
-    }
-  }
-
-  const sortIndicator = (key: string) => {
-    if (sortKey !== key) return null
-    return sortDir === 'asc' ? (
-      <SortAscendingIcon className="size-3 inline ml-0.5" />
-    ) : (
-      <SortDescendingIcon className="size-3 inline ml-0.5" />
-    )
-  }
+    },
+    [sortDir, sortKey],
+  )
 
   function handleSmartAdd(row: {
     description: string
@@ -659,43 +841,45 @@ export default function TransactionTable() {
 
     const method = row.paymentMethod ?? 'Debit/PIX'
 
-    if (isIncomePaymentMethod(method)) {
-      dispatch({
-        type: 'ADD_TRANSACTIONS',
-        payload: [
-          {
-            id: uuid(),
-            type: 'Income',
-            date: row.date,
-            description: row.description,
-            amount,
-            category: 'Income',
-            paymentMethod: method,
-          },
-        ],
-      })
-    } else {
-      dispatch({
-        type: 'ADD_TRANSACTIONS',
-        payload: [
-          {
-            id: uuid(),
-            type: 'Expense',
-            date: row.date,
-            description: row.description,
-            amount,
-            category: row.category ?? 'Other',
-            paymentMethod: isExpensePaymentMethod(method) ? method : 'Debit/PIX',
-          },
-        ],
-      })
-    }
+    startTransition(() => {
+      if (isIncomePaymentMethod(method)) {
+        dispatch({
+          type: 'ADD_TRANSACTIONS',
+          payload: [
+            {
+              id: crypto.randomUUID(),
+              type: 'Income',
+              date: row.date,
+              description: row.description,
+              amount,
+              category: 'Income',
+              paymentMethod: method,
+            },
+          ],
+        })
+      } else {
+        dispatch({
+          type: 'ADD_TRANSACTIONS',
+          payload: [
+            {
+              id: crypto.randomUUID(),
+              type: 'Expense',
+              date: row.date,
+              description: row.description,
+              amount,
+              category: row.category ?? 'Other',
+              paymentMethod: isExpensePaymentMethod(method) ? method : 'Debit/PIX',
+            },
+          ],
+        })
+      }
+    })
     toast('Transaction added', 'success')
   }
 
   const handleDelete = useCallback(
     (id: string) => {
-      dispatch({ type: 'DELETE_TRANSACTION', payload: id })
+      startTransition(() => dispatch({ type: 'DELETE_TRANSACTION', payload: id }))
       toast('Transaction deleted', 'info')
     },
     [dispatch, toast],
@@ -826,108 +1010,24 @@ export default function TransactionTable() {
         {isDesktop && clearAll}
       </div>
 
-      {isDesktop && (
-        <div className="border border-border">
-          <Table className="table-fixed">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-24">
-                  <button
-                    type="button"
-                    onClick={() => handleSort('paymentMethod')}
-                    className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
-                  >
-                    Payment{sortIndicator('paymentMethod')}
-                  </button>
-                </TableHead>
-                <TableHead className="text-right w-24">
-                  <button
-                    type="button"
-                    onClick={() => handleSort('amount')}
-                    className="flex w-full cursor-pointer select-none items-center justify-end gap-0.5 text-right font-medium"
-                  >
-                    Amount{sortIndicator('amount')}
-                  </button>
-                </TableHead>
-                <TableHead className="flex-1">
-                  <button
-                    type="button"
-                    onClick={() => handleSort('description')}
-                    className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
-                  >
-                    Description{sortIndicator('description')}
-                  </button>
-                </TableHead>
-                <TableHead className="w-20">
-                  <button
-                    type="button"
-                    onClick={() => handleSort('category')}
-                    className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
-                  >
-                    Category{sortIndicator('category')}
-                  </button>
-                </TableHead>
-                <TableHead className="w-24">
-                  <button
-                    type="button"
-                    onClick={() => handleSort('date')}
-                    className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
-                  >
-                    Date{sortIndicator('date')}
-                  </button>
-                </TableHead>
-                <TableHead className="w-24 text-center">Installment</TableHead>
-                <TableHead className="w-28">Split</TableHead>
-                <TableHead className="text-right w-20">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8}>
-                    <EmptyState variant="cell" message="No transactions yet." />
-                  </TableCell>
-                </TableRow>
-              )}
-
-              {rows.map(({ tx, flow }) => (
-                <TransactionRow
-                  key={`${tx.id}-${flow.referenceMonth}-${flow.installmentIndex ?? 0}`}
-                  tx={tx}
-                  flow={flow}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+      {isDesktop ? (
+        <DesktopTransactionList
+          rows={rows}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onSort={handleSort}
+          sortKey={sortKey}
+          sortDir={sortDir}
+        />
+      ) : (
+        <MobileTransactionList rows={rows} onEdit={handleEdit} onDelete={handleDelete} />
       )}
 
-      {!isDesktop && (
-        <div className="space-y-2">
-          {rows.length === 0 ? (
-            <EmptyState message="No transactions yet." />
-          ) : (
-            rows.map(({ tx, flow }) => (
-              <div
-                key={`${tx.id}-${flow.referenceMonth}-${flow.installmentIndex ?? 0}`}
-                className="border border-border [content-visibility:auto] [contain-intrinsic-size:auto_6rem]"
-              >
-                <TransactionCard tx={tx} flow={flow} onEdit={handleEdit} onDelete={handleDelete} />
-              </div>
-            ))
-          )}
-        </div>
+      {showEditForm && (
+        <TransactionForm open onOpenChange={handleFormClose} editTransaction={editingTx} />
       )}
 
-      <TransactionForm
-        open={showEditForm}
-        onOpenChange={handleFormClose}
-        editTransaction={editingTx}
-      />
-
-      <TransactionForm open={showAddForm} onOpenChange={setShowAddForm} />
+      {showAddForm && <TransactionForm open onOpenChange={setShowAddForm} />}
     </div>
   )
 }

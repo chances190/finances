@@ -1,17 +1,5 @@
 import { ArrowDown, ArrowUp, PiggyBank, TrendUp } from '@phosphor-icons/react'
 import { useMemo } from 'react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { useLocation, useSearchParams } from 'wouter'
 import {
   Select,
@@ -27,12 +15,18 @@ import {
   yearRelation,
   yearSummary,
 } from '@/domain/calculations'
-import { CATEGORY_COLORS, CHART_COLORS } from '@/domain/constants'
 import { monthlyFlows } from '@/domain/entities'
-import { formatAxisCurrency, formatCurrency } from '@/lib/currency'
+import { formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
+import LazyChart from '@/ui/components/Common/LazyChart'
 import StatCard from '@/ui/components/Common/StatCard'
 import { useFinance } from '@/ui/context'
+import {
+  CategoryTrendsChart,
+  FutureCommitmentsChart,
+  MonthlyIncomeExpenseChart,
+  YearBudgetVsActualChart,
+} from './TrendsCharts'
 
 export default function TrendsPage() {
   const { state } = useFinance()
@@ -196,50 +190,9 @@ export default function TrendsPage() {
 
       <div className="border bg-card p-4 space-y-3">
         <h3 className="text-sm font-semibold">Monthly Income vs Expenses</h3>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={yearData.months}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis
-                dataKey="referenceMonth"
-                tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(v: string) => v.slice(5)}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(v: number) => formatAxisCurrency(v)}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: 'var(--popover)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--foreground)',
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                }}
-                formatter={(value: number) => formatCurrency(value)}
-                labelFormatter={(label: string) => label}
-              />
-              <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--foreground)' }} />
-              <Bar
-                dataKey="income"
-                name="Income"
-                fill={CHART_COLORS.income}
-                radius={[2, 2, 0, 0]}
-              />
-              <Bar
-                dataKey="expenses"
-                name="Expenses"
-                fill={CHART_COLORS.expense}
-                radius={[2, 2, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <LazyChart className="h-64">
+          <MonthlyIncomeExpenseChart data={yearData.months} />
+        </LazyChart>
       </div>
 
       <div className={`grid grid-cols-1 gap-4 ${isCurrentYear ? 'lg:grid-cols-2' : ''}`}>
@@ -250,48 +203,9 @@ export default function TrendsPage() {
               Not enough data.
             </div>
           ) : (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={timeSeriesData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(v: number) => formatAxisCurrency(v)}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'var(--popover)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--foreground)',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                    }}
-                    formatter={(value: number) => formatCurrency(value)}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--foreground)' }} />
-                  {topCategories.map((cat, i) => (
-                    <Line
-                      key={cat}
-                      type="monotone"
-                      dataKey={cat}
-                      name={cat}
-                      stroke={CATEGORY_COLORS[i % CATEGORY_COLORS.length]}
-                      strokeWidth={2}
-                      dot={false}
-                      connectNulls
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <LazyChart className="h-64">
+              <CategoryTrendsChart data={timeSeriesData} categories={topCategories} />
+            </LazyChart>
           )}
         </div>
 
@@ -303,43 +217,9 @@ export default function TrendsPage() {
                 No upcoming credit commitments.
               </div>
             ) : (
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={commitmentsData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis
-                      dataKey="referenceMonth"
-                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(v: number) => formatAxisCurrency(v)}
-                      domain={commitmentsMax > 0 ? [0, commitmentsMax] : undefined}
-                      allowDataOverflow={true}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: 'var(--popover)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--foreground)',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                      }}
-                      formatter={(value: number) => formatCurrency(value)}
-                    />
-                    <Bar
-                      dataKey="total"
-                      name="Total"
-                      fill={CHART_COLORS.expense}
-                      radius={[2, 2, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <LazyChart className="h-64">
+                <FutureCommitmentsChart data={commitmentsData} max={commitmentsMax} />
+              </LazyChart>
             )}
           </div>
         )}
@@ -352,48 +232,9 @@ export default function TrendsPage() {
             No budgets set for this year.
           </div>
         ) : (
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={yearlyBudgetVsActual}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis
-                  dataKey="category"
-                  tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v: number) => formatAxisCurrency(v)}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: 'var(--popover)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--foreground)',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                  }}
-                  formatter={(value: number) => formatCurrency(value)}
-                />
-                <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--foreground)' }} />
-                <Bar
-                  dataKey="budgeted"
-                  name="Budgeted"
-                  fill={CHART_COLORS.budgeted}
-                  radius={[2, 2, 0, 0]}
-                />
-                <Bar
-                  dataKey="actual"
-                  name="Actual"
-                  fill={CHART_COLORS.actual}
-                  radius={[2, 2, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <LazyChart className="h-64">
+            <YearBudgetVsActualChart data={yearlyBudgetVsActual} />
+          </LazyChart>
         )}
       </div>
     </div>

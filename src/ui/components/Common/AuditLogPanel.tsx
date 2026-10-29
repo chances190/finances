@@ -4,12 +4,13 @@ import {
   ClockIcon,
   TrashIcon,
 } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import ExportImport from '@/ui/components/Common/ExportImport'
-import ImportDialog from '@/ui/components/Common/ImportDialog'
 import { useFinance } from '@/ui/context'
+
+const ImportDialog = lazy(() => import('@/ui/components/Common/ImportDialog'))
 
 export default function AuditLogPanel() {
   const { state, dispatch } = useFinance()
@@ -100,7 +101,11 @@ export default function AuditLogPanel() {
             Import Backup (.json)
           </Button>
         </div>
-        <ImportDialog open={showImport} onOpenChange={setShowImport} mode="backup" />
+        {showImport && (
+          <Suspense fallback={null}>
+            <ImportDialog open onOpenChange={setShowImport} mode="backup" />
+          </Suspense>
+        )}
       </div>
 
       <ConfirmDialog
