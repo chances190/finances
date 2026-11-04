@@ -4,10 +4,11 @@ import ErrorBoundary from './ui/components/Common/ErrorBoundary'
 import MobileNav from './ui/components/Common/MobileNav'
 import Tabs from './ui/components/Common/Tabs'
 import TransactionTable from './ui/components/Transactions/TransactionTable'
-import { FinanceProvider, useFinance } from './ui/context'
+import { FinanceProvider, SyncProvider, useFinance } from './ui/context'
 import { ToastProvider, useToast } from './ui/context/ToastContext'
 
 const BudgetPage = lazy(() => import('./ui/components/Budget/BudgetPage'))
+const SyncControl = lazy(() => import('./ui/components/Common/SyncControl'))
 const AuditLogPanel = lazy(() => import('./ui/components/Common/AuditLogPanel'))
 const DashboardPage = lazy(() => import('./ui/components/Dashboard/DashboardPage'))
 const TrendsPage = lazy(() => import('./ui/components/Dashboard/TrendsPage'))
@@ -70,7 +71,12 @@ function AppShell() {
       <header className="sticky top-0 z-40 border-b border-border bg-card pt-[env(safe-area-inset-top)]">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <h1 className="text-base font-heading font-bold">Finances</h1>
-          <MobileNav tabs={tabs} active={activeTab} onChange={(key) => navigate(key)} />
+          <div className="flex items-center gap-1">
+            <Suspense fallback={null}>
+              <SyncControl />
+            </Suspense>
+            <MobileNav tabs={tabs} active={activeTab} onChange={(key) => navigate(key)} />
+          </div>
         </div>
       </header>
 
@@ -103,9 +109,11 @@ export default function App() {
   return (
     <FinanceProvider>
       <ToastProvider>
-        <ErrorBoundary>
-          <AppShell />
-        </ErrorBoundary>
+        <SyncProvider>
+          <ErrorBoundary>
+            <AppShell />
+          </ErrorBoundary>
+        </SyncProvider>
       </ToastProvider>
     </FinanceProvider>
   )

@@ -41,6 +41,7 @@ export type FinanceAction =
   | { type: 'UPSERT_BUDGET'; payload: Budget }
   | { type: 'DELETE_BUDGET'; payload: string }
   | { type: 'IMPORT'; payload: FinanceData }
+  | { type: 'APPLY_REMOTE'; payload: FinanceData }
   | { type: 'UNDO'; payload: string }
   | { type: 'REDO' }
   | { type: 'CLEAR_AUDIT' }
@@ -181,6 +182,13 @@ function reducer(state: FinanceState, action: FinanceAction): FinanceState {
         redoStack: rest,
       }
     }
+
+    case 'APPLY_REMOTE':
+      return {
+        ...state,
+        transactions: action.payload.transactions,
+        budgets: action.payload.budgets,
+      }
 
     case 'CLEAR_AUDIT':
       return { ...state, auditLog: [], redoStack: [] }
