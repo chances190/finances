@@ -67,7 +67,7 @@ export default function SyncControl() {
         variant="ghost"
         size="icon-lg"
         className="size-10"
-        aria-label={`Google Drive sync: ${STATUS_LABEL[status] ?? status}`}
+        aria-label={`Backup and sync: ${STATUS_LABEL[status] ?? status}`}
         onClick={() => setOpen(true)}
       >
         <StatusIcon status={status} />
@@ -76,11 +76,9 @@ export default function SyncControl() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Google Drive sync</DialogTitle>
+            <DialogTitle>Sync</DialogTitle>
             <DialogDescription>
-              One snapshot of your transactions and budgets lives in Drive's private app folder.
-              Local data stays authoritative; sync happens on start, reconnect, tab focus, and after
-              changes settle.
+              Backup and sync your transactions trough Google Drive.
             </DialogDescription>
           </DialogHeader>
 
@@ -132,28 +130,25 @@ export default function SyncControl() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Google Drive changed</DialogTitle>
+            <DialogTitle>Backup changed</DialogTitle>
             <DialogDescription>
-              The remote snapshot is newer than the last sync on this device, and you have local
-              changes that have not been uploaded.
+              <p>
+                The remote backup is newer than the last sync on this device, and you have local
+                changes that have not been uploaded.
+              </p>
+              <p className="mt-2">
+                Pull replaces this device's data with the remote backup. Push keeps this device's
+                data and replaces the remote backup.
+              </p>
             </DialogDescription>
           </DialogHeader>
 
-          <p className="text-muted-foreground">
-            Download replaces this device's data with the remote snapshot. Overwrite keeps this
-            device's data and replaces the remote snapshot. Neither option merges.
-          </p>
-
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => void resolveConflict('overwrite')}
-              disabled={busy}
-            >
-              Overwrite remote
+            <Button variant="outline" onClick={() => void resolveConflict('push')} disabled={busy}>
+              Push to Remote
             </Button>
-            <Button onClick={() => void resolveConflict('download')} disabled={busy}>
-              Download remote
+            <Button onClick={() => void resolveConflict('pull')} disabled={busy}>
+              Pull from Remote
             </Button>
           </DialogFooter>
         </DialogContent>

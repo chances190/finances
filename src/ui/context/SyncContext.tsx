@@ -8,13 +8,18 @@ import {
   useRef,
   useState,
 } from 'react'
-import { decideSyncAction, shouldClearDirty } from '../../data/sync/decision'
+import {
+  classifyPreconditionFailure,
+  decideSyncAction,
+  shouldClearDirty,
+} from '../../data/sync/decision'
 import {
   createSnapshot,
   DriveAuthError,
   DriveConflictError,
   downloadSnapshot,
   findSnapshot,
+  getSnapshotMeta,
   updateSnapshot,
 } from '../../data/sync/drive'
 import {
@@ -38,7 +43,7 @@ export interface SyncContextValue {
   connect: () => Promise<void>
   disconnect: () => void
   syncNow: () => Promise<void>
-  resolveConflict: (choice: 'download' | 'overwrite') => Promise<void>
+  resolveConflict: (choice: 'pull' | 'push') => Promise<void>
   dismissConflict: () => void
 }
 
@@ -156,16 +161,22 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   )
 
   const upload = useCallback(
-    async (token: string, data: FinanceData, file: DriveFileMeta | null) => {
+    async (
+      token: string,
+      data: FinanceData,
+      file: DriveFileMeta | null,
+      ifMatch: string | null,
+    ) => {
       const snapshotSeq = changeSeqRef.current
       const serialized = await serializeWhenIdle(data)
       const saved = file
-        ? await updateSnapshot(token, file, serialized)
+        ? await updateSnapshot(token, file, serialized, ifMatch)
         : await createSnapshot(token, serialized)
+      const confirmed = await getSnapshotMeta(token, saved.id).catch(() => saved)
       updateMeta({
-        fileId: saved.id,
-        version: saved.version,
-        etag: saved.etag,
+        fileId: confirmed.id,
+        version: confirmed.version,
+        etag: confirmed.etag,
         lastSyncedAt: Date.now(),
       })
       if (shouldClearDirty(snapshotSeq, changeSeqRef.current)) {
@@ -190,18 +201,19 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       let token = ''
       try {
         token = await getAccessToken(interactive)
-        const remote = await findSnapshot(token)
+        const remote = await findSnapshot(token, currentMeta.fileId)
+        const syncedMeta = metaRef.current
         const action = decideSyncAction({
           hasRemote: remote !== null,
           localEmpty: isEmpty(currentData()) && !dirtyRef.current,
           dirty: dirtyRef.current,
           remoteVersion: remote?.version ?? null,
-          lastSyncedVersion: currentMeta.version,
+          lastSyncedVersion: syncedMeta.version,
         })
 
         switch (action) {
           case 'create':
-            await upload(token, currentData(), null)
+            await upload(token, currentData(), null, null)
             setStatus('idle')
             break
           case 'download':
@@ -209,7 +221,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
             setStatus('idle')
             break
           case 'upload':
-            if (remote) await upload(token, currentData(), remote)
+            if (remote) await upload(token, currentData(), remote, syncedMeta.etag ?? remote.etag)
             setStatus('idle')
             break
           case 'conflict':
@@ -224,12 +236,21 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         }
       } catch (cause) {
         if (cause instanceof DriveConflictError && token) {
-          const latest = await findSnapshot(token).catch(() => null)
-          if (latest) {
+          const latest = await findSnapshot(token, metaRef.current.fileId).catch(() => null)
+          if (!latest) {
+            fail(cause)
+          } else if (
+            classifyPreconditionFailure(latest.version, metaRef.current.version) === 'retry'
+          ) {
+            try {
+              await upload(token, currentData(), latest, null)
+              setStatus('idle')
+            } catch (retryCause) {
+              fail(retryCause)
+            }
+          } else {
             setConflictState({ remote: latest })
             setStatus('conflict')
-          } else {
-            fail(cause)
           }
         } else {
           fail(cause)
@@ -273,11 +294,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     let token = ''
     try {
       token = await getAccessToken(true)
-      const remote = await findSnapshot(token)
+      const remote = await findSnapshot(token, metaRef.current.fileId)
       const local = currentData()
 
       if (!remote) {
-        await upload(token, local, null)
+        await upload(token, local, null, null)
         setStatus('idle')
         return
       }
@@ -324,7 +345,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }, [attemptSync, connect])
 
   const resolveConflict = useCallback(
-    async (choice: 'download' | 'overwrite') => {
+    async (choice: 'pull' | 'push') => {
       const current = conflictRef.current
       if (!current || syncingRef.current) return
       syncingRef.current = true
@@ -333,17 +354,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       let token = ''
       try {
         token = await getAccessToken(true)
-        const latest = (await findSnapshot(token)) ?? current.remote
-        if (choice === 'download') {
+        const latest = (await findSnapshot(token, current.remote.id)) ?? current.remote
+        if (choice === 'pull') {
           await downloadAndApply(token, latest)
         } else {
-          await upload(token, currentData(), latest)
+          await upload(token, currentData(), latest, null)
         }
         setConflictState(null)
         setStatus('idle')
       } catch (cause) {
         if (cause instanceof DriveConflictError && token) {
-          const latest = await findSnapshot(token).catch(() => null)
+          const latest = await findSnapshot(token, current.remote.id).catch(() => null)
           if (latest) {
             setConflictState({ remote: latest })
             setStatus('conflict')

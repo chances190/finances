@@ -32,32 +32,61 @@ async function throwDriveError(response: Response): Promise<never> {
   throw new DriveApiError(message, response.status)
 }
 
-async function parseFileMeta(response: Response): Promise<DriveFileMeta> {
+export async function readFileMeta(response: Response): Promise<DriveFileMeta> {
   if (!response.ok) await throwDriveError(response)
-  const body = (await response.json()) as { id?: string; version?: string }
-  if (!body.id || !body.version) {
+  const body = (await response.json()) as {
+    id?: string
+    version?: string | number
+    trashed?: boolean
+  }
+  if (!body.id || body.version === undefined || body.version === null) {
     throw new DriveApiError('Google Drive did not return a file version', response.status)
   }
-  return { id: body.id, version: body.version, etag: response.headers.get('ETag') }
+  return {
+    id: body.id,
+    version: String(body.version),
+    etag: response.headers.get('ETag'),
+    trashed: body.trashed === true,
+  }
 }
 
-export async function findSnapshot(token: string): Promise<DriveFileMeta | null> {
+export async function getSnapshotMeta(token: string, fileId: string): Promise<DriveFileMeta> {
+  const response = await fetch(`${API}/files/${fileId}`, {
+    headers: authHeaders(token),
+    cache: 'no-store',
+  })
+  return readFileMeta(response)
+}
+
+export async function findSnapshot(
+  token: string,
+  knownFileId: string | null = null,
+): Promise<DriveFileMeta | null> {
+  if (knownFileId) {
+    try {
+      const known = await getSnapshotMeta(token, knownFileId)
+      if (!known.trashed) return known
+    } catch (error) {
+      if (!(error instanceof DriveApiError) || error.status !== 404) throw error
+    }
+  }
+
   const params = new URLSearchParams({
     spaces: 'appDataFolder',
     q: `name = '${FILE_NAME}' and trashed = false`,
     fields: 'files(id)',
     pageSize: '1',
   })
-  const listResponse = await fetch(`${API}/files?${params}`, { headers: authHeaders(token) })
+  const listResponse = await fetch(`${API}/files?${params}`, {
+    headers: authHeaders(token),
+    cache: 'no-store',
+  })
   if (!listResponse.ok) await throwDriveError(listResponse)
   const list = (await listResponse.json()) as { files?: Array<{ id?: string }> }
   const id = list.files?.[0]?.id
   if (!id) return null
 
-  const metaResponse = await fetch(`${API}/files/${id}?fields=id,version`, {
-    headers: authHeaders(token),
-  })
-  return parseFileMeta(metaResponse)
+  return getSnapshotMeta(token, id)
 }
 
 export async function downloadSnapshot(token: string, fileId: string): Promise<string> {
@@ -98,23 +127,24 @@ export async function createSnapshot(token: string, serialized: string): Promise
     },
     body,
   })
-  return parseFileMeta(response)
+  return readFileMeta(response)
 }
 
 export async function updateSnapshot(
   token: string,
   file: DriveFileMeta,
   serialized: string,
+  ifMatch: string | null,
 ): Promise<DriveFileMeta> {
   const headers: Record<string, string> = {
     ...authHeaders(token),
     'Content-Type': 'application/json',
   }
-  if (file.etag) headers['If-Match'] = file.etag
+  if (ifMatch) headers['If-Match'] = ifMatch
   const response = await fetch(`${UPLOAD}/files/${file.id}?uploadType=media&fields=id,version`, {
     method: 'PATCH',
     headers,
     body: serialized,
   })
-  return parseFileMeta(response)
+  return readFileMeta(response)
 }

@@ -9,6 +9,7 @@ export interface DriveFileMeta {
   id: string
   version: string
   etag: string | null
+  trashed: boolean
 }
 
 export type SyncStatus =

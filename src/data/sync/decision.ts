@@ -27,3 +27,10 @@ export function decideSyncAction({
 export function shouldClearDirty(snapshotSeq: number, currentSeq: number): boolean {
   return snapshotSeq === currentSeq
 }
+
+export function classifyPreconditionFailure(
+  remoteVersion: string,
+  lastSyncedVersion: string | null,
+): 'retry' | 'conflict' {
+  return remoteVersion === lastSyncedVersion ? 'retry' : 'conflict'
+}

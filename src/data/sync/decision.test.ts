@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { decideSyncAction, shouldClearDirty } from './decision'
+import { classifyPreconditionFailure, decideSyncAction, shouldClearDirty } from './decision'
 
 const base = {
   hasRemote: true,
@@ -47,5 +47,19 @@ describe('shouldClearDirty', () => {
   test('clears only when no local mutation landed during the upload', () => {
     expect(shouldClearDirty(4, 4)).toBe(true)
     expect(shouldClearDirty(4, 5)).toBe(false)
+  })
+})
+
+describe('classifyPreconditionFailure', () => {
+  test('retries when the precondition failed but the remote version is unchanged', () => {
+    expect(classifyPreconditionFailure('3', '3')).toBe('retry')
+  })
+
+  test('prompts when the remote version actually changed', () => {
+    expect(classifyPreconditionFailure('4', '3')).toBe('conflict')
+  })
+
+  test('prompts when this device has never synced', () => {
+    expect(classifyPreconditionFailure('4', null)).toBe('conflict')
   })
 })
