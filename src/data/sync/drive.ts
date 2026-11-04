@@ -51,7 +51,7 @@ export async function readFileMeta(response: Response): Promise<DriveFileMeta> {
 }
 
 export async function getSnapshotMeta(token: string, fileId: string): Promise<DriveFileMeta> {
-  const response = await fetch(`${API}/files/${fileId}`, {
+  const response = await fetch(`${API}/files/${fileId}?fields=*`, {
     headers: authHeaders(token),
     cache: 'no-store',
   })

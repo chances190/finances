@@ -35,6 +35,7 @@ describe('findSnapshot', () => {
       expect(meta?.id).toBe('known')
       expect(calls).toHaveLength(1)
       expect(calls[0]).toContain('/files/known')
+      expect(calls[0]).toContain('fields=*')
     } finally {
       globalThis.fetch = originalFetch
     }
