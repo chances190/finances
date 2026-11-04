@@ -12,3 +12,4 @@
 | 0009 | [Budget Ranges as Derived Grouping](0009-budget-ranges-derived-grouping.md) | Accepted | 2026-08-06 |
 | 0010 | [Data In/Out Boundaries](0010-data-in-out-boundaries.md) | Accepted | 2026-09-08 |
 | 0011 | [Purchase-Centric Transactions](0011-purchase-centric-transactions.md) | Accepted | 2026-09-08 |
+| 0012 | [Google Drive Snapshot Sync](0012-google-drive-snapshot-sync.md) | Proposed | 2026-11-04 |
