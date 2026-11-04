@@ -13,7 +13,7 @@
   - **Google Drive `appDataFolder` only.** OAuth through Google Identity Services with the `drive.appdata` scope; no backend and no client secret. The app never sees the user's other Drive files.
   - **One snapshot, not a sync engine.** Upload `{ transactions, budgets }` as `finances.json`. No outbox, tombstones, per-record `_syncStatus`, CRDT, or field-level merge.
   - **Local-first.** `localStorage` remains the primary store; sync never blocks a local write. IndexedDB migration is out of scope.
-  - **Triggers:** app start, `online`, tab visibility, and a manual **Sync now**. Debounce local changes ~2 s. No Background Sync API and no polling.
+  - **Triggers:** app start, `online`, tab visibility, and a manual **Sync now**. Debounce local changes ~4 s. No Background Sync API and no polling.
   - **Version guard.** Persist `lastSyncedRemoteVersion` / `lastSyncedAt` and a dirty flag. Before updating, compare the remote version and use `If-Match`/ETag. If the remote changed and local is dirty, prompt **Download** / **Overwrite**. No silent clobber.
   - **Strict render isolation.** Sync state lives outside `FinanceContext`; `TransactionTable` must not re-render because sync state changed. Serialization runs in `requestIdleCallback`/after paint; upload is a background `fetch`.
 

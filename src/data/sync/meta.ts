@@ -13,6 +13,7 @@ export function loadSyncMeta(): SyncMeta {
       version: typeof value.version === 'string' ? value.version : null,
       etag: typeof value.etag === 'string' ? value.etag : null,
       lastSyncedAt: typeof value.lastSyncedAt === 'number' ? value.lastSyncedAt : null,
+      lastSyncedHash: typeof value.lastSyncedHash === 'string' ? value.lastSyncedHash : null,
     }
   } catch {
     return emptySyncMeta

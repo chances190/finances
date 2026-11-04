@@ -10,7 +10,9 @@ import {
 } from 'react'
 import {
   classifyPreconditionFailure,
+  compareVersions,
   decideSyncAction,
+  isOwnPendingUpload,
   shouldClearDirty,
 } from '../../data/sync/decision'
 import {
@@ -48,6 +50,7 @@ export interface SyncContextValue {
 }
 
 const SyncContext = createContext<SyncContextValue | null>(null)
+const SYNC_DEBOUNCE_MS = 4000
 
 function isEmpty(data: FinanceData): boolean {
   return data.transactions.length === 0 && data.budgets.length === 0
@@ -62,6 +65,12 @@ function serializeWhenIdle(data: FinanceData): Promise<string> {
       window.setTimeout(work, 0)
     }
   })
+}
+
+async function hashSnapshot(text: string): Promise<string | null> {
+  if (!globalThis.crypto?.subtle) return null
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 function syncMessage(error: unknown): string {
@@ -131,7 +140,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   )
 
   const applyRemote = useCallback(
-    (data: FinanceData, file: DriveFileMeta) => {
+    (data: FinanceData, file: DriveFileMeta, hash: string | null) => {
       remoteArraysRef.current = {
         transactions: data.transactions,
         budgets: data.budgets,
@@ -142,6 +151,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         version: file.version,
         etag: file.etag,
         lastSyncedAt: Date.now(),
+        lastSyncedHash: hash,
       })
       updateDirty(false)
     },
@@ -155,7 +165,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       if (result.skippedTransactions.length > 0 || result.skippedBudgets > 0) {
         throw new Error('Remote snapshot contains invalid records; local data was kept')
       }
-      applyRemote(result.data, file)
+      const hash = file.sha256Checksum ?? (await hashSnapshot(text))
+      applyRemote(result.data, file, hash)
     },
     [applyRemote],
   )
@@ -169,15 +180,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     ) => {
       const snapshotSeq = changeSeqRef.current
       const serialized = await serializeWhenIdle(data)
+      const hash = await hashSnapshot(serialized)
       const saved = file
         ? await updateSnapshot(token, file, serialized, ifMatch)
         : await createSnapshot(token, serialized)
       const confirmed = await getSnapshotMeta(token, saved.id).catch(() => saved)
+      const useConfirmed = compareVersions(confirmed.version, saved.version) === 0
       updateMeta({
-        fileId: confirmed.id,
-        version: confirmed.version,
-        etag: confirmed.etag,
+        fileId: saved.id,
+        version: useConfirmed ? confirmed.version : saved.version,
+        etag: useConfirmed ? confirmed.etag : saved.etag,
         lastSyncedAt: Date.now(),
+        lastSyncedHash: hash,
       })
       if (shouldClearDirty(snapshotSeq, changeSeqRef.current)) {
         updateDirty(false)
@@ -202,7 +216,24 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       try {
         token = await getAccessToken(interactive)
         const remote = await findSnapshot(token, currentMeta.fileId)
-        const syncedMeta = metaRef.current
+        let syncedMeta = metaRef.current
+        if (
+          remote &&
+          isOwnPendingUpload(
+            remote.version,
+            syncedMeta.version,
+            remote.sha256Checksum,
+            syncedMeta.lastSyncedHash,
+          )
+        ) {
+          updateMeta({
+            ...syncedMeta,
+            version: remote.version,
+            etag: remote.etag,
+            lastSyncedAt: Date.now(),
+          })
+          syncedMeta = metaRef.current
+        }
         const action = decideSyncAction({
           hasRemote: remote !== null,
           localEmpty: isEmpty(currentData()) && !dirtyRef.current,
@@ -265,7 +296,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [currentData, downloadAndApply, fail, setConflictState, upload],
+    [currentData, downloadAndApply, fail, setConflictState, updateMeta, upload],
   )
 
   useEffect(() => {
@@ -278,7 +309,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     debounceRef.current = window.setTimeout(() => {
       debounceRef.current = null
       void attemptSync({ interactive: false })
-    }, 2000)
+    }, SYNC_DEBOUNCE_MS)
   }, [attemptSync])
 
   const connect = useCallback(async () => {
@@ -329,7 +360,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
     clearAccessToken()
     retryRef.current = false
-    updateMeta({ fileId: null, version: null, etag: null, lastSyncedAt: null })
+    updateMeta({
+      fileId: null,
+      version: null,
+      etag: null,
+      lastSyncedAt: null,
+      lastSyncedHash: null,
+    })
     updateDirty(false)
     setConflictState(null)
     setStatus('disconnected')

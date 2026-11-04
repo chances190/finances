@@ -8,12 +8,21 @@ function fileResponse(body: unknown, headers: Record<string, string> = {}): Resp
 describe('readFileMeta', () => {
   test('normalizes a numeric version to the string used by later comparisons', async () => {
     const meta = await readFileMeta(fileResponse({ id: 'file', version: 7 }, { ETag: '"abc"' }))
-    expect(meta).toEqual({ id: 'file', version: '7', etag: '"abc"', trashed: false })
+    expect(meta).toEqual({
+      id: 'file',
+      version: '7',
+      etag: '"abc"',
+      trashed: false,
+      sha256Checksum: null,
+    })
   })
 
-  test('carries the trashed flag from the resource', async () => {
-    const meta = await readFileMeta(fileResponse({ id: 'file', version: '7', trashed: true }))
+  test('carries the trashed flag and checksum from the resource', async () => {
+    const meta = await readFileMeta(
+      fileResponse({ id: 'file', version: '7', trashed: true, sha256Checksum: 'abc123' }),
+    )
     expect(meta.trashed).toBe(true)
+    expect(meta.sha256Checksum).toBe('abc123')
   })
 
   test('rejects a response without a version', async () => {

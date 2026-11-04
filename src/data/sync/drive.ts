@@ -38,6 +38,7 @@ export async function readFileMeta(response: Response): Promise<DriveFileMeta> {
     id?: string
     version?: string | number
     trashed?: boolean
+    sha256Checksum?: string
   }
   if (!body.id || body.version === undefined || body.version === null) {
     throw new DriveApiError('Google Drive did not return a file version', response.status)
@@ -47,6 +48,7 @@ export async function readFileMeta(response: Response): Promise<DriveFileMeta> {
     version: String(body.version),
     etag: response.headers.get('ETag'),
     trashed: body.trashed === true,
+    sha256Checksum: typeof body.sha256Checksum === 'string' ? body.sha256Checksum : null,
   }
 }
 

@@ -3,6 +3,7 @@ export interface SyncMeta {
   version: string | null
   etag: string | null
   lastSyncedAt: number | null
+  lastSyncedHash: string | null
 }
 
 export interface DriveFileMeta {
@@ -10,6 +11,7 @@ export interface DriveFileMeta {
   version: string
   etag: string | null
   trashed: boolean
+  sha256Checksum: string | null
 }
 
 export type SyncStatus =
@@ -29,4 +31,5 @@ export const emptySyncMeta: SyncMeta = {
   version: null,
   etag: null,
   lastSyncedAt: null,
+  lastSyncedHash: null,
 }

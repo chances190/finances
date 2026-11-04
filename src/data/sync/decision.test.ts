@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { classifyPreconditionFailure, decideSyncAction, shouldClearDirty } from './decision'
+import {
+  classifyPreconditionFailure,
+  compareVersions,
+  decideSyncAction,
+  isOwnPendingUpload,
+  shouldClearDirty,
+} from './decision'
 
 const base = {
   hasRemote: true,
@@ -41,6 +47,24 @@ describe('decideSyncAction', () => {
   test('does nothing when clean and the versions match', () => {
     expect(decideSyncAction({ ...base, remoteVersion: '1' })).toBe('noop')
   })
+
+  test('uploads when dirty and the remote read is older than the last sync', () => {
+    expect(
+      decideSyncAction({ ...base, dirty: true, remoteVersion: '1', lastSyncedVersion: '2' }),
+    ).toBe('upload')
+  })
+
+  test('does nothing when clean and the remote read is older than the last sync', () => {
+    expect(decideSyncAction({ ...base, remoteVersion: '1', lastSyncedVersion: '2' })).toBe('noop')
+  })
+})
+
+describe('compareVersions', () => {
+  test('compares numeric versions numerically instead of lexicographically', () => {
+    expect(compareVersions('10', '2')).toBe(1)
+    expect(compareVersions('2', '10')).toBe(-1)
+    expect(compareVersions('2', '2')).toBe(0)
+  })
 })
 
 describe('shouldClearDirty', () => {
@@ -61,5 +85,27 @@ describe('classifyPreconditionFailure', () => {
 
   test('prompts when this device has never synced', () => {
     expect(classifyPreconditionFailure('4', null)).toBe('conflict')
+  })
+
+  test('retries when the remote read is older than the last sync', () => {
+    expect(classifyPreconditionFailure('2', '3')).toBe('retry')
+  })
+})
+
+describe('isOwnPendingUpload', () => {
+  test('recognizes a newer remote version carrying our last uploaded content', () => {
+    expect(isOwnPendingUpload('16', '15', 'hash', 'hash')).toBe(true)
+  })
+
+  test('does not treat different content as our own write', () => {
+    expect(isOwnPendingUpload('16', '15', 'other', 'hash')).toBe(false)
+  })
+
+  test('does not adopt the same version', () => {
+    expect(isOwnPendingUpload('15', '15', 'hash', 'hash')).toBe(false)
+  })
+
+  test('does not adopt without a stored hash', () => {
+    expect(isOwnPendingUpload('16', '15', 'hash', null)).toBe(false)
   })
 })
