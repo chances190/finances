@@ -5,7 +5,7 @@ import {
   CloudSlashIcon,
   WarningIcon,
 } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { preloadGoogleIdentity } from '@/data/sync/googleIdentity'
 import { useSync } from '@/ui/context'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -59,6 +60,11 @@ export default function SyncControl() {
   } = useSync()
   const [open, setOpen] = useState(false)
   const connected = meta.fileId !== null
+
+  useEffect(() => {
+    preloadGoogleIdentity()
+  }, [])
+
   const busy = status === 'syncing'
 
   return (
@@ -97,7 +103,8 @@ export default function SyncControl() {
             {error && <p className="text-destructive">{error}</p>}
             {!configured && (
               <p className="text-muted-foreground">
-                Set `VITE_GOOGLE_CLIENT_ID` to a Google OAuth client ID to enable sync.
+                Set `VITE_GOOGLE_CLIENT_ID` on the client and `GOOGLE_CLIENT_ID` /
+                `GOOGLE_CLIENT_SECRET` on the Pages Function to enable sync.
               </p>
             )}
           </div>

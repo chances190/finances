@@ -1,25 +1,37 @@
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
 const SCOPE = 'https://www.googleapis.com/auth/drive.appdata'
 const SCRIPT_URL = 'https://accounts.google.com/gsi/client'
+const TOKEN_ENDPOINT = '/api/google/token'
 
-interface TokenResponse {
-  access_token?: string
-  expires_in?: number
+interface CodeResponse {
+  code?: string
   error?: string
   error_description?: string
 }
 
-interface TokenClient {
-  requestAccessToken: (options?: { prompt?: string }) => void
+interface CodeError {
+  type?: string
+}
+
+interface CodeClient {
+  requestCode: () => void
 }
 
 interface OAuth2 {
-  initTokenClient: (config: {
+  initCodeClient: (config: {
     client_id: string
     scope: string
-    callback: (response: TokenResponse) => void
-  }) => TokenClient
-  revoke?: (token: string, callback?: () => void) => void
+    ux_mode: 'popup'
+    callback: (response: CodeResponse) => void
+    error_callback?: (response: CodeError) => void
+  }) => CodeClient
+}
+
+interface TokenPayload {
+  access_token?: string
+  expires_in?: number
+  error?: string
+  message?: string
 }
 
 declare global {
@@ -62,7 +74,12 @@ async function loadIdentityScript(): Promise<void> {
   await scriptPromise
 }
 
-async function requestToken(interactive: boolean): Promise<string> {
+export function preloadGoogleIdentity(): void {
+  if (!isGoogleConfigured()) return
+  void loadIdentityScript().catch(() => {})
+}
+
+async function requestCode(): Promise<string> {
   if (!isGoogleConfigured()) {
     throw new GoogleAuthError('Google Drive sync is not configured')
   }
@@ -77,11 +94,12 @@ async function requestToken(interactive: boolean): Promise<string> {
       settled = true
       fn()
     }
-    const client = oauth2.initTokenClient({
+    const client = oauth2.initCodeClient({
       client_id: CLIENT_ID,
       scope: SCOPE,
+      ux_mode: 'popup',
       callback: (response) => {
-        if (response.error || !response.access_token) {
+        if (response.error || !response.code) {
           settle(() =>
             reject(
               new GoogleAuthError(
@@ -91,27 +109,59 @@ async function requestToken(interactive: boolean): Promise<string> {
           )
           return
         }
-        accessToken = response.access_token
-        expiresAt = Date.now() + (response.expires_in ?? 3600) * 1000
-        settle(() => resolve(response.access_token as string))
+        settle(() => resolve(response.code as string))
+      },
+      error_callback: (response) => {
+        settle(() => reject(new GoogleAuthError(response.type ?? 'Google authorization failed')))
       },
     })
-    client.requestAccessToken({ prompt: interactive ? '' : 'none' })
+    client.requestCode()
     window.setTimeout(() => {
       settle(() => reject(new GoogleAuthError('Google authorization timed out')))
     }, 60_000)
   })
 }
 
+async function exchangeTokens(body: { code: string } | Record<string, never>): Promise<string> {
+  const response = await fetch(TOKEN_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XmlHttpRequest',
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify(body),
+  })
+  const payload = (await response.json().catch(() => null)) as TokenPayload | null
+  if (!response.ok || !payload?.access_token) {
+    const message =
+      payload?.message ?? payload?.error ?? `Google token exchange failed (${response.status})`
+    if (response.status === 401 || response.status === 403) {
+      throw new GoogleAuthError(message)
+    }
+    throw new Error(message)
+  }
+  accessToken = payload.access_token
+  expiresAt = Date.now() + (payload.expires_in ?? 3600) * 1000
+  return payload.access_token
+}
+
+async function requestCodeAndExchange(): Promise<string> {
+  const code = await requestCode()
+  return exchangeTokens({ code })
+}
+
 export async function getAccessToken(interactive: boolean): Promise<string> {
   if (hasAccessToken() && accessToken) return accessToken
-  return requestToken(interactive)
+  return interactive ? requestCodeAndExchange() : exchangeTokens({})
 }
 
 export function clearAccessToken(): void {
-  if (accessToken && window.google?.accounts?.oauth2?.revoke) {
-    window.google.accounts.oauth2.revoke(accessToken)
-  }
   accessToken = null
   expiresAt = 0
+  void fetch(TOKEN_ENDPOINT, {
+    method: 'DELETE',
+    headers: { 'X-Requested-With': 'XmlHttpRequest' },
+    credentials: 'same-origin',
+  }).catch(() => {})
 }

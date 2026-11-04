@@ -10,15 +10,17 @@
 - **Google Drive snapshot sync (opened 2026-11-04):** add optional cross-device sync for the same single-user dataset, so phone and desktop see the same transactions and budgets without manual file transfer. Local data stays authoritative; sync is one JSON snapshot in Google Drive's hidden `appDataFolder`, guarded by a remote version/ETag.
 
   **Decisions (closed — do not relitigate):**
-  - **Google Drive `appDataFolder` only.** OAuth through Google Identity Services with the `drive.appdata` scope; no backend and no client secret. The app never sees the user's other Drive files.
+  - **Google Drive `appDataFolder` only.** OAuth through Google Identity Services with the `drive.appdata` scope. A single stateless Cloudflare Pages Function exchanges the authorization code and holds the client secret; there is no sync backend, database, or stored user data. The app never sees the user's other Drive files.
+  - **Refresh-token auth.** GIS code model in popup mode; refresh token in an `HttpOnly` cookie scoped to `/api/google`; access token in memory. Replaces the token model, which forced re-consent every few minutes.
   - **One snapshot, not a sync engine.** Upload `{ transactions, budgets }` as `finances.json`. No outbox, tombstones, per-record `_syncStatus`, CRDT, or field-level merge.
   - **Local-first.** `localStorage` remains the primary store; sync never blocks a local write. IndexedDB migration is out of scope.
   - **Triggers:** app start, `online`, tab visibility, and a manual **Sync now**. Debounce local changes ~4 s. No Background Sync API and no polling.
-  - **Version guard.** Persist `lastSyncedRemoteVersion` / `lastSyncedAt` and a dirty flag. Before updating, compare the remote version and use `If-Match`/ETag. If the remote changed and local is dirty, prompt **Download** / **Overwrite**. No silent clobber.
+  - **Version guard.** Persist `lastSyncedRemoteVersion` / `lastSyncedAt`, a dirty flag, and a hash of the last uploaded snapshot. Before updating, compare the remote version and use `If-Match`/ETag. If the remote changed and local is dirty, prompt **Pull** / **Push**. No silent clobber, and a remote version carrying our own last upload is not a conflict.
   - **Strict render isolation.** Sync state lives outside `FinanceContext`; `TransactionTable` must not re-render because sync state changed. Serialization runs in `requestIdleCallback`/after paint; upload is a background `fetch`.
 
   **Trade-offs / risks:**
-  - **Google-only dependency.** OAuth access tokens are short-lived; a reconnect may be required when silent renewal fails. Test the standalone PWA flow on iOS before calling it done.
+  - **Google-only dependency.** The Cloudflare Pages Function is now part of the trust boundary: it holds the client secret and the refresh-token cookie, so Origin/CSRF checks and rate limiting matter. Test the standalone PWA flow on iOS before calling it done.
+  - **Testing-mode refresh tokens** expire after seven days until the OAuth consent screen is published; a weekly reconnect is possible during development.
   - **Full snapshot per settled change.** Fine at current data size, but only if it stays off the render path. A per-record sync model is explicitly rejected.
   - **The stale-device prompt is the only conflict UI.** Concurrent editing is unsupported by design; two offline edits still surface one prompt rather than merging.
   - **`appDataFolder` is private to the app, not end-to-end encrypted.** Google can read the file. Passphrase encryption is deferred.
@@ -29,10 +31,10 @@
   - First sync creates `finances.json` in `appDataFolder`; later syncs update the same file.
   - Add, edit, and delete on device A; sync; device B reloads and sees the change. The reverse direction works too.
   - An offline edit on A persists locally and uploads on reconnect, visibility, or **Sync now**; no data is lost.
-  - If the remote version changed since the last sync and local is dirty, the Download/Overwrite prompt appears. Choosing Download replaces local; Overwrite uploads; neither path silently clobbers.
+  - If the remote version changed since the last sync and local is dirty, the Pull/Push prompt appears. Choosing Pull replaces local; Push uploads; neither path silently clobbers.
   - Sync status is visible: last synced time, syncing, error, and reconnect. No toast spam.
   - **Performance guard:** capture a baseline 4x-throttled mobile trace of the current transactions page at ~1,097 rows. Sync must add no long task over 100 ms, no extra `TransactionTable` render, and no measurable change to mutation-to-paint.
-  - `bun run typecheck`, `bunx biome check src/`, `bun test`, `bun run build` all green.
+  - `bun run typecheck`, `bunx biome check src/ functions/`, `bun test`, `bun run build` all green.
   - **Lead Architect verifies the phone + desktop round trip with the same Google account.**
 
   **Out of Scope:**
@@ -41,7 +43,7 @@
   - Background Sync API; sync triggers are app start, `online`, visibility, and manual action only.
   - End-to-end encryption / passphrase UX.
   - Multi-user or shared datasets; concurrent editing.
-  - Dropbox, OneDrive, remoteStorage, or a custom sync backend.
+  - Dropbox, OneDrive, remoteStorage, or a custom sync backend. The Cloudflare Function only exchanges OAuth tokens; it stores no sync data.
   - Real-time sync or polling.
   - Reworking the transaction table's remaining performance problems; that is a separate concern.
 

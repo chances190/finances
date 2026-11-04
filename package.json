@@ -7,9 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "deploy": "bun run build && bunx wrangler pages deploy dist --project-name finances-chances190",
+    "dev:api": "bun run build && bunx wrangler pages dev dist",
     "preview": "vite preview",
-    "format": "biome check --write src/",
-    "lint": "biome check src/",
+    "format": "biome check --write src/ functions/",
+    "lint": "biome check src/ functions/",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
