@@ -5,10 +5,24 @@ import {
   useContext,
   useEffect,
   useReducer,
+  useRef,
 } from 'react'
-import { v4 as uuid } from 'uuid'
 import { loadData, saveData } from '../../data/repository'
 import type { AuditEntry, Budget, FinanceData, Transaction } from '../../domain/entities'
+
+function scheduleSave(callback: () => void): number {
+  return typeof window.requestIdleCallback === 'function'
+    ? window.requestIdleCallback(callback)
+    : window.setTimeout(callback, 0)
+}
+
+function cancelSave(handle: number): void {
+  if (typeof window.cancelIdleCallback === 'function') {
+    window.cancelIdleCallback(handle)
+  } else {
+    window.clearTimeout(handle)
+  }
+}
 
 export interface FinanceState {
   transactions: Transaction[]
@@ -27,12 +41,15 @@ export type FinanceAction =
   | { type: 'UPSERT_BUDGET'; payload: Budget }
   | { type: 'DELETE_BUDGET'; payload: string }
   | { type: 'IMPORT'; payload: FinanceData }
+  | { type: 'APPLY_REMOTE'; payload: FinanceData }
   | { type: 'UNDO'; payload: string }
   | { type: 'REDO' }
   | { type: 'CLEAR_AUDIT' }
 
 function snapshot(state: FinanceState): { transactions: Transaction[]; budgets: Budget[] } {
-  return { transactions: [...state.transactions], budgets: [...state.budgets] }
+  // Every reducer mutation replaces these arrays instead of mutating them, so
+  // snapshots can share the references without an O(n) copy per action.
+  return { transactions: state.transactions, budgets: state.budgets }
 }
 
 function describeAction(action: FinanceAction): string {
@@ -166,6 +183,13 @@ function reducer(state: FinanceState, action: FinanceAction): FinanceState {
       }
     }
 
+    case 'APPLY_REMOTE':
+      return {
+        ...state,
+        transactions: action.payload.transactions,
+        budgets: action.payload.budgets,
+      }
+
     case 'CLEAR_AUDIT':
       return { ...state, auditLog: [], redoStack: [] }
 
@@ -177,7 +201,7 @@ function reducer(state: FinanceState, action: FinanceAction): FinanceState {
         ...next,
         auditLog: [
           {
-            id: uuid(),
+            id: crypto.randomUUID(),
             timestamp: Date.now(),
             description: describeAction(action),
             snapshot: before,
@@ -204,16 +228,41 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     loaded: false,
   })
 
+  const skipInitialSave = useRef(true)
+  const latestState = useRef(state)
+
+  useEffect(() => {
+    latestState.current = state
+  }, [state])
+
   useEffect(() => {
     const saved = loadData()
     dispatch({ type: 'LOAD', payload: saved ?? { transactions: [], budgets: [] } })
   }, [])
 
   useEffect(() => {
-    if (state.loaded) {
-      saveData({ transactions: state.transactions, budgets: state.budgets })
+    if (!state.loaded) return
+    if (skipInitialSave.current) {
+      skipInitialSave.current = false
+      return
     }
+    const handle = scheduleSave(() =>
+      saveData({ transactions: state.transactions, budgets: state.budgets }),
+    )
+    return () => cancelSave(handle)
   }, [state.transactions, state.budgets, state.loaded])
+
+  useEffect(() => {
+    const flush = () => {
+      if (!latestState.current.loaded) return
+      saveData({
+        transactions: latestState.current.transactions,
+        budgets: latestState.current.budgets,
+      })
+    }
+    window.addEventListener('pagehide', flush)
+    return () => window.removeEventListener('pagehide', flush)
+  }, [])
 
   return <FinanceContext.Provider value={{ state, dispatch }}>{children}</FinanceContext.Provider>
 }

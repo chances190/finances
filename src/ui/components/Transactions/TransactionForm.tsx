@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
-import { v4 as uuid } from 'uuid'
+import { lazy, Suspense, startTransition, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { MoneyInput } from '@/components/ui/money-input'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import {
   Select,
@@ -21,12 +21,13 @@ import {
   isIncomePaymentMethod,
 } from '@/domain/constants'
 import type { Debt, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
-import { addCurrency, formatCurrency, parseCurrency } from '@/lib/currency'
+import { addCurrency, formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
-import ImportDialog from '@/ui/components/Common/ImportDialog'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
 import DebtConfigModal from './DebtConfigModal'
+
+const ImportDialog = lazy(() => import('@/ui/components/Common/ImportDialog'))
 
 interface EditFormState {
   type: TransactionType
@@ -44,6 +45,33 @@ interface TransactionFormProps {
   editTransaction?: Transaction | null
 }
 
+function initialForm(
+  editTransaction: Transaction | null | undefined,
+  defaultCategory: string,
+): EditFormState {
+  if (editTransaction) {
+    return {
+      type: editTransaction.type,
+      date: editTransaction.date,
+      amount: formatPlainCurrency(editTransaction.amount),
+      description: editTransaction.description,
+      category: editTransaction.category,
+      paymentMethod: editTransaction.paymentMethod,
+      installmentTotal:
+        editTransaction.type === 'Expense' ? (editTransaction.installments ?? 1) : 1,
+    }
+  }
+  return {
+    type: 'Expense',
+    date: localYMD(),
+    amount: '',
+    description: '',
+    category: defaultCategory,
+    paymentMethod: 'Debit/PIX',
+    installmentTotal: 1,
+  }
+}
+
 export default function TransactionForm({
   open,
   onOpenChange,
@@ -54,15 +82,9 @@ export default function TransactionForm({
   const defaultCategory =
     categoryOptionsForMonth(currentYM(), state.budgets, state.transactions)[0] ?? 'Other'
 
-  const [form, setForm] = useState<EditFormState>({
-    type: 'Expense',
-    date: '',
-    amount: '',
-    description: '',
-    category: defaultCategory,
-    paymentMethod: 'Debit/PIX',
-    installmentTotal: 1,
-  })
+  const [form, setForm] = useState<EditFormState>(() =>
+    initialForm(editTransaction, defaultCategory),
+  )
 
   const categories = useMemo(() => {
     const month = form.date ? monthOf(form.date) : currentYM()
@@ -70,7 +92,9 @@ export default function TransactionForm({
     return options.includes(form.category) ? options : [form.category, ...options]
   }, [form.date, form.category, state.budgets, state.transactions])
 
-  const [debts, setDebts] = useState<Debt[]>([])
+  const [debts, setDebts] = useState<Debt[]>(() =>
+    editTransaction?.type === 'Expense' && editTransaction.debts ? [...editTransaction.debts] : [],
+  )
   const [showDebtConfig, setShowDebtConfig] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const [showCsvImport, setShowCsvImport] = useState(false)
@@ -84,7 +108,7 @@ export default function TransactionForm({
       setForm({
         type: editTransaction.type,
         date: editTransaction.date,
-        amount: String(editTransaction.amount),
+        amount: formatPlainCurrency(editTransaction.amount),
         description: editTransaction.description,
         category: editTransaction.category,
         paymentMethod: editTransaction.paymentMethod,
@@ -134,7 +158,7 @@ export default function TransactionForm({
     if (form.type === 'Income') {
       if (!isIncomePaymentMethod(form.paymentMethod)) return
       commit({
-        id: editTransaction?.id ?? uuid(),
+        id: editTransaction?.id ?? crypto.randomUUID(),
         type: 'Income',
         date: form.date,
         description: form.description,
@@ -148,7 +172,7 @@ export default function TransactionForm({
 
     if (!isExpensePaymentMethod(form.paymentMethod)) return
     commit({
-      id: editTransaction?.id ?? uuid(),
+      id: editTransaction?.id ?? crypto.randomUUID(),
       type: 'Expense',
       date: form.date,
       description: form.description,
@@ -164,12 +188,14 @@ export default function TransactionForm({
   }
 
   function commit(transaction: Transaction) {
-    if (editTransaction) {
-      dispatch({ type: 'UPDATE_TRANSACTION', payload: transaction })
-    } else {
-      dispatch({ type: 'ADD_TRANSACTIONS', payload: [transaction] })
-      toast('Transaction added', 'success')
-    }
+    startTransition(() => {
+      if (editTransaction) {
+        dispatch({ type: 'UPDATE_TRANSACTION', payload: transaction })
+      } else {
+        dispatch({ type: 'ADD_TRANSACTIONS', payload: [transaction] })
+      }
+    })
+    if (!editTransaction) toast('Transaction added', 'success')
     onOpenChange(false)
   }
 
@@ -220,12 +246,10 @@ export default function TransactionForm({
                 <Label htmlFor="tx-amount" className="text-xs">
                   Amount (R$)
                 </Label>
-                <Input
+                <MoneyInput
                   id="tx-amount"
-                  type="text"
-                  inputMode="decimal"
                   value={form.amount}
-                  onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                  onValueChange={(amount) => setForm((f) => ({ ...f, amount }))}
                 />
               </div>
             </div>
@@ -320,7 +344,7 @@ export default function TransactionForm({
               </div>
             )}
 
-            {form.type === 'Expense' && form.paymentMethod !== 'Voucher Debit' && (
+            {form.type === 'Expense' && (
               <div className="space-y-2 border-t border-border pt-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -401,24 +425,30 @@ export default function TransactionForm({
         </DialogContent>
       </Dialog>
 
-      <DebtConfigModal
-        open={showDebtConfig}
-        onOpenChange={setShowDebtConfig}
-        debts={debts}
-        onRemoveAll={() => setShowRemoveConfirm(true)}
-        onDebtsChange={(d) => {
-          setDebts(d)
-          setShowDebtConfig(false)
-        }}
-        totalAmount={amount}
-      />
+      {showDebtConfig && (
+        <DebtConfigModal
+          open
+          onOpenChange={setShowDebtConfig}
+          debts={debts}
+          onRemoveAll={() => setShowRemoveConfirm(true)}
+          onDebtsChange={(d) => {
+            setDebts(d)
+            setShowDebtConfig(false)
+          }}
+          totalAmount={amount}
+        />
+      )}
 
-      <ImportDialog
-        open={showCsvImport}
-        onOpenChange={setShowCsvImport}
-        mode="transactions"
-        onImported={() => onOpenChange(false)}
-      />
+      {showCsvImport && (
+        <Suspense fallback={null}>
+          <ImportDialog
+            open
+            onOpenChange={setShowCsvImport}
+            mode="transactions"
+            onImported={() => onOpenChange(false)}
+          />
+        </Suspense>
+      )}
 
       <ConfirmDialog
         open={showRemoveConfirm}

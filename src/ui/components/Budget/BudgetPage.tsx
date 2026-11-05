@@ -255,21 +255,23 @@ export default function BudgetPage() {
         </div>
       )}
 
-      <BudgetFormDialog
-        open={showForm}
-        onOpenChange={(o) => {
-          setShowForm(o)
-          if (!o) {
-            setEditingMonth(null)
-            setEditingRange(null)
-          }
-        }}
-        editingMonth={editingMonth}
-        editingRange={editingRange}
-        existingBudget={existingBudget}
-        nextMonth={nextMonth}
-        onDelete={() => editingBudgetRange && handleDelete(editingBudgetRange)}
-      />
+      {showForm && (
+        <BudgetFormDialog
+          open
+          onOpenChange={(o) => {
+            setShowForm(o)
+            if (!o) {
+              setEditingMonth(null)
+              setEditingRange(null)
+            }
+          }}
+          editingMonth={editingMonth}
+          editingRange={editingRange}
+          existingBudget={existingBudget}
+          nextMonth={nextMonth}
+          onDelete={() => editingBudgetRange && handleDelete(editingBudgetRange)}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmDeleteRange !== null}

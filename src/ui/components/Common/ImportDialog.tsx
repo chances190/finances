@@ -1,6 +1,5 @@
 import { FileCodeIcon, FileCsvIcon, FileTextIcon } from '@phosphor-icons/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { v4 as uuid } from 'uuid'
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -22,6 +21,7 @@ import { importCSV } from '@/data/exchange/csv'
 import { importOFX } from '@/data/exchange/ofx'
 import type { Budget, Transaction } from '@/domain/entities'
 import { formatCurrency } from '@/lib/currency'
+import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
 
 type SkippedInfo = {
@@ -61,6 +61,7 @@ export default function ImportDialog({
   const readersRef = useRef<FileReader[]>([])
   const [preview, setPreview] = useState<PreviewData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   const abortReaders = useCallback(() => {
     for (const reader of readersRef.current) reader.abort()
@@ -74,6 +75,7 @@ export default function ImportDialog({
   }, [abortReaders])
 
   useEffect(() => {
+    setShowConfirm(false)
     if (open) {
       setPreview(null)
       setError(null)
@@ -103,7 +105,7 @@ export default function ImportDialog({
       return
     }
     if (mode === 'transactions' && isJson) {
-      setError('Backup (.json) imports live on the Actions tab')
+      setError('Use Import Backup (.json) on the Actions tab for .json backups')
       return
     }
     if (mode === 'backup' && !files.every((file) => file.name.toLowerCase().endsWith('.json'))) {
@@ -194,26 +196,37 @@ export default function ImportDialog({
 
   function handleImport() {
     if (!preview) return
-    if (preview.fullBackup) {
-      dispatch({
-        type: 'IMPORT',
-        payload: { transactions: preview.transactions, budgets: preview.budgets },
-      })
-    } else {
-      dispatch({
-        type: 'ADD_TRANSACTIONS',
-        payload: preview.transactions.map((transaction) => ({
-          ...transaction,
-          id: transaction.id || uuid(),
-        })),
-      })
-      for (const budget of preview.budgets) {
-        dispatch({ type: 'UPSERT_BUDGET', payload: budget })
+    startTransition(() => {
+      if (preview.fullBackup) {
+        dispatch({
+          type: 'IMPORT',
+          payload: { transactions: preview.transactions, budgets: preview.budgets },
+        })
+      } else {
+        dispatch({
+          type: 'ADD_TRANSACTIONS',
+          payload: preview.transactions.map((transaction) => ({
+            ...transaction,
+            id: transaction.id || crypto.randomUUID(),
+          })),
+        })
+        for (const budget of preview.budgets) {
+          dispatch({ type: 'UPSERT_BUDGET', payload: budget })
+        }
       }
-    }
+    })
     setPreview(null)
     onOpenChange(false)
     onImported?.()
+  }
+
+  function requestImport() {
+    if (!preview) return
+    if (preview.fullBackup) {
+      setShowConfirm(true)
+      return
+    }
+    handleImport()
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -222,142 +235,158 @@ export default function ImportDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>
-            {mode === 'transactions' ? 'Import transactions' : 'Import backup'}
-          </DialogTitle>
-          <DialogDescription>
-            {mode === 'transactions'
-              ? 'Drop .csv exchange files or bank .ofx statements here.'
-              : 'Drop a .json backup (transactions + budgets). This replaces the current data.'}
-          </DialogDescription>
-        </DialogHeader>
-
-        {!preview && !error && (
-          <button
-            type="button"
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-            className="border-2 border-dashed border-border p-8 text-center space-y-3 cursor-pointer hover:bg-muted/50 transition-colors w-full"
-            onClick={() => fileRef.current?.click()}
-          >
-            <div className="flex justify-center gap-2 text-muted-foreground">
-              {mode === 'transactions' ? (
-                <>
-                  <FileCsvIcon size={24} />
-                  <FileCodeIcon size={24} />
-                </>
-              ) : (
-                <FileTextIcon size={24} />
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {mode === 'transactions' ? 'Import transactions' : 'Import backup'}
+            </DialogTitle>
+            <DialogDescription>
               {mode === 'transactions'
-                ? 'Drop .csv or .ofx files here, or click to browse'
-                : 'Drop a .json file here, or click to browse'}
-            </p>
-            <input
-              ref={fileRef}
-              type="file"
-              multiple
-              accept={mode === 'transactions' ? '.csv,.ofx' : '.json'}
-              onChange={(e) => {
-                const files = Array.from(e.target.files ?? [])
-                e.target.value = ''
-                void handleFiles(files)
-              }}
-              className="hidden"
-            />
-          </button>
-        )}
+                ? 'Drop .csv exchange files or bank .ofx statements here.'
+                : 'Drop a .json backup (transactions + budgets). This replaces the current data.'}
+            </DialogDescription>
+          </DialogHeader>
 
-        {error && (
-          <div className="bg-destructive/10 text-destructive text-xs p-3">
-            {error}
-            <Button
-              variant="ghost"
-              size="xs"
-              className="ml-2"
-              onClick={() => setError(null)}
-              aria-label="Dismiss error"
-            >
-              Dismiss
-            </Button>
-          </div>
-        )}
+          <div className="min-h-0 space-y-3 overflow-y-auto">
+            {!preview && !error && (
+              <button
+                type="button"
+                onDrop={handleDrop}
+                onDragOver={(e) => e.preventDefault()}
+                className="w-full cursor-pointer space-y-3 border-2 border-dashed border-border p-6 text-center transition-colors hover:bg-muted/50 sm:p-8"
+                onClick={() => fileRef.current?.click()}
+              >
+                <div className="flex justify-center gap-2 text-muted-foreground">
+                  {mode === 'transactions' ? (
+                    <>
+                      <FileCsvIcon size={24} />
+                      <FileCodeIcon size={24} />
+                    </>
+                  ) : (
+                    <FileTextIcon size={24} />
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {mode === 'transactions'
+                    ? 'Drop .csv or .ofx files here, or click to browse'
+                    : 'Drop a .json file here, or click to browse'}
+                </p>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  multiple
+                  accept={mode === 'transactions' ? '.csv,.ofx' : '.json'}
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files ?? [])
+                    e.target.value = ''
+                    void handleFiles(files)
+                  }}
+                  className="hidden"
+                />
+              </button>
+            )}
 
-        {preview && (
-          <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">
-              {preview.label} — {preview.transactions.length} transaction
-              {preview.transactions.length !== 1 ? 's' : ''} found
-              {preview.fullBackup &&
-                ` and ${preview.budgets.length} budget${preview.budgets.length !== 1 ? 's' : ''}`}
-              {preview.source && ` (${preview.source === 'card' ? 'credit card' : 'bank account'})`}
-              {preview.skipped.entries.length > 0 && ` — ${preview.skipped.entries.length} skipped`}
-            </p>
-            {preview.skipped.entries.length > 0 && (
-              <div className="bg-muted/50 text-xs p-2 space-y-0.5 max-h-24 overflow-y-auto">
-                {preview.skipped.entries.map((s, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: static display list
-                  <div key={i} className="text-muted-foreground">
-                    <span className="font-medium">{s.label}:</span> {s.reason}
-                  </div>
-                ))}
+            {error && (
+              <div className="bg-destructive/10 p-3 text-xs text-destructive">
+                {error}
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="ml-2"
+                  onClick={() => setError(null)}
+                  aria-label="Dismiss error"
+                >
+                  Dismiss
+                </Button>
               </div>
             )}
-            <div className="border border-border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Payment</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {preview.transactions.slice(0, 50).map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell className="text-muted-foreground">{t.date}</TableCell>
-                      <TableCell>{t.type}</TableCell>
-                      <TableCell className="max-w-32 truncate">{t.description}</TableCell>
-                      <TableCell>{t.category}</TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatCurrency(t.amount)}
-                      </TableCell>
-                      <TableCell>{t.paymentMethod}</TableCell>
-                    </TableRow>
-                  ))}
-                  {preview.transactions.length > 50 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground">
-                        ...and {preview.transactions.length - 50} more
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setPreview(null)
-                  setError(null)
-                }}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleImport}>Import</Button>
-            </div>
+
+            {preview && (
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  {preview.label} — {preview.transactions.length} transaction
+                  {preview.transactions.length !== 1 ? 's' : ''} found
+                  {preview.fullBackup &&
+                    ` and ${preview.budgets.length} budget${preview.budgets.length !== 1 ? 's' : ''}`}
+                  {preview.source &&
+                    ` (${preview.source === 'card' ? 'credit card' : 'bank account'})`}
+                  {preview.skipped.entries.length > 0 &&
+                    ` — ${preview.skipped.entries.length} skipped`}
+                </p>
+                {preview.skipped.entries.length > 0 && (
+                  <div className="max-h-24 space-y-0.5 overflow-y-auto bg-muted/50 p-2 text-xs">
+                    {preview.skipped.entries.map((s, i) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: static display list
+                      <div key={i} className="text-muted-foreground">
+                        <span className="font-medium">{s.label}:</span> {s.reason}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="max-h-64 overflow-y-auto border border-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Payment</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {preview.transactions.slice(0, 50).map((t) => (
+                        <TableRow key={t.id}>
+                          <TableCell className="text-muted-foreground">{t.date}</TableCell>
+                          <TableCell>{t.type}</TableCell>
+                          <TableCell className="max-w-32 truncate">{t.description}</TableCell>
+                          <TableCell>{t.category}</TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatCurrency(t.amount)}
+                          </TableCell>
+                          <TableCell>{t.paymentMethod}</TableCell>
+                        </TableRow>
+                      ))}
+                      {preview.transactions.length > 50 && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                            ...and {preview.transactions.length - 50} more
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setPreview(null)
+                      setError(null)
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={requestImport}>Import</Button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={showConfirm}
+        onOpenChange={setShowConfirm}
+        title="Replace all data?"
+        message="Importing a backup replaces every current transaction and budget. This cannot be undone with Ctrl+Z."
+        confirmLabel="Replace data"
+        destructive
+        onConfirm={handleImport}
+      />
+    </>
   )
 }

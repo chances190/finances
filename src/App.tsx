@@ -1,16 +1,18 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Route, Switch, useLocation } from 'wouter'
-import BudgetPage from './ui/components/Budget/BudgetPage'
-import AuditLogPanel from './ui/components/Common/AuditLogPanel'
 import ErrorBoundary from './ui/components/Common/ErrorBoundary'
 import MobileNav from './ui/components/Common/MobileNav'
 import Tabs from './ui/components/Common/Tabs'
-import DashboardPage from './ui/components/Dashboard/DashboardPage'
-import TrendsPage from './ui/components/Dashboard/TrendsPage'
-import DebtPage from './ui/components/Debts/DebtPage'
 import TransactionTable from './ui/components/Transactions/TransactionTable'
-import { FinanceProvider, useFinance } from './ui/context'
+import { FinanceProvider, SyncProvider, useFinance } from './ui/context'
 import { ToastProvider, useToast } from './ui/context/ToastContext'
+
+const BudgetPage = lazy(() => import('./ui/components/Budget/BudgetPage'))
+const SyncControl = lazy(() => import('./ui/components/Common/SyncControl'))
+const AuditLogPanel = lazy(() => import('./ui/components/Common/AuditLogPanel'))
+const DashboardPage = lazy(() => import('./ui/components/Dashboard/DashboardPage'))
+const TrendsPage = lazy(() => import('./ui/components/Dashboard/TrendsPage'))
+const DebtPage = lazy(() => import('./ui/components/Debts/DebtPage'))
 
 const tabs = [
   { key: '/', label: 'Transactions' },
@@ -69,7 +71,12 @@ function AppShell() {
       <header className="sticky top-0 z-40 border-b border-border bg-card pt-[env(safe-area-inset-top)]">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <h1 className="text-base font-heading font-bold">Finances</h1>
-          <MobileNav tabs={tabs} active={activeTab} onChange={(key) => navigate(key)} />
+          <div className="flex items-center gap-1">
+            <Suspense fallback={null}>
+              <SyncControl />
+            </Suspense>
+            <MobileNav tabs={tabs} active={activeTab} onChange={(key) => navigate(key)} />
+          </div>
         </div>
       </header>
 
@@ -78,17 +85,21 @@ function AppShell() {
           <Tabs tabs={tabs} active={activeTab} onChange={(key) => navigate(key)} />
         </div>
 
-        <Switch>
-          <Route path="/" component={TransactionTable} />
-          <Route path="/budgets" component={BudgetPage} />
-          <Route path="/debts" component={DebtPage} />
-          <Route path="/dashboard" component={DashboardPage} />
-          <Route path="/yearly" component={TrendsPage} />
-          <Route path="/history" component={AuditLogPanel} />
-          <Route>
-            <TransactionTable />
-          </Route>
-        </Switch>
+        <Suspense
+          fallback={<p className="py-8 text-center text-xs text-muted-foreground">Loading…</p>}
+        >
+          <Switch>
+            <Route path="/" component={TransactionTable} />
+            <Route path="/budgets" component={BudgetPage} />
+            <Route path="/debts" component={DebtPage} />
+            <Route path="/dashboard" component={DashboardPage} />
+            <Route path="/yearly" component={TrendsPage} />
+            <Route path="/history" component={AuditLogPanel} />
+            <Route>
+              <TransactionTable />
+            </Route>
+          </Switch>
+        </Suspense>
       </main>
     </div>
   )
@@ -98,9 +109,11 @@ export default function App() {
   return (
     <FinanceProvider>
       <ToastProvider>
-        <ErrorBoundary>
-          <AppShell />
-        </ErrorBoundary>
+        <SyncProvider>
+          <ErrorBoundary>
+            <AppShell />
+          </ErrorBoundary>
+        </SyncProvider>
       </ToastProvider>
     </FinanceProvider>
   )

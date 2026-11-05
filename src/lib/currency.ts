@@ -29,6 +29,11 @@ export function formatPlainCurrency(value: number): string {
   return c(value, { ...brlOpts, symbol: '' }).format()
 }
 
+export function maskMoneyInput(raw: string): string {
+  const cents = Number(raw.replace(/\D/g, '').slice(0, 15))
+  return cents > 0 ? formatPlainCurrency(cents / 100) : ''
+}
+
 export function formatAxisCurrency(value: number): string {
   return `R$ ${value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`
 }

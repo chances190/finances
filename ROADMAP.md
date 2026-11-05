@@ -1,55 +1,51 @@
 # Repository Roadmap
 
-*Goal: a feature-complete single-user personal finance tracker — transactions, budgets, debts, dashboard, trends, CSV import/export, dark mode. Direction: mobile usability now, then skeleton loading, then advance-pay.*
+*Goal: a feature-complete single-user personal finance tracker — transactions, budgets, debts, dashboard, trends, CSV import/export, dark mode. Direction: optional Google Drive sync now, then transactions re-profile, then skeleton loading, then advance-pay.*
 
 ---
 
 ## Active Card
 > *There can only be ONE Active Card at a time. Finish or push to Next before opening another.*
 
-- **Mobile design — from-scratch mobile surfaces (opened 2026-09-28, re-scoped the same day):** the desktop layout is not adapted to mobile. The two surfaces that cannot survive the adaptation get their own designs. Hard gate — the Lead Architect is the sole acceptance authority and this card iterates until they sign off. Do not self-certify it closed.
-
-  **Reference device:** 5.5" diagonal, 21:9 portrait → **360 CSS px wide, 840 CSS px tall** full screen. Browser chrome (~100px) means the layout gate is **360×740**. Everything keys off the **360px width**; if a real device reports otherwise, change this one number, not the card.
-
-  **Why the responsive approach was abandoned (measured, not assumed):** six labeled tabs need ~553px (`text-sm` glyphs + `px-4` per button + `gap-1`) against **328px** of available content at 360px. `TransactionTable` carries **640px of fixed column width** (`w-24`+`w-24`+`w-20`+`w-24`+`w-16`+`w-32`+`w-20`) before the `flex-1` description column receives a single pixel; `DebtPage`'s second table has 7 columns. Neither is reachable with CSS: dropping to `text-xs` still leaves ~60px per tab against a ~73px "Transactions" label. Horizontal scrolling kept every datum reachable and made the app feel bad, so it is not the answer. Desktop scans *across* a row to compare; mobile scans *down* a list to recognise. That is a different information hierarchy and has to be designed, not transformed.
-
-  **Current state (corrected — the previous version of this note was wrong):** the app is **not** desktop-fixed. 22 responsive variants across 9 files, and the dialog, form, dashboard and segmented-control work is already responsive. `Common/Tabs.tsx` and `Transactions/TransactionTable.tsx` have **zero** — not because they are fine, but because the strip overflows the page and the table delegates scrolling to the `Table` primitive. The card is aimed at those two surfaces, not at the whole app.
+- **Google Drive snapshot sync (opened 2026-11-04):** add optional cross-device sync for the same single-user dataset, so phone and desktop see the same transactions and budgets without manual file transfer. Local data stays authoritative; sync is one JSON snapshot in Google Drive's hidden `appDataFolder`, guarded by a remote version/ETag.
 
   **Decisions (closed — do not relitigate):**
-  - **One breakpoint: `sm` (640px).** The strip needs ~585px including shell padding, so 640px is the smallest Tailwind step above the real break point. This is an **invariant, not a default**: no per-surface thresholds, no `lg:` on a table. Two breakpoints would leave the nav and the tables disagreeing about what "desktop" means.
-  - **Nav → CSS-only.** The existing strip wraps in `hidden sm:block`; a hamburger trigger in the sticky header is `sm:hidden`. The header at `App.tsx:63-66` is already `flex items-center justify-between`, so the trigger drops in as a second child. Both read the same `tabs` array. No JS, and the desktop strip is untouched.
-  - **Drawer → a `side` variant on the existing `dialog.tsx`.** There is no `sheet.tsx` in `src/components/ui/`, and shadcn's own Sheet is a Dialog variant, so this reuses the existing overlay, ESC handling and focus trap instead of adding a primitive. Closes on navigate.
-  - **Tables → a JS branch.** A new `useMediaQuery` in `src/ui/hooks/` (`src/lib` holds pure functions only). Only one variant renders. *Mechanism rule, so the asymmetry does not look arbitrary: CSS when the duplicated subtree is static and small, a JS branch when it is data-sized.*
-  - **Nested lists — Debts and Categories are always visible inline.** Never collapsed, never truncated behind a count, no expand state. A tap is the friction this card exists to remove.
-  - **No ADR.** No new dependency, no data-model change, no boundary or paradigm change, and fully reversible. It fails the skill's own bar for the same reason ADR-0012 did.
+  - **Google Drive `appDataFolder` only.** OAuth through Google Identity Services with the `drive.appdata` scope. A single stateless Cloudflare Pages Function exchanges the authorization code and holds the client secret; there is no sync backend, database, or stored user data. The app never sees the user's other Drive files.
+  - **Refresh-token auth.** GIS code model in popup mode; refresh token in an `HttpOnly` cookie scoped to `/api/google`; access token in memory. Replaces the token model, which forced re-consent every few minutes.
+  - **One snapshot, not a sync engine.** Upload `{ transactions, budgets }` as `finances.json`. No outbox, tombstones, per-record `_syncStatus`, CRDT, or field-level merge.
+  - **Local-first.** `localStorage` remains the primary store; sync never blocks a local write. IndexedDB migration is out of scope.
+  - **Triggers:** app start, `online`, tab visibility, and a manual **Sync now**. Debounce local changes ~4 s. No Background Sync API and no polling.
+  - **Version guard.** Persist `lastSyncedRemoteVersion` / `lastSyncedAt`, a dirty flag, and a hash of the last uploaded snapshot. Before updating, compare the remote version and use `If-Match`/ETag. If the remote changed and local is dirty, prompt **Pull** / **Push**. No silent clobber, and a remote version carrying our own last upload is not a conflict.
+  - **Strict render isolation.** Sync state lives outside `FinanceContext`; `TransactionTable` must not re-render because sync state changed. Serialization runs in `requestIdleCallback`/after paint; upload is a background `fetch`.
 
   **Trade-offs / risks:**
-  - **Every future table column is now designed twice.** That is the standing cost and it is accepted. It is explicitly *not* mitigated by keeping the two variants in agreement, because the desktop table is not a target for the mobile one — they are independent designs. The only invariant is that no datum becomes inaccessible on mobile.
-  - **Three designs, not three reflows, and the transaction card is the hard one** — 8 fields plus a nested debt list carrying an inline settle action per debtor. "Always visible inline" is what makes those cards tall, and that is the accepted trade.
-  - **Static analysis cannot see the render.** The CSS can be plausible and wrong in ways no gate catches. The DoD is weighted toward facts the Lead Architect can measure, and this card is not closable by `@coder`.
+  - **Google-only dependency.** The Cloudflare Pages Function is now part of the trust boundary: it holds the client secret and the refresh-token cookie, so Origin/CSRF checks and rate limiting matter. Test the standalone PWA flow on iOS before calling it done.
+  - **Testing-mode refresh tokens** expire after seven days until the OAuth consent screen is published; a weekly reconnect is possible during development.
+  - **Full snapshot per settled change.** Fine at current data size, but only if it stays off the render path. A per-record sync model is explicitly rejected.
+  - **The stale-device prompt is the only conflict UI.** Concurrent editing is unsupported by design; two offline edits still surface one prompt rather than merging.
+  - **`appDataFolder` is private to the app, not end-to-end encrypted.** Google can read the file. Passphrase encryption is deferred.
+  - **OAuth verification.** Test-user mode is enough while undeployed; public release needs Google verification for the scope.
 
   **Acceptance Criteria (DoD):**
-  - **No datum is inaccessible at 360px.** For each of `TransactionTable`, `BudgetPage` and `DebtPage`, every value the desktop variant renders has a visible counterpart in the mobile variant, with debts and categories inline and untruncated. No "N more", no expand, no scroll-to-reveal.
-  - `document.documentElement.scrollWidth <= window.innerWidth` on all 6 routes at 360px.
-  - The hamburger opens a drawer listing all 6 destinations with full untruncated labels; selecting one navigates and closes the drawer.
-  - Above 640px the tab strip renders exactly as it does today — no restyle, no reflow.
-  - Add and edit a transaction end-to-end at 360px via `TransactionForm` with the `DebtConfigModal` sub-flow intact; every field and both primary actions reachable, no pinch-zoom.
-  - `CSVImportDialog` and `ConfirmDialog` are operable at 360px — dropzone, preview and buttons all reachable.
-  - Dashboard and Trends charts legible at 360px, with no clipped axis labels or legend overlap.
-  - Primary tap targets ≥ 40×40 CSS px, including the inline settle action in every debt row.
-  - `bun run typecheck`, `bunx biome check src/`, `bun test`, `bun run build` all green.
-  - **Lead Architect signs off in the browser at 360×740.** Until then the card stays open.
+  - Connect and disconnect Google Drive from a single control outside the transaction table; the granted scope is `drive.appdata` only and the app cannot list the user's other files.
+  - First sync creates `finances.json` in `appDataFolder`; later syncs update the same file.
+  - Add, edit, and delete on device A; sync; device B reloads and sees the change. The reverse direction works too.
+  - An offline edit on A persists locally and uploads on reconnect, visibility, or **Sync now**; no data is lost.
+  - If the remote version changed since the last sync and local is dirty, the Pull/Push prompt appears. Choosing Pull replaces local; Push uploads; neither path silently clobbers.
+  - Sync status is visible: last synced time, syncing, error, and reconnect. No toast spam.
+  - **Performance guard:** capture a baseline 4x-throttled mobile trace of the current transactions page at ~1,097 rows. Sync must add no long task over 100 ms, no extra `TransactionTable` render, and no measurable change to mutation-to-paint.
+  - `bun run typecheck`, `bunx biome check src/ functions/`, `bun test`, `bun run build` all green.
+  - **Lead Architect verifies the phone + desktop round trip with the same Google account.**
 
   **Out of Scope:**
-  - **The nine shared components stay single-path.** Dialogs, forms, StatCards, charts, badges, EmptyState and the input primitives get no mobile variant. Their responsive work is already done; this card must not leak into them.
-  - **Tablet-specific layouts.** One breakpoint means 640–840px uses the mobile design even where a table would technically fit. Accepted, not revisited here.
-  - Bottom nav — considered and declined in favour of a hamburger drawer.
-  - PWA / native shell / installability.
-  - Skeleton loading states — separate card in `## Next Cards`.
-  - Advance-pay — separate card.
-  - Desktop visual redesign. Above 640px nothing changes.
-  - New touch gestures (swipe-to-delete, pull-to-refresh).
-  - Row virtualization, card expansion/collapse, and per-row expand state.
+  - IndexedDB migration; `localStorage` stays.
+  - Outbox, tombstones, per-record sync metadata, CRDTs, field-level merge, or a conflict UI beyond the single stale-device prompt.
+  - Background Sync API; sync triggers are app start, `online`, visibility, and manual action only.
+  - End-to-end encryption / passphrase UX.
+  - Multi-user or shared datasets; concurrent editing.
+  - Dropbox, OneDrive, remoteStorage, or a custom sync backend. The Cloudflare Function only exchanges OAuth tokens; it stores no sync data.
+  - Real-time sync or polling.
+  - Reworking the transaction table's remaining performance problems; that is a separate concern.
 
 ---
 
@@ -57,6 +53,7 @@
 > *Direction-only one-liners for future work in this milestone.*
 
 - **Skeleton loading states for Dashboard:** Lightweight loading placeholders for `DashboardPage` (carried over from the old UI/UX plan, Commit 9 — never implemented). Kept separate from the mobile card on purpose: it is one file and near-mechanical, and bundling it would have blurred two unrelated DoDs.
+- **Transactions page re-profile:** capture a fresh 4x-throttled mobile trace of the virtualized transaction list at ~1,097 rows and identify any remaining long task over 100 ms. Kept separate from sync, which must not regress this baseline.
 - **Advance-pay for credit installments:** Let the user pay the next N installments now and shift the remainder. Requires a `paidInstallments` marker in the model — a domain change, so it wants its own card and likely an ADR.
 
 ---
@@ -64,6 +61,7 @@
 ## Done Cards
 > *Completed cards with objective outcomes.*
 
+- **Mobile design — from-scratch mobile surfaces (Active Card, opened 2026-09-28, closed 2026-11-04):** closed by Lead Architect sign-off at 360×740. The mobile surfaces and the 360px layout gate were accepted; no code changes in this close-out.
 - **UI/UX Consistency Pass + income/debt UX unification (Active Card, opened 2026-08-07, closed 2026-09-26):** 19 of 20 audit findings closed, plus a scoped close-out. Final pass (`b71a7d8`): `EmptyState` gained a `cell` variant and the three in-table empty states (`TransactionTable`, `BudgetPage`, `DebtPage`) now render through it; the single-split settle control in `DebtPage` became a ghost `Button` with `aria-label` (was plain text flipping `100%` ↔ `Settled`); `rounded-none` stripped from `CSVImportDialog`'s dropzone, error box and skipped list. Audit items (d) and B6 verified as already implemented and struck; (e) moot — the "Details" column no longer exists. Version-mismatch guidance dropped as a non-goal: the app is undeployed, so there is no legacy document to detect, and `AGENTS.md` forbids the compatibility shim an ADR for it would have prescribed. The audit doc behind the card was deleted on close; its findings live here and in git history. Net +87/−24, 195 tests, all gates green.
 - **Span-based smart input parser (2026-09-26, `91c7b4c`):** implemented to `docs/text-input-specification.md`, the spec being the source of truth. Replaced the token + regex pre-pass parser with a maximal-munch span lexer and the §3 commitment model: provisional candidates (bare weekdays, `hoje`/`ontem`/`anteontem`/`amanhã`) commit by default and are demoted into the Description only when committing would break it. New `dateGrammar.ts` is the single source of truth for §2.2 date forms — ordered sticky patterns for lexing, structured shapes for §4 completions — so parser and autocompleter cannot disagree. Categories/payment methods resolve against their registries, which is what makes `@Meal Voucher` a single span. `parseSmartInput` now takes the category registry. `parseDate.ts` deleted (no consumers; its English/`dd/mm` fallbacks fall outside §2.2). Net +1101 lines incl. 422 lines of spec-derived tests, 195 tests, all gates green.
 - **Bug Fix Backlog fully closed (2026-09-28):** the standing 2026-08-06 sweep is retired from the roadmap. All 6 HIGH items were closed by the HIGH sweep card below; all 7 MED items by the MED round (5) and the purchase-centric rebuild (2); both prior LOW items (dead `QuickAddRow.tsx`, tracked `tsconfig.tsbuildinfo`) closed in the same window. The final open LOW — `parseFloat` in the `TransactionForm` disabled-state check — verified closed: the check now calls `parseCurrency`. The 16 struck-through evidence rows were dropped rather than carried; their `file:line` citations were only actionable while the bugs were open.

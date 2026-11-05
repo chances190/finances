@@ -1,21 +1,5 @@
 import { ForkKnifeIcon, PiggyBank, TrendDownIcon, TrendUp } from '@phosphor-icons/react'
 import { useMemo } from 'react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ComposedChart,
-  Legend,
-  Line,
-  Pie,
-  PieChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { useLocation, useSearchParams } from 'wouter'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -39,12 +23,19 @@ import {
   spendingPace,
   totalByMonth,
 } from '@/domain/calculations'
-import { CHART_COLORS, PAYMENT_METHOD_CHART_COLORS } from '@/domain/constants'
+import { PAYMENT_METHOD_CHART_COLORS } from '@/domain/constants'
 import type { PaymentMethod } from '@/domain/entities'
-import { formatAxisCurrency, formatCurrency } from '@/lib/currency'
+import { formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
+import LazyChart from '@/ui/components/Common/LazyChart'
 import StatCard from '@/ui/components/Common/StatCard'
 import { useFinance } from '@/ui/context'
+import {
+  BudgetVsActualChart,
+  CumulativePaceChart,
+  DailyPaceChart,
+  PaymentMethodPie,
+} from './DashboardCharts'
 
 const PACE_STATUS: Record<PaceStatus, { label: string; color: string }> = {
   'on-track': { label: 'On track', color: 'text-green-600' },
@@ -268,166 +259,16 @@ export default function DashboardPage() {
 
           <div>
             <h4 className="text-xs font-medium text-muted-foreground mb-2">Daily (R$)</h4>
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={pace.daily}>
-                  <CartesianGrid vertical={false} strokeDasharray="2 4" stroke="var(--border)" />
-                  <ReferenceLine
-                    x={currentDay}
-                    stroke="var(--muted-foreground)"
-                    strokeDasharray="2 2"
-                    label={{
-                      value: 'Today',
-                      position: 'insideTopRight',
-                      fontSize: 10,
-                      fill: 'var(--muted-foreground)',
-                    }}
-                  />
-                  <XAxis
-                    dataKey="day"
-                    minTickGap={24}
-                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(v: number) => formatAxisCurrency(v)}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'var(--popover)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--foreground)',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                    }}
-                    formatter={(value: number) => formatCurrency(value)}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--foreground)' }} />
-                  <Bar
-                    dataKey="actual"
-                    name="Actual"
-                    fill="var(--primary)"
-                    opacity={0.45}
-                    radius={0}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="reference"
-                    name="Daily quota"
-                    stroke={CHART_COLORS.primary}
-                    strokeWidth={1.5}
-                    dot={false}
-                    strokeDasharray="4 4"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="trend"
-                    name="Trend"
-                    stroke={CHART_COLORS.projection}
-                    strokeWidth={1.5}
-                    dot={false}
-                    strokeDasharray="5 3"
-                    connectNulls
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="suggestion"
-                    name="Suggestion"
-                    stroke={CHART_COLORS.suggestion}
-                    strokeWidth={1.5}
-                    dot={false}
-                    strokeDasharray="2 3"
-                    connectNulls
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
+            <LazyChart className="h-56">
+              <DailyPaceChart data={pace.daily} currentDay={currentDay} />
+            </LazyChart>
           </div>
 
           <div>
             <h4 className="text-xs font-medium text-muted-foreground mb-2">Cumulative (R$)</h4>
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={pace.cumulative}>
-                  <CartesianGrid vertical={false} strokeDasharray="2 4" stroke="var(--border)" />
-                  <ReferenceLine
-                    x={currentDay}
-                    stroke="var(--muted-foreground)"
-                    strokeDasharray="2 2"
-                    label={{
-                      value: 'Today',
-                      position: 'insideTopRight',
-                      fontSize: 10,
-                      fill: 'var(--muted-foreground)',
-                    }}
-                  />
-                  <XAxis
-                    dataKey="day"
-                    minTickGap={24}
-                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(v: number) => formatAxisCurrency(v)}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'var(--popover)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--foreground)',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                    }}
-                    formatter={(value: number) => formatCurrency(value)}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--foreground)' }} />
-                  <Bar
-                    dataKey="actual"
-                    name="Actual"
-                    fill="var(--primary)"
-                    opacity={0.45}
-                    radius={0}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="reference"
-                    name="Daily quota"
-                    stroke={CHART_COLORS.primary}
-                    strokeWidth={1.5}
-                    dot={false}
-                    strokeDasharray="4 4"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="trend"
-                    name="Trend"
-                    stroke={CHART_COLORS.projection}
-                    strokeWidth={1.5}
-                    dot={false}
-                    strokeDasharray="5 3"
-                    connectNulls
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="suggestion"
-                    name="Suggestion"
-                    stroke={CHART_COLORS.suggestion}
-                    strokeWidth={1.5}
-                    dot={false}
-                    strokeDasharray="2 3"
-                    connectNulls
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
+            <LazyChart className="h-56">
+              <CumulativePaceChart data={pace.cumulative} currentDay={currentDay} />
+            </LazyChart>
           </div>
         </div>
       )}
@@ -440,48 +281,9 @@ export default function DashboardPage() {
               No budget set for this month.
             </div>
           ) : (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={budgetVsActualData}>
-                  <CartesianGrid vertical={false} strokeDasharray="2 4" stroke="var(--border)" />
-                  <XAxis
-                    dataKey="category"
-                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(v: number) => formatAxisCurrency(v)}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'var(--popover)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--foreground)',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                    }}
-                    formatter={(value: number) => formatCurrency(value)}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--foreground)' }} />
-                  <Bar
-                    dataKey="budgeted"
-                    name="Budgeted"
-                    fill={CHART_COLORS.budgeted}
-                    radius={[2, 2, 0, 0]}
-                  />
-                  <Bar
-                    dataKey="actual"
-                    name="Actual"
-                    fill={CHART_COLORS.actual}
-                    radius={[2, 2, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <LazyChart className="h-64">
+              <BudgetVsActualChart data={budgetVsActualData} />
+            </LazyChart>
           )}
         </div>
 
@@ -493,35 +295,9 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="flex flex-col items-center">
-              <div className="h-48 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={paymentMethodData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={80}
-                    >
-                      {paymentMethodData.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        background: 'var(--popover)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--foreground)',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                      }}
-                      formatter={(value: number) => formatCurrency(value)}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              <LazyChart className="h-48 w-full">
+                <PaymentMethodPie data={paymentMethodData} />
+              </LazyChart>
               <div className="flex flex-wrap gap-3 justify-center mt-2">
                 {paymentMethodData.map((entry) => (
                   <div

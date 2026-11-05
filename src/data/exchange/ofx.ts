@@ -1,5 +1,4 @@
 import { parseSync } from 'ofx-js'
-import { v4 as uuid } from 'uuid'
 import type { Transaction } from '../../domain/entities'
 import { validateTransaction } from '../validation'
 
@@ -100,7 +99,7 @@ export function importOFX(content: string, existing: Transaction[]): OFXImportRe
     seen.add(importId)
 
     const base = {
-      id: uuid(),
+      id: crypto.randomUUID(),
       date,
       description: cleanPixMemo(memo) || 'Imported transaction',
       amount,

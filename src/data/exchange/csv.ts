@@ -1,5 +1,4 @@
 import Papa from 'papaparse'
-import { v4 as uuid } from 'uuid'
 import type { Transaction } from '../../domain/entities'
 import { monthlyFlows } from '../../domain/entities'
 import { parseCurrency, parseCurrencyStrict } from '../../lib/currency'
@@ -158,7 +157,7 @@ export function importCSV(csv: string): CSVImportResult {
     }
 
     const draft: Record<string, unknown> = {
-      id: uuid(),
+      id: crypto.randomUUID(),
       type: first.type,
       date: first.date,
       description: first.description || '',

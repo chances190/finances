@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { MoneyInput } from '@/components/ui/money-input'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { addMonths } from '@/domain/calculations'
 import { budgetCategoryNames, budgetForMonth } from '@/domain/categories'
@@ -116,8 +117,10 @@ export default function BudgetFormDialog({
   const [form, setForm] = useState<BudgetFormData>(() =>
     existingBudget ? formFromBudget(existingBudget) : emptyBudget(nextMonth, state.budgets),
   )
-  const [rangeEnd, setRangeEnd] = useState(nextMonth)
-  const [isRange, setIsRange] = useState(false)
+  const [rangeEnd, setRangeEnd] = useState(editingRange?.endMonth ?? nextMonth)
+  const [isRange, setIsRange] = useState(
+    editingRange ? editingRange.endMonth > editingRange.startMonth : false,
+  )
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [showAddCategory, setShowAddCategory] = useState(false)
@@ -346,24 +349,22 @@ export default function BudgetFormDialog({
                 <Label htmlFor="budget-income" className="text-xs">
                   Planned Income (R$)
                 </Label>
-                <Input
+                <MoneyInput
                   id="budget-income"
-                  type="text"
-                  inputMode="decimal"
                   value={form.plannedIncome}
-                  onChange={(e) => setForm((f) => ({ ...f, plannedIncome: e.target.value }))}
+                  onValueChange={(plannedIncome) => setForm((f) => ({ ...f, plannedIncome }))}
                 />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="budget-mealvoucher" className="text-xs">
                   Meal Voucher (R$)
                 </Label>
-                <Input
+                <MoneyInput
                   id="budget-mealvoucher"
-                  type="text"
-                  inputMode="decimal"
                   value={form.plannedMealVoucher}
-                  onChange={(e) => setForm((f) => ({ ...f, plannedMealVoucher: e.target.value }))}
+                  onValueChange={(plannedMealVoucher) =>
+                    setForm((f) => ({ ...f, plannedMealVoucher }))
+                  }
                 />
               </div>
             </div>
@@ -403,16 +404,14 @@ export default function BudgetFormDialog({
                         <Label htmlFor={catId} className="text-[10px] text-muted-foreground">
                           {cat}
                         </Label>
-                        <Input
+                        <MoneyInput
                           id={catId}
-                          type="text"
-                          inputMode="decimal"
                           placeholder="0"
                           value={form.categoryLimits[cat] ?? ''}
-                          onChange={(e) =>
+                          onValueChange={(limit) =>
                             setForm((f) => ({
                               ...f,
-                              categoryLimits: { ...f.categoryLimits, [cat]: e.target.value },
+                              categoryLimits: { ...f.categoryLimits, [cat]: limit },
                             }))
                           }
                         />

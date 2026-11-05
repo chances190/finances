@@ -1,6 +1,5 @@
 import { LightningAIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
-import { v4 as uuid } from 'uuid'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -10,9 +9,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
 import { splitEvenlyAcrossParticipants } from '@/domain/calculations'
 import type { Debt } from '@/domain/entities'
-import { addCurrency, formatCurrency, parseCurrency } from '@/lib/currency'
+import { addCurrency, formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
 import { useToast } from '@/ui/context/ToastContext'
 
 interface DebtSplitUI {
@@ -38,12 +38,14 @@ export default function DebtConfigModal({
   onRemoveAll,
   totalAmount,
 }: DebtConfigModalProps) {
-  const [splits, setSplits] = useState<DebtSplitUI[]>([])
+  const [splits, setSplits] = useState<DebtSplitUI[]>(() =>
+    debts.map((d) => ({ id: crypto.randomUUID(), name: d.name, amount: d.amount })),
+  )
   const { toast } = useToast()
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: open is intentional to reset on dialog open
   useEffect(() => {
-    setSplits(debts.map((d) => ({ id: uuid(), name: d.name, amount: d.amount })))
+    setSplits(debts.map((d) => ({ id: crypto.randomUUID(), name: d.name, amount: d.amount })))
   }, [debts, open])
 
   const assignedTotal = splits.reduce((s, d) => addCurrency(s, d.amount), 0)
@@ -53,7 +55,7 @@ export default function DebtConfigModal({
   const isOver = delta < -0.01
 
   function handleAddPerson() {
-    setSplits((prev) => [...prev, { id: uuid(), name: '', amount: 0 }])
+    setSplits((prev) => [...prev, { id: crypto.randomUUID(), name: '', amount: 0 }])
   }
 
   function handleUpdateSplit(id: string, patch: Partial<DebtSplitUI>) {
@@ -88,7 +90,7 @@ export default function DebtConfigModal({
   }
 
   function handleCancel() {
-    setSplits(debts.map((d) => ({ id: uuid(), name: d.name, amount: d.amount })))
+    setSplits(debts.map((d) => ({ id: crypto.randomUUID(), name: d.name, amount: d.amount })))
     onOpenChange(false)
   }
 
@@ -118,14 +120,12 @@ export default function DebtConfigModal({
                     onChange={(e) => handleUpdateSplit(split.id, { name: e.target.value })}
                     className="h-10 min-w-0 flex-1"
                   />
-                  <Input
-                    type="text"
-                    inputMode="decimal"
+                  <MoneyInput
                     placeholder="Amount"
                     aria-label={`Amount owed by ${split.name || `person ${index + 1}`}`}
-                    value={split.amount || ''}
-                    onChange={(e) =>
-                      handleUpdateSplit(split.id, { amount: parseCurrency(e.target.value) })
+                    value={split.amount ? formatPlainCurrency(split.amount) : ''}
+                    onValueChange={(amount) =>
+                      handleUpdateSplit(split.id, { amount: parseCurrency(amount) })
                     }
                     className="h-10 w-24 shrink-0 text-right font-mono"
                   />

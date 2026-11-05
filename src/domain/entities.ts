@@ -98,7 +98,17 @@ function owedCents(tx: ExpenseTransaction): number {
   return Math.min(owed, toCents(tx.amount))
 }
 
+const flowCache = new WeakMap<Transaction, MonthlyFlow[]>()
+
 export function monthlyFlows(tx: Transaction): MonthlyFlow[] {
+  const cached = flowCache.get(tx)
+  if (cached) return cached
+  const flows = computeMonthlyFlows(tx)
+  flowCache.set(tx, flows)
+  return flows
+}
+
+function computeMonthlyFlows(tx: Transaction): MonthlyFlow[] {
   const ym = dateToYM(tx.date)
 
   if (tx.type === 'Income') {

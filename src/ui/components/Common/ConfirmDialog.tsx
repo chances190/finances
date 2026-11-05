@@ -8,6 +8,7 @@ interface ConfirmDialogProps {
   message: string
   onConfirm: () => void
   confirmLabel?: string
+  destructive?: boolean
 }
 
 export default function ConfirmDialog({
@@ -17,6 +18,7 @@ export default function ConfirmDialog({
   message,
   onConfirm,
   confirmLabel = 'Confirm',
+  destructive = false,
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -30,6 +32,10 @@ export default function ConfirmDialog({
             Cancel
           </Button>
           <Button
+            variant={destructive ? 'destructive' : 'default'}
+            className={
+              destructive ? 'bg-destructive text-white hover:bg-destructive/90' : undefined
+            }
             onClick={() => {
               onConfirm()
               onOpenChange(false)
