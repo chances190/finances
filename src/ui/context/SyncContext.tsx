@@ -50,7 +50,7 @@ export interface SyncContextValue {
 }
 
 const SyncContext = createContext<SyncContextValue | null>(null)
-const SYNC_DEBOUNCE_MS = 4000
+const SYNC_DEBOUNCE_MS = 30000
 
 function isEmpty(data: FinanceData): boolean {
   return data.transactions.length === 0 && data.budgets.length === 0
