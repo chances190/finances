@@ -271,6 +271,7 @@ export default function TransactionForm({
                   Payment Method
                 </Label>
                 <Select
+                  modal={false}
                   value={form.paymentMethod}
                   onValueChange={(v) =>
                     setForm((f) => ({
@@ -283,7 +284,7 @@ export default function TransactionForm({
                   <SelectTrigger id="tx-payment" className="w-full min-w-0">
                     <SelectValue>{form.paymentMethod}</SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent alignItemWithTrigger={false}>
                     {(form.type === 'Income'
                       ? INCOME_PAYMENT_METHODS
                       : EXPENSE_PAYMENT_METHODS
@@ -301,13 +302,14 @@ export default function TransactionForm({
                     Category
                   </Label>
                   <Select
+                    modal={false}
                     value={form.category}
                     onValueChange={(v) => setForm((f) => ({ ...f, category: v ?? 'Other' }))}
                   >
                     <SelectTrigger id="tx-category" className="w-full min-w-0">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent alignItemWithTrigger={false}>
                       {categories.map((c) => (
                         <SelectItem key={c} value={c}>
                           {c}
