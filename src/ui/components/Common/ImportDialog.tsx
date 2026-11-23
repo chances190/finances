@@ -19,6 +19,12 @@ import {
 import { importJSON } from '@/data/backup/json'
 import { importCSV } from '@/data/exchange/csv'
 import { importOFX } from '@/data/exchange/ofx'
+import {
+  buildImportCommit,
+  type ImportPlan,
+  type MatchAction,
+  planImport,
+} from '@/data/exchange/reconcile'
 import type { Budget, Transaction } from '@/domain/entities'
 import { formatCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
@@ -31,10 +37,18 @@ type SkippedInfo = {
 type PreviewData = {
   transactions: Transaction[]
   budgets: Budget[]
+  plans: ImportPlan[]
   label: string
   fullBackup: boolean
   source?: 'card' | 'bank'
   skipped: SkippedInfo
+}
+
+function isBlocked(plan: ImportPlan): boolean {
+  return (
+    plan.action === null ||
+    ((plan.action === 'adopt' || plan.action === 'overwrite') && plan.targetId === null)
+  )
 }
 
 function decodeOFX(buffer: ArrayBuffer): string {
@@ -179,6 +193,7 @@ export default function ImportDialog({
       setPreview({
         transactions,
         budgets,
+        plans: fullBackup ? [] : planImport(transactions, state.transactions),
         label: files.length === 1 ? files[0].name : `${files.length} files`,
         fullBackup,
         source,
@@ -196,23 +211,31 @@ export default function ImportDialog({
 
   function handleImport() {
     if (!preview) return
+    const commit = preview.fullBackup ? null : buildImportCommit(preview.plans, state.transactions)
+    if (commit && commit.unresolved > 0) return
+
     startTransition(() => {
-      if (preview.fullBackup) {
+      if (!commit) {
         dispatch({
           type: 'IMPORT',
           payload: { transactions: preview.transactions, budgets: preview.budgets },
         })
-      } else {
+        return
+      }
+      if (commit.additions.length > 0) {
         dispatch({
           type: 'ADD_TRANSACTIONS',
-          payload: preview.transactions.map((transaction) => ({
+          payload: commit.additions.map((transaction) => ({
             ...transaction,
             id: transaction.id || crypto.randomUUID(),
           })),
         })
-        for (const budget of preview.budgets) {
-          dispatch({ type: 'UPSERT_BUDGET', payload: budget })
-        }
+      }
+      for (const transaction of commit.updates) {
+        dispatch({ type: 'UPDATE_TRANSACTION', payload: transaction })
+      }
+      for (const budget of preview.budgets) {
+        dispatch({ type: 'UPSERT_BUDGET', payload: budget })
       }
     })
     setPreview(null)
@@ -226,7 +249,74 @@ export default function ImportDialog({
       setShowConfirm(true)
       return
     }
+    const commit = buildImportCommit(preview.plans, state.transactions)
+    if (commit.unresolved > 0) return
     handleImport()
+  }
+
+  function updatePlan(transactionId: string, patch: Partial<ImportPlan>) {
+    setPreview((current) =>
+      current
+        ? {
+            ...current,
+            plans: current.plans.map((plan) =>
+              plan.transaction.id === transactionId ? { ...plan, ...patch } : plan,
+            ),
+          }
+        : current,
+    )
+  }
+
+  const unresolved = preview ? preview.plans.filter(isBlocked).length : 0
+  const matched = preview ? preview.plans.filter((plan) => plan.candidates.length > 0).length : 0
+
+  function renderAction(plan: ImportPlan) {
+    if (plan.candidates.length === 0) {
+      return <span className="text-xs text-muted-foreground">New</span>
+    }
+
+    const single = plan.candidates[0]
+    return (
+      <div className="min-w-36 space-y-1">
+        {plan.candidates.length > 1 && (
+          <select
+            aria-label="Match target"
+            value={plan.targetId ?? ''}
+            onChange={(event) =>
+              updatePlan(plan.transaction.id, { targetId: event.target.value || null })
+            }
+            className="h-8 w-full border border-input bg-transparent px-1 text-xs"
+          >
+            <option value="">Choose match…</option>
+            {plan.candidates.map((candidate) => (
+              <option key={candidate.id} value={candidate.id}>
+                {candidate.description || '—'} ({candidate.category})
+              </option>
+            ))}
+          </select>
+        )}
+        <select
+          aria-label="Match action"
+          value={plan.action ?? ''}
+          onChange={(event) =>
+            updatePlan(plan.transaction.id, {
+              action: (event.target.value || null) as MatchAction | null,
+            })
+          }
+          className="h-8 w-full border border-input bg-transparent px-1 text-xs"
+        >
+          {plan.candidates.length > 1 && <option value="">Choose action…</option>}
+          <option value="adopt">Adopt</option>
+          <option value="overwrite">Overwrite</option>
+          <option value="keep both">Keep both</option>
+        </select>
+        {plan.candidates.length === 1 && (
+          <p className="max-w-36 truncate text-[10px] text-muted-foreground">
+            {single.description || single.category}
+          </p>
+        )}
+      </div>
+    )
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -312,6 +402,7 @@ export default function ImportDialog({
                     ` and ${preview.budgets.length} budget${preview.budgets.length !== 1 ? 's' : ''}`}
                   {preview.source &&
                     ` (${preview.source === 'card' ? 'credit card' : 'bank account'})`}
+                  {matched > 0 && ` — ${matched} matched existing`}
                   {preview.skipped.entries.length > 0 &&
                     ` — ${preview.skipped.entries.length} skipped`}
                 </p>
@@ -335,22 +426,43 @@ export default function ImportDialog({
                         <TableHead>Category</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead>Payment</TableHead>
+                        {!preview.fullBackup && <TableHead>Action</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {preview.transactions.slice(0, 50).map((t) => (
-                        <TableRow key={t.id}>
-                          <TableCell className="text-muted-foreground">{t.date}</TableCell>
-                          <TableCell>{t.type}</TableCell>
-                          <TableCell className="max-w-32 truncate">{t.description}</TableCell>
-                          <TableCell>{t.category}</TableCell>
-                          <TableCell className="text-right font-mono">
-                            {formatCurrency(t.amount)}
-                          </TableCell>
-                          <TableCell>{t.paymentMethod}</TableCell>
-                        </TableRow>
-                      ))}
-                      {preview.transactions.length > 50 && (
+                      {preview.fullBackup
+                        ? preview.transactions.slice(0, 50).map((t) => (
+                            <TableRow key={t.id}>
+                              <TableCell className="text-muted-foreground">{t.date}</TableCell>
+                              <TableCell>{t.type}</TableCell>
+                              <TableCell className="max-w-32 truncate">{t.description}</TableCell>
+                              <TableCell>{t.category}</TableCell>
+                              <TableCell className="text-right font-mono">
+                                {formatCurrency(t.amount)}
+                              </TableCell>
+                              <TableCell>{t.paymentMethod}</TableCell>
+                            </TableRow>
+                          ))
+                        : preview.plans.map((plan) => {
+                            const t = plan.transaction
+                            return (
+                              <TableRow
+                                key={t.id}
+                                className={isBlocked(plan) ? 'bg-destructive/5' : undefined}
+                              >
+                                <TableCell className="text-muted-foreground">{t.date}</TableCell>
+                                <TableCell>{t.type}</TableCell>
+                                <TableCell className="max-w-32 truncate">{t.description}</TableCell>
+                                <TableCell>{t.category}</TableCell>
+                                <TableCell className="text-right font-mono">
+                                  {formatCurrency(t.amount)}
+                                </TableCell>
+                                <TableCell>{t.paymentMethod}</TableCell>
+                                <TableCell>{renderAction(plan)}</TableCell>
+                              </TableRow>
+                            )
+                          })}
+                      {preview.fullBackup && preview.transactions.length > 50 && (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center text-muted-foreground">
                             ...and {preview.transactions.length - 50} more
@@ -360,7 +472,12 @@ export default function ImportDialog({
                     </TableBody>
                   </Table>
                 </div>
-                <div className="flex flex-wrap justify-end gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {unresolved > 0 && (
+                    <p className="mr-auto text-xs text-destructive">
+                      Choose how to handle each highlighted match.
+                    </p>
+                  )}
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -370,7 +487,11 @@ export default function ImportDialog({
                   >
                     Cancel
                   </Button>
-                  <Button onClick={requestImport}>Import</Button>
+                  <Button onClick={requestImport} disabled={unresolved > 0}>
+                    {unresolved > 0
+                      ? `Resolve ${unresolved} match${unresolved !== 1 ? 'es' : ''}`
+                      : 'Import'}
+                  </Button>
                 </div>
               </div>
             )}
