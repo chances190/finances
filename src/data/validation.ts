@@ -146,7 +146,7 @@ export function validateTransaction(
   }
 }
 
-function parseBudget(value: unknown): Budget | null {
+export function parseBudget(value: unknown): Budget | null {
   if (!value || typeof value !== 'object') return null
   const b = value as Record<string, unknown>
   if (typeof b.referenceMonth !== 'string' || !isYearMonth(b.referenceMonth)) return null
