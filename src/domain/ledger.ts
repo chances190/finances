@@ -23,8 +23,8 @@ export const CASH_ACCOUNTS = ['checking', 'voucher', 'cash'] as const
 export type CashAccount = (typeof CASH_ACCOUNTS)[number]
 
 export const ACCOUNT_LABELS: Record<Account, string> = {
-  checking: 'Checking',
-  card: 'Card',
+  checking: 'Bank account',
+  card: 'Credit card',
   voucher: 'Voucher',
   cash: 'Cash',
   receivable: 'Owed to you',
@@ -491,25 +491,99 @@ export interface Outstanding {
   amount: number
 }
 
+export interface OutstandingMovement {
+  movementId: string
+  counterparty: string
+  direction: 'receivable' | 'payable'
+  description: string
+  date: string
+  total: number
+  settled: number
+  outstanding: number
+}
+
+export function outstandingMovements(
+  movements: Movement[],
+  direction: 'receivable' | 'payable',
+): OutstandingMovement[] {
+  const sources: (OutstandingMovement & { order: number })[] = []
+
+  movements.forEach((movement, order) => {
+    for (const posting of movement.postings) {
+      if (posting.account !== direction) continue
+      const counterparty = posting.counterparty?.trim()
+      if (!counterparty) continue
+      const amount = direction === 'receivable' ? posting.amount : -posting.amount
+      if (amount <= 0.004) continue
+      sources.push({
+        movementId: movement.id,
+        counterparty,
+        direction,
+        description: movement.description,
+        date: movement.date,
+        total: fromCents(toCents(amount)),
+        settled: 0,
+        outstanding: fromCents(toCents(amount)),
+        order,
+      })
+    }
+  })
+
+  sources.sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order)
+
+  const settlements = movements
+    .map((movement, order) => {
+      if (movement.kind !== 'settlement') return null
+      const posting = movement.postings.find((candidate) => candidate.account === direction)
+      if (!posting) return null
+      const counterparty = posting.counterparty?.trim()
+      if (!counterparty) return null
+      const amount = direction === 'receivable' ? -posting.amount : posting.amount
+      if (amount <= 0.004) return null
+      return {
+        counterparty,
+        amount: fromCents(toCents(amount)),
+        date: movement.date,
+        links: new Set(movement.links ?? []),
+        order,
+      }
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order)
+
+  for (const settlement of settlements) {
+    let remaining = settlement.amount
+    const candidates = sources.filter(
+      (source) => source.counterparty === settlement.counterparty && source.outstanding > 0.004,
+    )
+    const ordered = [
+      ...candidates.filter((source) => settlement.links.has(source.movementId)),
+      ...candidates.filter((source) => !settlement.links.has(source.movementId)),
+    ]
+    for (const source of ordered) {
+      if (remaining <= 0.004) break
+      const applied = Math.min(source.outstanding, remaining)
+      source.settled = addCurrency(source.settled, applied)
+      source.outstanding = addCurrency(source.outstanding, -applied)
+      remaining = addCurrency(remaining, -applied)
+    }
+  }
+
+  return sources.map(({ order: _order, ...row }) => row)
+}
+
 export function outstanding(
   movements: Movement[],
   account: 'receivable' | 'payable',
 ): Outstanding[] {
-  const balances = new Map<string, number>()
-  for (const movement of movements) {
-    for (const posting of movement.postings) {
-      if (posting.account !== account) continue
-      const counterparty = posting.counterparty?.trim() || 'Unnamed'
-      balances.set(counterparty, (balances.get(counterparty) ?? 0) + toCents(posting.amount))
-    }
+  const totals = new Map<string, number>()
+  for (const row of outstandingMovements(movements, account)) {
+    if (row.outstanding <= 0.004) continue
+    totals.set(row.counterparty, addCurrency(totals.get(row.counterparty) ?? 0, row.outstanding))
   }
 
-  return [...balances]
-    .map(([counterparty, signed]) => ({
-      counterparty,
-      amount: fromCents(account === 'receivable' ? signed : -signed),
-    }))
-    .filter((row) => row.amount > 0.004)
+  return [...totals]
+    .map(([counterparty, amount]) => ({ counterparty, amount }))
     .sort((a, b) => a.counterparty.localeCompare(b.counterparty))
 }
 

@@ -20,6 +20,7 @@ import {
   type Movement,
   movementTotal,
   outstanding,
+  outstandingMovements,
   paceByMonth,
   spendingPace,
   voucherBalance,
@@ -404,5 +405,127 @@ describe('selectors', () => {
     expect(pace.spentSoFar).toBe(70)
     expect(pace.remainingBudget).toBe(930)
     expect(pace.limit).toBe(1000)
+  })
+
+  test('keeps debt provenance per source movement', () => {
+    const dinner = purchase({
+      id: 'p1',
+      date: '2026-11-01',
+      amount: 100,
+      shares: [
+        { counterparty: 'Ana', amount: 50 },
+        { counterparty: 'Bob', amount: 30 },
+      ],
+    })
+    const settlement = must(
+      buildSettlement(
+        {
+          id: 's1',
+          date: '2026-11-10',
+          description: 'Ana paid',
+          direction: 'receivable',
+          counterparty: 'Ana',
+          received: 40,
+          forgiven: 0,
+          account: 'checking',
+        },
+        [dinner],
+      ),
+    )
+
+    const rows = outstandingMovements([dinner, settlement], 'receivable')
+    expect(rows).toEqual([
+      {
+        movementId: 'p1',
+        counterparty: 'Ana',
+        direction: 'receivable',
+        description: 'Dinner',
+        date: '2026-11-01',
+        total: 50,
+        settled: 40,
+        outstanding: 10,
+      },
+      {
+        movementId: 'p1',
+        counterparty: 'Bob',
+        direction: 'receivable',
+        description: 'Dinner',
+        date: '2026-11-01',
+        total: 30,
+        settled: 0,
+        outstanding: 30,
+      },
+    ])
+  })
+
+  test('allocates a linked settlement to the chosen purchase first', () => {
+    const first = purchase({
+      id: 'p1',
+      date: '2026-11-01',
+      description: 'First',
+      shares: [{ counterparty: 'Ana', amount: 50 }],
+    })
+    const second = purchase({
+      id: 'p2',
+      date: '2026-11-02',
+      description: 'Second',
+      shares: [{ counterparty: 'Ana', amount: 50 }],
+    })
+    const settlement = must(
+      buildSettlement(
+        {
+          id: 's1',
+          date: '2026-11-03',
+          description: 'Ana paid second',
+          direction: 'receivable',
+          counterparty: 'Ana',
+          received: 50,
+          forgiven: 0,
+          account: 'checking',
+          links: ['p2'],
+        },
+        [first, second],
+      ),
+    )
+
+    const rows = outstandingMovements([first, second, settlement], 'receivable')
+    expect(rows.find((row) => row.movementId === 'p1')?.outstanding).toBe(50)
+    expect(rows.find((row) => row.movementId === 'p2')?.outstanding).toBe(0)
+  })
+
+  test('keeps payable provenance through partial payment and forgiveness', () => {
+    const dinner = purchase({
+      id: 'p1',
+      account: 'payable',
+      counterparty: 'Bruno',
+    })
+    const settlement = must(
+      buildSettlement(
+        {
+          id: 's1',
+          date: '2026-11-10',
+          description: 'Paid Bruno',
+          direction: 'payable',
+          counterparty: 'Bruno',
+          paid: 80,
+          forgiven: 20,
+          account: 'checking',
+        },
+        [dinner],
+      ),
+    )
+
+    expect(outstandingMovements([dinner, settlement], 'payable')).toEqual([
+      {
+        movementId: 'p1',
+        counterparty: 'Bruno',
+        direction: 'payable',
+        description: 'Dinner',
+        date: '2026-11-01',
+        total: 100,
+        settled: 100,
+        outstanding: 0,
+      },
+    ])
   })
 })
