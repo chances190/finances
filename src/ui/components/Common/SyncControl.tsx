@@ -34,7 +34,7 @@ function StatusIcon({ status }: { status: string }) {
   if (status === 'idle') {
     return <CloudCheckIcon />
   }
-  if (status === 'error' || status === 'needs-reconnect' || status === 'conflict') {
+  if (status === 'error' || status === 'conflict') {
     return <WarningIcon />
   }
   return <CloudSlashIcon />
@@ -72,7 +72,7 @@ export default function SyncControl() {
       <Button
         variant="ghost"
         size="icon-lg"
-        className="size-10"
+        className={`size-10 ${status === 'needs-reconnect' ? 'text-muted-foreground' : ''}`}
         aria-label={`Backup and sync: ${STATUS_LABEL[status] ?? status}`}
         onClick={() => setOpen(true)}
       >
@@ -100,7 +100,13 @@ export default function SyncControl() {
               <span className="text-muted-foreground">Last synced</span>
               <span>{formatLastSynced(meta.lastSyncedAt)}</span>
             </div>
-            {error && <p className="text-destructive">{error}</p>}
+            {status === 'needs-reconnect' ? (
+              <p className="text-muted-foreground">
+                Google sign-in expired. Reconnect to resume syncing — your local data is safe.
+              </p>
+            ) : (
+              error && <p className="text-destructive">{error}</p>
+            )}
             {!configured && (
               <p className="text-muted-foreground">
                 Set `VITE_GOOGLE_CLIENT_ID` on the client and `GOOGLE_CLIENT_ID` /
