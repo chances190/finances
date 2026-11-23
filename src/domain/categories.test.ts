@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { allCategoryNames, budgetForMonth, categoryOptionsForMonth, monthOf } from './categories'
-import type { Budget, ExpenseTransaction } from './entities'
+import type { Budget } from './entities'
+import { buildPurchase, type Movement } from './ledger'
 
 function budget(referenceMonth: string, categoryLimits: Record<string, number>): Budget {
   return {
@@ -12,17 +13,17 @@ function budget(referenceMonth: string, categoryLimits: Record<string, number>):
   }
 }
 
-function tx(overrides: Partial<Omit<ExpenseTransaction, 'type'>> = {}): ExpenseTransaction {
-  return {
-    id: '1',
-    type: 'Expense',
-    date: '2025-07-04',
+function movement(category: string): Movement {
+  const result = buildPurchase({
+    id: `p-${category}`,
+    date: '2026-11-01',
     description: 'x',
     amount: 10,
-    category: 'Family',
-    paymentMethod: 'Debit/PIX',
-    ...overrides,
-  }
+    category,
+    account: 'checking',
+  })
+  if (!result.ok) throw new Error(result.reason)
+  return result.value[0]
 }
 
 const budgets = [budget('2026-09', { Food: 500, Rent: 1500 }), budget('2026-10', { Food: 600 })]
@@ -52,13 +53,14 @@ describe('categoryOptionsForMonth', () => {
   })
 
   test('new events in the current month use the current budget', () => {
-    expect(categoryOptionsForMonth('2026-10', budgets, [tx()])).toEqual(['Food'])
+    expect(categoryOptionsForMonth('2026-10', budgets, [movement('Family')])).toEqual(['Food'])
   })
 
   test('with no budgets at all, offers categories already present in the data', () => {
-    expect(
-      categoryOptionsForMonth('2026-10', [], [tx(), tx({ id: '2', category: 'Pets' })]),
-    ).toEqual(['Family', 'Pets'])
+    expect(categoryOptionsForMonth('2026-10', [], [movement('Family'), movement('Pets')])).toEqual([
+      'Family',
+      'Pets',
+    ])
   })
 
   test('a budget with a zeroed category still exposes it', () => {
@@ -69,17 +71,17 @@ describe('categoryOptionsForMonth', () => {
 })
 
 describe('allCategoryNames', () => {
-  test('unions every budget with every expense category, sorted', () => {
+  test('unions every budget with every posting category, sorted', () => {
     expect(
       allCategoryNames(
         [budget('2025-01', { Rent: 1 }), budget('2026-10', { Food: 1 })],
-        [tx({ category: 'Christmas gift' })],
+        [movement('Christmas gift')],
       ),
     ).toEqual(['Christmas gift', 'Food', 'Rent'])
   })
 
   test('keeps categories that no budget mentions', () => {
-    expect(allCategoryNames([], [tx({ category: 'Family' })])).toEqual(['Family'])
+    expect(allCategoryNames([], [movement('Family')])).toEqual(['Family'])
   })
 })
 

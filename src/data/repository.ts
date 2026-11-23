@@ -1,5 +1,5 @@
 import type { FinanceData } from '../domain/entities'
-import { validateFinanceData } from './validation'
+import { normalizeFinanceData } from './migration'
 
 const STORAGE_KEY = 'finances-data'
 
@@ -7,7 +7,7 @@ export function loadData(): FinanceData | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    return validateFinanceData(JSON.parse(raw)).data
+    return normalizeFinanceData(JSON.parse(raw)).data
   } catch {
     return null
   }

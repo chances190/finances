@@ -11,42 +11,52 @@ import {
 import { Input } from '@/components/ui/input'
 import { MoneyInput } from '@/components/ui/money-input'
 import { splitEvenlyAcrossParticipants } from '@/domain/calculations'
-import type { Debt } from '@/domain/entities'
+import type { PurchaseShare } from '@/domain/ledger'
 import { addCurrency, formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
 import { useToast } from '@/ui/context/ToastContext'
 
-interface DebtSplitUI {
+interface SplitUI {
   id: string
   name: string
   amount: number
 }
 
-interface DebtConfigModalProps {
+interface SplitConfigModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  debts: Debt[]
-  onDebtsChange: (debts: Debt[]) => void
+  shares: PurchaseShare[]
+  onSharesChange: (shares: PurchaseShare[]) => void
   onRemoveAll: () => void
   totalAmount: number
 }
 
-export default function DebtConfigModal({
+export default function SplitConfigModal({
   open,
   onOpenChange,
-  debts,
-  onDebtsChange,
+  shares,
+  onSharesChange,
   onRemoveAll,
   totalAmount,
-}: DebtConfigModalProps) {
-  const [splits, setSplits] = useState<DebtSplitUI[]>(() =>
-    debts.map((d) => ({ id: crypto.randomUUID(), name: d.name, amount: d.amount })),
+}: SplitConfigModalProps) {
+  const [splits, setSplits] = useState<SplitUI[]>(() =>
+    shares.map((share) => ({
+      id: crypto.randomUUID(),
+      name: share.counterparty,
+      amount: share.amount,
+    })),
   )
   const { toast } = useToast()
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: open is intentional to reset on dialog open
   useEffect(() => {
-    setSplits(debts.map((d) => ({ id: crypto.randomUUID(), name: d.name, amount: d.amount })))
-  }, [debts, open])
+    setSplits(
+      shares.map((share) => ({
+        id: crypto.randomUUID(),
+        name: share.counterparty,
+        amount: share.amount,
+      })),
+    )
+  }, [shares, open])
 
   const assignedTotal = splits.reduce((s, d) => addCurrency(s, d.amount), 0)
   const delta = totalAmount - assignedTotal
@@ -58,7 +68,7 @@ export default function DebtConfigModal({
     setSplits((prev) => [...prev, { id: crypto.randomUUID(), name: '', amount: 0 }])
   }
 
-  function handleUpdateSplit(id: string, patch: Partial<DebtSplitUI>) {
+  function handleUpdateSplit(id: string, patch: Partial<SplitUI>) {
     setSplits((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)))
   }
 
@@ -80,17 +90,25 @@ export default function DebtConfigModal({
       )
       return
     }
-    const named = splits.filter((s) => s.name.trim())
+    const named = splits.filter((split) => split.name.trim())
     if (named.length !== splits.length) {
       toast('Every person needs a name', 'error')
       return
     }
-    onDebtsChange(named.map((s) => ({ name: s.name, amount: s.amount, settled: false })))
+    onSharesChange(
+      named.map((split) => ({ counterparty: split.name.trim(), amount: split.amount })),
+    )
     onOpenChange(false)
   }
 
   function handleCancel() {
-    setSplits(debts.map((d) => ({ id: crypto.randomUUID(), name: d.name, amount: d.amount })))
+    setSplits(
+      shares.map((share) => ({
+        id: crypto.randomUUID(),
+        name: share.counterparty,
+        amount: share.amount,
+      })),
+    )
     onOpenChange(false)
   }
 

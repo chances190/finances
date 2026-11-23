@@ -1,6 +1,5 @@
 import { parseSync } from 'ofx-js'
-import type { Transaction } from '../../domain/entities'
-import { validateTransaction } from '../validation'
+import { buildAdjustment, buildIncome, buildPurchase, type Movement } from '../../domain/ledger'
 
 interface RawTransaction {
   TRNTYPE?: string
@@ -12,7 +11,7 @@ interface RawTransaction {
 }
 
 export interface OFXImportResult {
-  transactions: Transaction[]
+  movements: Movement[]
   skipped: { label: string; reason: string }[]
   source: 'card' | 'bank'
 }
@@ -42,7 +41,7 @@ function skipReason(memo: string, source: 'card' | 'bank'): string | null {
   return null
 }
 
-export function importOFX(content: string, existing: Transaction[]): OFXImportResult {
+export function importOFX(content: string, existing: Movement[]): OFXImportResult {
   const ofx = parseSync(content).OFX
   const card = ofx.CREDITCARDMSGSRSV1
   const bank = ofx.BANKMSGSRSV1
@@ -61,9 +60,9 @@ export function importOFX(content: string, existing: Transaction[]): OFXImportRe
   )
 
   const seen = new Set(
-    existing.map((transaction) => transaction.importId).filter((id): id is string => Boolean(id)),
+    existing.map((movement) => movement.importId).filter((id): id is string => Boolean(id)),
   )
-  const transactions: Transaction[] = []
+  const movements: Movement[] = []
   const skipped: { label: string; reason: string }[] = []
 
   for (const raw of raws) {
@@ -96,37 +95,59 @@ export function importOFX(content: string, existing: Transaction[]): OFXImportRe
       skipped.push({ label, reason: 'already imported' })
       continue
     }
-    seen.add(importId)
 
-    const base = {
-      id: crypto.randomUUID(),
-      date,
-      description: cleanPixMemo(memo) || 'Imported transaction',
-      amount,
-      importId,
-    }
-
-    const validated =
-      value > 0
-        ? validateTransaction({
-            ...base,
-            type: 'Income',
-            category: 'Income',
-            paymentMethod: 'Transfer',
-          })
-        : validateTransaction({
-            ...base,
-            type: 'Expense',
-            category: 'Other',
-            paymentMethod: source === 'card' ? 'Credit' : 'Debit/PIX',
-          })
-
-    if (!validated.ok) {
-      skipped.push({ label, reason: validated.reason })
+    if (value > 0 && source === 'card') {
+      const result = buildAdjustment({
+        id: crypto.randomUUID(),
+        date,
+        description: `Received back: ${cleanPixMemo(memo) || 'card credit'}`,
+        account: 'expense',
+        amount: -amount,
+      })
+      if (!result.ok) {
+        skipped.push({ label, reason: result.reason })
+        continue
+      }
+      movements.push({ ...result.value, importId })
+      seen.add(importId)
       continue
     }
-    transactions.push(validated.tx)
+
+    if (value > 0) {
+      const result = buildIncome({
+        id: crypto.randomUUID(),
+        date,
+        description: cleanPixMemo(memo) || 'Imported income',
+        amount,
+        account: 'checking',
+        category: 'Income',
+        importId,
+      })
+      if (!result.ok) {
+        skipped.push({ label, reason: result.reason })
+        continue
+      }
+      movements.push(result.value)
+      seen.add(importId)
+      continue
+    }
+
+    const result = buildPurchase({
+      id: crypto.randomUUID(),
+      date,
+      description: cleanPixMemo(memo) || 'Imported purchase',
+      amount,
+      category: 'Other',
+      account: source === 'card' ? 'card' : 'checking',
+      importId,
+    })
+    if (!result.ok) {
+      skipped.push({ label, reason: result.reason })
+      continue
+    }
+    movements.push(...result.value)
+    seen.add(importId)
   }
 
-  return { transactions, skipped, source }
+  return { movements, skipped, source }
 }

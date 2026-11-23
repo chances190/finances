@@ -147,16 +147,25 @@ describe('§2.3 category', () => {
 
 describe('§2.4 payment method', () => {
   test('resolves against the registry', () => {
-    expect(parse('23,50 Almoço @Debit/PIX').paymentMethod).toBe('Debit/PIX')
+    const result = parse('23,50 Almoço @Debit/PIX')
+    expect(result.paymentMethod).toBe('checking')
+    expect(result.kind).toBe('expense')
   })
 
   test('voucher resolves by direction', () => {
-    expect(parse('23,50 Almoço @Voucher').paymentMethod).toBe('Voucher')
-    expect(parse('23,50 Almoço @Voucher Debit').paymentMethod).toBe('Voucher Debit')
+    const income = parse('23,50 Almoço @Voucher')
+    expect(income.paymentMethod).toBe('voucher')
+    expect(income.kind).toBe('income')
+
+    const expense = parse('23,50 Almoço @Voucher Debit')
+    expect(expense.paymentMethod).toBe('voucher')
+    expect(expense.kind).toBe('expense')
   })
 
   test('multi-word payment method is a single span', () => {
-    expect(parse('23,50 Almoço @Voucher Debit').paymentMethod).toBe('Voucher Debit')
+    const result = parse('23,50 Almoço @Voucher Debit')
+    expect(result.paymentMethod).toBe('voucher')
+    expect(result.description).toBe('Almoço')
   })
 
   test('unresolved token is free text', () => {

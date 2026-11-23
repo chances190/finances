@@ -1,108 +1,102 @@
-import type { Transaction } from '../../domain/entities'
+import { grossPurchaseAmount, type Movement } from '../../domain/ledger'
 
-export type MatchAction = 'adopt' | 'overwrite' | 'keep both'
+export type MatchAction = 'link' | 'keep'
 
 export interface ImportPlan {
-  transaction: Transaction
-  candidates: Transaction[]
+  movement: Movement
+  candidates: Movement[]
   action: MatchAction | null
   targetId: string | null
 }
 
 export interface ImportCommit {
-  additions: Transaction[]
-  updates: Transaction[]
+  additions: Movement[]
+  updates: Movement[]
   unresolved: number
 }
 
-function matchKey(transaction: Transaction): string {
-  return `${transaction.date}|${transaction.amount.toFixed(2)}`
+function matchKey(movement: Movement): string {
+  return `${movement.date}|${grossPurchaseAmount(movement).toFixed(2)}`
 }
 
-function pushCandidate(map: Map<string, Transaction[]>, transaction: Transaction): void {
-  const key = matchKey(transaction)
-  const list = map.get(key)
-  if (list) list.push(transaction)
-  else map.set(key, [transaction])
-}
-
-export function planImport(incoming: Transaction[], existing: Transaction[]): ImportPlan[] {
-  const byKey = new Map<string, Transaction[]>()
-  for (const transaction of existing) {
-    if (transaction.type === 'Expense') pushCandidate(byKey, transaction)
+export function planImport(incoming: Movement[], existing: Movement[]): ImportPlan[] {
+  const byKey = new Map<string, Movement[]>()
+  for (const movement of existing) {
+    if (movement.kind !== 'purchase') continue
+    const key = matchKey(movement)
+    const list = byKey.get(key)
+    if (list) list.push(movement)
+    else byKey.set(key, [movement])
   }
 
   const plans: ImportPlan[] = []
-  for (const transaction of incoming) {
-    if (transaction.type !== 'Expense') {
-      plans.push({ transaction, candidates: [], action: 'keep both', targetId: null })
+  for (const movement of incoming) {
+    if (movement.kind !== 'purchase') {
+      plans.push({ movement, candidates: [], action: 'keep', targetId: null })
       continue
     }
 
-    const candidates = byKey.get(matchKey(transaction)) ?? []
+    const candidates = byKey.get(matchKey(movement)) ?? []
     if (candidates.length === 0) {
-      plans.push({ transaction, candidates, action: 'keep both', targetId: null })
-      pushCandidate(byKey, transaction)
+      plans.push({ movement, candidates, action: 'keep', targetId: null })
+      const key = matchKey(movement)
+      const list = byKey.get(key)
+      if (list) list.push(movement)
+      else byKey.set(key, [movement])
       continue
     }
     if (candidates.length === 1) {
-      plans.push({ transaction, candidates, action: 'adopt', targetId: candidates[0].id })
+      plans.push({ movement, candidates, action: 'link', targetId: candidates[0].id })
       continue
     }
-    plans.push({ transaction, candidates, action: null, targetId: null })
+    plans.push({ movement, candidates, action: null, targetId: null })
   }
 
   return plans
 }
 
-export function buildImportCommit(plans: ImportPlan[], existing: Transaction[]): ImportCommit {
-  const byId = new Map(existing.map((transaction) => [transaction.id, transaction]))
-  const additions: Transaction[] = []
-  const additionById = new Map<string, Transaction>()
-  const updates: Transaction[] = []
+export function isBlocked(plan: ImportPlan): boolean {
+  return plan.action === null || (plan.action === 'link' && plan.targetId === null)
+}
+
+export function buildImportCommit(plans: ImportPlan[], existing: Movement[]): ImportCommit {
+  const byId = new Map(existing.map((movement) => [movement.id, movement]))
+  const additions: Movement[] = []
+  const additionById = new Map<string, Movement>()
+  const updates: Movement[] = []
   let unresolved = 0
 
-  function upsertAddition(transaction: Transaction): void {
-    const index = additions.findIndex((addition) => addition.id === transaction.id)
-    if (index >= 0) additions[index] = transaction
-    else additions.push(transaction)
-    additionById.set(transaction.id, transaction)
+  function upsertAddition(movement: Movement): void {
+    const index = additions.findIndex((addition) => addition.id === movement.id)
+    if (index >= 0) additions[index] = movement
+    else additions.push(movement)
+    additionById.set(movement.id, movement)
   }
 
   for (const plan of plans) {
-    const { action, targetId, transaction } = plan
-    if (action === null) {
+    if (plan.action === null) {
       unresolved += 1
       continue
     }
-    if (action === 'keep both') {
-      upsertAddition(transaction)
+    if (plan.action === 'keep') {
+      upsertAddition(plan.movement)
       continue
     }
-    if (targetId === null) {
+    if (plan.targetId === null) {
       unresolved += 1
       continue
     }
 
-    const existingTarget = byId.get(targetId)
-    const additionTarget = existingTarget ? undefined : additionById.get(targetId)
+    const existingTarget = byId.get(plan.targetId)
+    const additionTarget = existingTarget ? undefined : additionById.get(plan.targetId)
     if (!existingTarget && !additionTarget) {
-      upsertAddition(transaction)
+      upsertAddition(plan.movement)
       continue
     }
 
-    if (action === 'overwrite') {
-      const next = { ...transaction, id: targetId }
-      if (existingTarget) updates.push(next)
-      else upsertAddition(next)
-      continue
-    }
-
-    // Adopt keeps the target record and only refreshes its importId; the
-    // previous file's dedupe link is intentionally dropped.
     const target = existingTarget ?? additionTarget
-    if (target && transaction.importId && target.importId !== transaction.importId) {
-      const next = { ...target, importId: transaction.importId }
+    if (target && plan.movement.importId && target.importId !== plan.movement.importId) {
+      const next = { ...target, importId: plan.movement.importId }
       if (existingTarget) updates.push(next)
       else upsertAddition(next)
     }

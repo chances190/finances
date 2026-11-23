@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { normalizeFinanceData } from '../../data/migration'
 import {
   classifyPreconditionFailure,
   compareVersions,
@@ -32,8 +33,8 @@ import {
 } from '../../data/sync/googleIdentity'
 import { loadDirty, loadSyncMeta, saveDirty, saveSyncMeta } from '../../data/sync/meta'
 import type { DriveFileMeta, SyncConflict, SyncMeta, SyncStatus } from '../../data/sync/types'
-import { validateFinanceData } from '../../data/validation'
-import type { Budget, FinanceData, Transaction } from '../../domain/entities'
+import type { Budget, FinanceData } from '../../domain/entities'
+import type { Movement } from '../../domain/ledger'
 import { useFinance } from './FinanceContext'
 
 export interface SyncContextValue {
@@ -53,7 +54,7 @@ const SyncContext = createContext<SyncContextValue | null>(null)
 const SYNC_DEBOUNCE_MS = 30000
 
 function isEmpty(data: FinanceData): boolean {
-  return data.transactions.length === 0 && data.budgets.length === 0
+  return data.movements.length === 0 && data.budgets.length === 0
 }
 
 function serializeWhenIdle(data: FinanceData): Promise<string> {
@@ -97,7 +98,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   )
   const debounceRef = useRef<number | null>(null)
   const remoteArraysRef = useRef<{
-    transactions: Transaction[]
+    movements: Movement[]
     budgets: Budget[]
   } | null>(null)
 
@@ -133,7 +134,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   const currentData = useCallback(
     (): FinanceData => ({
-      transactions: financeRef.current.transactions,
+      movements: financeRef.current.movements,
       budgets: financeRef.current.budgets,
     }),
     [],
@@ -142,7 +143,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const applyRemote = useCallback(
     (data: FinanceData, file: DriveFileMeta, hash: string | null) => {
       remoteArraysRef.current = {
-        transactions: data.transactions,
+        movements: data.movements,
         budgets: data.budgets,
       }
       dispatch({ type: 'APPLY_REMOTE', payload: data })
@@ -161,8 +162,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const downloadAndApply = useCallback(
     async (token: string, file: DriveFileMeta) => {
       const text = await downloadSnapshot(token, file.id)
-      const result = validateFinanceData(JSON.parse(text))
-      if (result.skippedTransactions.length > 0 || result.skippedBudgets > 0) {
+      const result = normalizeFinanceData(JSON.parse(text))
+      if (result.skippedMovements.length > 0 || result.skippedBudgets > 0) {
         throw new Error('Remote snapshot contains invalid records; local data was kept')
       }
       const hash = file.sha256Checksum ?? (await hashSnapshot(text))
@@ -458,23 +459,23 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const initialArraysRef = useRef<{ transactions: Transaction[]; budgets: Budget[] } | null>(null)
+  const initialArraysRef = useRef<{ movements: Movement[]; budgets: Budget[] } | null>(null)
 
   useEffect(() => {
     if (!state.loaded) return
     const previous = initialArraysRef.current
     initialArraysRef.current = {
-      transactions: state.transactions,
+      movements: state.movements,
       budgets: state.budgets,
     }
     if (!previous) return
-    if (previous.transactions === state.transactions && previous.budgets === state.budgets) {
+    if (previous.movements === state.movements && previous.budgets === state.budgets) {
       return
     }
     if (remoteArraysRef.current) {
       const applied = remoteArraysRef.current
       remoteArraysRef.current = null
-      if (applied.transactions === state.transactions && applied.budgets === state.budgets) {
+      if (applied.movements === state.movements && applied.budgets === state.budgets) {
         return
       }
     }
@@ -484,7 +485,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       saveDirty(true)
     }
     scheduleSync()
-  }, [state.loaded, state.transactions, state.budgets, scheduleSync])
+  }, [state.loaded, state.movements, state.budgets, scheduleSync])
 
   const value = useMemo<SyncContextValue>(
     () => ({

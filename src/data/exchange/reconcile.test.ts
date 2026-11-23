@@ -1,59 +1,64 @@
 import { describe, expect, test } from 'bun:test'
-import type { ExpenseTransaction, IncomeTransaction } from '../../domain/entities'
+import { buildIncome, buildPurchase, type Movement } from '../../domain/ledger'
 import { buildImportCommit, planImport } from './reconcile'
 
-function expense(overrides: Partial<ExpenseTransaction> & Pick<ExpenseTransaction, 'id'>) {
-  return {
-    type: 'Expense',
+function purchase(overrides: Partial<Parameters<typeof buildPurchase>[0]> = {}): Movement {
+  const result = buildPurchase({
+    id: 'p1',
     date: '2026-11-01',
-    description: 'Market',
+    description: 'Dinner',
     amount: 100,
     category: 'Food',
-    paymentMethod: 'Credit',
+    account: 'card',
     ...overrides,
-  } satisfies ExpenseTransaction
+  })
+  if (!result.ok) throw new Error(result.reason)
+  return result.value[0]
 }
 
-function income(overrides: Partial<IncomeTransaction> & Pick<IncomeTransaction, 'id'>) {
-  return {
-    type: 'Income',
+function income(id: string): Movement {
+  const result = buildIncome({
+    id,
     date: '2026-11-01',
     description: 'Salary',
     amount: 100,
+    account: 'checking',
     category: 'Income',
-    paymentMethod: 'Salary',
-    ...overrides,
-  } satisfies IncomeTransaction
+  })
+  if (!result.ok) throw new Error(result.reason)
+  return result.value
 }
 
 describe('planImport', () => {
-  test('defaults a single date and amount match to adopt', () => {
-    const existing = expense({ id: 'e1', importId: 'old' })
-    const incoming = expense({ id: 'i1', description: 'Market statement', importId: 'new' })
+  test('defaults a single date and amount match to link', () => {
+    const existing = purchase({ id: 'e1', importId: 'old' })
+    const incoming = purchase({ id: 'i1', description: 'Statement', importId: 'new' })
 
     const [plan] = planImport([incoming], [existing])
 
     expect(plan).toMatchObject({
-      transaction: incoming,
+      movement: incoming,
       candidates: [existing],
-      action: 'adopt',
+      action: 'link',
       targetId: 'e1',
     })
   })
 
-  test('keeps new rows as additions', () => {
-    const incoming = expense({ id: 'i1' })
+  test('keeps new purchases and non-purchases', () => {
+    const incoming = purchase({ id: 'i1' })
+    const salary = income('i2')
 
-    const [plan] = planImport([incoming], [])
+    const [newPurchase, incomePlan] = planImport([incoming, salary], [])
 
-    expect(plan).toMatchObject({ candidates: [], action: 'keep both', targetId: null })
+    expect(newPurchase).toMatchObject({ candidates: [], action: 'keep', targetId: null })
+    expect(incomePlan).toMatchObject({ candidates: [], action: 'keep', targetId: null })
   })
 
   test('blocks on more than one candidate until the user chooses', () => {
-    const incoming = expense({ id: 'i1' })
+    const incoming = purchase({ id: 'i1' })
     const existing = [
-      expense({ id: 'e1', description: 'Market A' }),
-      expense({ id: 'e2', description: 'Market B' }),
+      purchase({ id: 'e1', description: 'Dinner A' }),
+      purchase({ id: 'e2', description: 'Dinner B' }),
     ]
 
     const [plan] = planImport([incoming], existing)
@@ -61,38 +66,22 @@ describe('planImport', () => {
     expect(plan).toMatchObject({ candidates: existing, action: null, targetId: null })
   })
 
-  test('does not match income transactions', () => {
-    const existing = income({ id: 'e1' })
-    const incoming = income({ id: 'i1' })
-
-    const [plan] = planImport([incoming], [existing])
-
-    expect(plan).toMatchObject({ candidates: [], action: 'keep both', targetId: null })
-  })
-
   test('matches duplicate rows within the same batch', () => {
-    const first = expense({ id: 'i1', importId: 'a' })
-    const second = expense({ id: 'i2', importId: 'b' })
+    const first = purchase({ id: 'i1', importId: 'a' })
+    const second = purchase({ id: 'i2', importId: 'b' })
 
     const plans = planImport([first, second], [])
 
-    expect(plans[1]).toMatchObject({
-      candidates: [first],
-      action: 'adopt',
-      targetId: 'i1',
-    })
+    expect(plans[1]).toMatchObject({ candidates: [first], action: 'link', targetId: 'i1' })
   })
 })
 
 describe('buildImportCommit', () => {
-  test('adopt keeps existing fields and replaces the importId', () => {
-    const existing = expense({ id: 'e1', importId: 'old', description: 'Manual name' })
-    const incoming = expense({ id: 'i1', importId: 'new', description: 'Statement name' })
+  test('link attaches the new importId to the existing movement', () => {
+    const existing = purchase({ id: 'e1', importId: 'old' })
+    const incoming = purchase({ id: 'i1', importId: 'new' })
 
-    const commit = buildImportCommit(
-      [{ transaction: incoming, candidates: [existing], action: 'adopt', targetId: 'e1' }],
-      [existing],
-    )
+    const commit = buildImportCommit(planImport([incoming], [existing]), [existing])
 
     expect(commit).toEqual({
       additions: [],
@@ -101,93 +90,42 @@ describe('buildImportCommit', () => {
     })
   })
 
-  test('adopt without an incoming importId leaves the existing row untouched', () => {
-    const existing = expense({ id: 'e1', importId: 'old' })
-    const incoming = expense({ id: 'i1' })
+  test('link without an incoming importId leaves the existing movement alone', () => {
+    const existing = purchase({ id: 'e1', importId: 'old' })
+    const incoming = purchase({ id: 'i1' })
 
-    const commit = buildImportCommit(
-      [{ transaction: incoming, candidates: [existing], action: 'adopt', targetId: 'e1' }],
-      [existing],
-    )
+    const commit = buildImportCommit(planImport([incoming], [existing]), [existing])
 
     expect(commit.additions).toHaveLength(0)
     expect(commit.updates).toHaveLength(0)
   })
 
-  test('overwrite replaces every field and wipes debts and installments', () => {
-    const existing = expense({
-      id: 'e1',
-      description: 'Old',
-      installments: 3,
-      debts: [{ name: 'Ana', amount: 20, settled: false }],
-    })
-    const incoming = expense({ id: 'i1', description: 'New' })
+  test('keep adds the imported movement', () => {
+    const incoming = purchase({ id: 'i1' })
 
-    const commit = buildImportCommit(
-      [{ transaction: incoming, candidates: [existing], action: 'overwrite', targetId: 'e1' }],
-      [existing],
-    )
-
-    expect(commit.updates).toEqual([{ ...incoming, id: 'e1' }])
-    expect(commit.updates[0]).not.toHaveProperty('debts')
-    expect(commit.updates[0]).not.toHaveProperty('installments')
-  })
-
-  test('keep both adds a new row even when a match exists', () => {
-    const existing = expense({ id: 'e1' })
-    const incoming = expense({ id: 'i1' })
-
-    const commit = buildImportCommit(
-      [{ transaction: incoming, candidates: [existing], action: 'keep both', targetId: null }],
-      [existing],
-    )
+    const commit = buildImportCommit(planImport([incoming], []), [])
 
     expect(commit.additions).toEqual([incoming])
     expect(commit.updates).toHaveLength(0)
   })
 
-  test('counts unresolved plans and emits nothing for them', () => {
-    const incoming = expense({ id: 'i1' })
-    const existing = [expense({ id: 'e1' }), expense({ id: 'e2' })]
+  test('counts unresolved matches and emits nothing for them', () => {
+    const incoming = purchase({ id: 'i1' })
+    const existing = [purchase({ id: 'e1' }), purchase({ id: 'e2' })]
 
     const commit = buildImportCommit(planImport([incoming], existing), existing)
 
     expect(commit).toEqual({ additions: [], updates: [], unresolved: 1 })
   })
 
-  test('reserved conflicts stay blocked when an action has no target', () => {
-    const incoming = expense({ id: 'i1' })
-    const existing = [expense({ id: 'e1' }), expense({ id: 'e2' })]
+  test('collapses duplicate batch rows into the first addition', () => {
+    const first = purchase({ id: 'i1', importId: 'a' })
+    const second = purchase({ id: 'i2', importId: 'b' })
 
-    const commit = buildImportCommit(
-      [{ transaction: incoming, candidates: existing, action: 'overwrite', targetId: null }],
-      existing,
-    )
-
-    expect(commit).toEqual({ additions: [], updates: [], unresolved: 1 })
-  })
-
-  test('collapses duplicate batch rows into a single addition', () => {
-    const first = expense({ id: 'i1', importId: 'a' })
-    const second = expense({ id: 'i2', importId: 'b' })
-    const plans = planImport([first, second], [])
-
-    const commit = buildImportCommit(plans, [])
+    const commit = buildImportCommit(planImport([first, second], []), [])
 
     expect(commit.additions).toEqual([{ ...first, importId: 'b' }])
     expect(commit.updates).toHaveLength(0)
-    expect(commit.unresolved).toBe(0)
-  })
-
-  test('overwriting an earlier batch addition keeps its id', () => {
-    const first = expense({ id: 'i1', description: 'First' })
-    const second = expense({ id: 'i2', description: 'Second' })
-    const planned = planImport([first, second], [])
-    planned[1] = { ...planned[1], action: 'overwrite', targetId: 'i1' }
-
-    const commit = buildImportCommit(planned, [])
-
-    expect(commit.additions).toEqual([{ ...second, id: 'i1' }])
     expect(commit.unresolved).toBe(0)
   })
 })

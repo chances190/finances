@@ -1,7 +1,12 @@
 import { describe, expect, test } from 'bun:test'
-import type { Budget, ExpenseTransaction, FinanceData, IncomeTransaction } from '../domain/entities'
+import type { Budget } from '../domain/entities'
 import { buildPurchase, outstanding, paceByMonth, voucherBalance } from '../domain/ledger'
 import { normalizeFinanceData } from './migration'
+import type {
+  LegacyExpenseTransaction,
+  LegacyFinanceData,
+  LegacyIncomeTransaction,
+} from './validation'
 
 const budget: Budget = {
   referenceMonth: '2026-11',
@@ -11,7 +16,7 @@ const budget: Budget = {
   categoryLimits: { Food: 500 },
 }
 
-const salary: IncomeTransaction = {
+const salary: LegacyIncomeTransaction = {
   id: 'i1',
   type: 'Income',
   date: '2026-11-01',
@@ -21,7 +26,7 @@ const salary: IncomeTransaction = {
   paymentMethod: 'Salary',
 }
 
-const dinner: ExpenseTransaction = {
+const dinner: LegacyExpenseTransaction = {
   id: 'e1',
   type: 'Expense',
   date: '2026-11-02',
@@ -32,7 +37,7 @@ const dinner: ExpenseTransaction = {
   debts: [{ name: 'Ana', amount: 50, settled: true }],
 }
 
-const legacy: FinanceData = {
+const legacy: LegacyFinanceData = {
   transactions: [salary, dinner],
   budgets: [budget],
 }
@@ -49,7 +54,7 @@ describe('normalizeFinanceData', () => {
   })
 
   test('materializes installments and settles the debt after the last installment', () => {
-    const installmentExpense: ExpenseTransaction = {
+    const installmentExpense: LegacyExpenseTransaction = {
       id: 'e2',
       type: 'Expense',
       date: '2026-01-31',
@@ -72,7 +77,7 @@ describe('normalizeFinanceData', () => {
   })
 
   test('migrates voucher income into the voucher account', () => {
-    const voucherIncome: IncomeTransaction = {
+    const voucherIncome: LegacyIncomeTransaction = {
       ...salary,
       id: 'i2',
       paymentMethod: 'Voucher',

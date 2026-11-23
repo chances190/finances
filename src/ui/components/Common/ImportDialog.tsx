@@ -22,10 +22,21 @@ import { importOFX } from '@/data/exchange/ofx'
 import {
   buildImportCommit,
   type ImportPlan,
+  isBlocked,
   type MatchAction,
   planImport,
 } from '@/data/exchange/reconcile'
-import type { Budget, Transaction } from '@/domain/entities'
+import type { Budget } from '@/domain/entities'
+import {
+  ACCOUNT_LABELS,
+  categoryOf,
+  type FundingAccount,
+  fundingAccountOf,
+  MOVEMENT_KIND_LABELS,
+  type Movement,
+  movementTotal,
+  transferAccounts,
+} from '@/domain/ledger'
 import { formatCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
 import { useFinance } from '@/ui/context'
@@ -35,7 +46,7 @@ type SkippedInfo = {
 }
 
 type PreviewData = {
-  transactions: Transaction[]
+  movements: Movement[]
   budgets: Budget[]
   plans: ImportPlan[]
   label: string
@@ -44,19 +55,26 @@ type PreviewData = {
   skipped: SkippedInfo
 }
 
-function isBlocked(plan: ImportPlan): boolean {
-  return (
-    plan.action === null ||
-    ((plan.action === 'adopt' || plan.action === 'overwrite') && plan.targetId === null)
-  )
-}
-
 function decodeOFX(buffer: ArrayBuffer): string {
   const header = new TextDecoder('latin1').decode(buffer.slice(0, 512))
   const encoding = /ENCODING:([\w-]+)/i.exec(header)?.[1]?.toLowerCase()
   const charset = /CHARSET:([\w-]+)/i.exec(header)?.[1]?.toLowerCase()
   const utf8 = encoding === 'utf-8' || charset === 'utf-8'
   return new TextDecoder(utf8 ? 'utf-8' : 'windows-1252').decode(buffer)
+}
+
+function previewAccount(movement: Movement): FundingAccount | null {
+  const direct = fundingAccountOf(movement)
+  if (direct) return direct
+  if (movement.kind === 'transfer') {
+    const accounts = transferAccounts(movement)
+    return (accounts?.[0] as FundingAccount | undefined) ?? null
+  }
+  if (movement.kind === 'adjustment') {
+    const posting = movement.postings.find((candidate) => candidate.account !== 'adjustment')
+    return posting ? (posting.account as FundingAccount) : null
+  }
+  return null
 }
 
 export default function ImportDialog({
@@ -130,7 +148,7 @@ export default function ImportDialog({
     }
 
     try {
-      const transactions: Transaction[] = []
+      const movements: Movement[] = []
       const budgets: Budget[] = []
       const skipped: SkippedInfo['entries'] = []
       let fullBackup = false
@@ -151,56 +169,53 @@ export default function ImportDialog({
           : new TextDecoder('utf-8').decode(buffer)
 
         if (name.endsWith('.json')) {
-          const { data, skippedTransactions, skippedBudgets } = importJSON(content)
+          const result = importJSON(content)
           fullBackup = true
-          transactions.push(...data.transactions)
-          budgets.push(...data.budgets)
+          movements.push(...result.data.movements)
+          budgets.push(...result.data.budgets)
           skipped.push(
-            ...skippedTransactions.map((entry) => ({
-              label: prefix(file, `transaction #${entry.index + 1}`),
+            ...result.skippedMovements.map((entry) => ({
+              label: prefix(file, `movement #${entry.index + 1}`),
               reason: entry.reason,
             })),
-            ...Array.from({ length: skippedBudgets }, (_, index) => ({
+            ...Array.from({ length: result.skippedBudgets }, (_, index) => ({
               label: prefix(file, `budget #${index + 1}`),
               reason: 'invalid budget format',
             })),
           )
         } else if (name.endsWith('.csv')) {
-          const { transactions: parsed, skippedRows } = importCSV(content)
-          transactions.push(...parsed)
+          const result = importCSV(content)
+          movements.push(...result.movements)
           skipped.push(
-            ...skippedRows.map((entry) => ({
+            ...result.skippedRows.map((entry) => ({
               label: prefix(file, `line ${entry.line}`),
               reason: entry.reason,
             })),
           )
-        } else if (name.endsWith('.ofx')) {
-          const result = importOFX(content, [...state.transactions, ...transactions])
+        } else {
+          const result = importOFX(content, [...state.movements, ...movements])
           if (files.length === 1) source = result.source
-          transactions.push(...result.transactions)
+          movements.push(...result.movements)
           skipped.push(
             ...result.skipped.map((entry) => ({
               label: prefix(file, entry.label),
               reason: entry.reason,
             })),
           )
-        } else {
-          setError(`Unsupported file format: ${file.name}`)
-          return
         }
       }
 
       setPreview({
-        transactions,
+        movements,
         budgets,
-        plans: fullBackup ? [] : planImport(transactions, state.transactions),
+        plans: fullBackup ? [] : planImport(movements, state.movements),
         label: files.length === 1 ? files[0].name : `${files.length} files`,
         fullBackup,
         source,
         skipped: { entries: skipped },
       })
-    } catch (err) {
-      const message = (err as Error).message
+    } catch (caught) {
+      const message = (caught as Error).message
       setError(
         message.includes('Unexpected token') || message.includes('JSON')
           ? 'The file format is invalid. Make sure your .json or .csv file has the correct structure: columns like date, description, amount, category, paymentMethod, type.'
@@ -211,28 +226,22 @@ export default function ImportDialog({
 
   function handleImport() {
     if (!preview) return
-    const commit = preview.fullBackup ? null : buildImportCommit(preview.plans, state.transactions)
+    const commit = preview.fullBackup ? null : buildImportCommit(preview.plans, state.movements)
     if (commit && commit.unresolved > 0) return
 
     startTransition(() => {
       if (!commit) {
         dispatch({
           type: 'IMPORT',
-          payload: { transactions: preview.transactions, budgets: preview.budgets },
+          payload: { movements: preview.movements, budgets: preview.budgets },
         })
         return
       }
       if (commit.additions.length > 0) {
-        dispatch({
-          type: 'ADD_TRANSACTIONS',
-          payload: commit.additions.map((transaction) => ({
-            ...transaction,
-            id: transaction.id || crypto.randomUUID(),
-          })),
-        })
+        dispatch({ type: 'ADD_MOVEMENTS', payload: commit.additions })
       }
-      for (const transaction of commit.updates) {
-        dispatch({ type: 'UPDATE_TRANSACTION', payload: transaction })
+      for (const movement of commit.updates) {
+        dispatch({ type: 'UPDATE_MOVEMENT', payload: movement })
       }
       for (const budget of preview.budgets) {
         dispatch({ type: 'UPSERT_BUDGET', payload: budget })
@@ -249,18 +258,18 @@ export default function ImportDialog({
       setShowConfirm(true)
       return
     }
-    const commit = buildImportCommit(preview.plans, state.transactions)
+    const commit = buildImportCommit(preview.plans, state.movements)
     if (commit.unresolved > 0) return
     handleImport()
   }
 
-  function updatePlan(transactionId: string, patch: Partial<ImportPlan>) {
+  function updatePlan(movementId: string, patch: Partial<ImportPlan>) {
     setPreview((current) =>
       current
         ? {
             ...current,
             plans: current.plans.map((plan) =>
-              plan.transaction.id === transactionId ? { ...plan, ...patch } : plan,
+              plan.movement.id === movementId ? { ...plan, ...patch } : plan,
             ),
           }
         : current,
@@ -275,53 +284,51 @@ export default function ImportDialog({
       return <span className="text-xs text-muted-foreground">New</span>
     }
 
-    const single = plan.candidates[0]
     return (
-      <div className="min-w-36 space-y-1">
+      <div className="min-w-40 space-y-1">
         {plan.candidates.length > 1 && (
           <select
             aria-label="Match target"
             value={plan.targetId ?? ''}
             onChange={(event) =>
-              updatePlan(plan.transaction.id, { targetId: event.target.value || null })
+              updatePlan(plan.movement.id, { targetId: event.target.value || null })
             }
             className="h-8 w-full border border-input bg-transparent px-1 text-xs"
           >
             <option value="">Choose match…</option>
             {plan.candidates.map((candidate) => (
               <option key={candidate.id} value={candidate.id}>
-                {candidate.description || '—'} ({candidate.category})
+                {candidate.description}
               </option>
             ))}
           </select>
         )}
         <select
-          aria-label="Match action"
+          aria-label="Import action"
           value={plan.action ?? ''}
           onChange={(event) =>
-            updatePlan(plan.transaction.id, {
+            updatePlan(plan.movement.id, {
               action: (event.target.value || null) as MatchAction | null,
             })
           }
           className="h-8 w-full border border-input bg-transparent px-1 text-xs"
         >
           {plan.candidates.length > 1 && <option value="">Choose action…</option>}
-          <option value="adopt">Adopt</option>
-          <option value="overwrite">Overwrite</option>
-          <option value="keep both">Keep both</option>
+          <option value="link">Link</option>
+          <option value="keep">Keep separate</option>
         </select>
         {plan.candidates.length === 1 && (
-          <p className="max-w-36 truncate text-[10px] text-muted-foreground">
-            {single.description || single.category}
+          <p className="max-w-40 truncate text-[10px] text-muted-foreground">
+            {plan.candidates[0].description}
           </p>
         )}
       </div>
     )
   }
 
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault()
-    void handleFiles(Array.from(e.dataTransfer.files))
+  function handleDrop(event: React.DragEvent) {
+    event.preventDefault()
+    void handleFiles(Array.from(event.dataTransfer.files))
   }
 
   return (
@@ -335,7 +342,7 @@ export default function ImportDialog({
             <DialogDescription>
               {mode === 'transactions'
                 ? 'Drop .csv exchange files or bank .ofx statements here.'
-                : 'Drop a .json backup (transactions + budgets). This replaces the current data.'}
+                : 'Drop a .json backup (movements + budgets). This replaces the current data.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -344,7 +351,7 @@ export default function ImportDialog({
               <button
                 type="button"
                 onDrop={handleDrop}
-                onDragOver={(e) => e.preventDefault()}
+                onDragOver={(event) => event.preventDefault()}
                 className="w-full cursor-pointer space-y-3 border-2 border-dashed border-border p-6 text-center transition-colors hover:bg-muted/50 sm:p-8"
                 onClick={() => fileRef.current?.click()}
               >
@@ -368,9 +375,9 @@ export default function ImportDialog({
                   type="file"
                   multiple
                   accept={mode === 'transactions' ? '.csv,.ofx' : '.json'}
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files ?? [])
-                    e.target.value = ''
+                  onChange={(event) => {
+                    const files = Array.from(event.target.files ?? [])
+                    event.target.value = ''
                     void handleFiles(files)
                   }}
                   className="hidden"
@@ -396,8 +403,8 @@ export default function ImportDialog({
             {preview && (
               <div className="space-y-3">
                 <p className="text-xs text-muted-foreground">
-                  {preview.label} — {preview.transactions.length} transaction
-                  {preview.transactions.length !== 1 ? 's' : ''} found
+                  {preview.label} — {preview.movements.length} movement
+                  {preview.movements.length !== 1 ? 's' : ''} found
                   {preview.fullBackup &&
                     ` and ${preview.budgets.length} budget${preview.budgets.length !== 1 ? 's' : ''}`}
                   {preview.source &&
@@ -408,10 +415,10 @@ export default function ImportDialog({
                 </p>
                 {preview.skipped.entries.length > 0 && (
                   <div className="max-h-24 space-y-0.5 overflow-y-auto bg-muted/50 p-2 text-xs">
-                    {preview.skipped.entries.map((s, i) => (
+                    {preview.skipped.entries.map((entry, index) => (
                       // biome-ignore lint/suspicious/noArrayIndexKey: static display list
-                      <div key={i} className="text-muted-foreground">
-                        <span className="font-medium">{s.label}:</span> {s.reason}
+                      <div key={index} className="text-muted-foreground">
+                        <span className="font-medium">{entry.label}:</span> {entry.reason}
                       </div>
                     ))}
                   </div>
@@ -421,51 +428,63 @@ export default function ImportDialog({
                     <TableHeader>
                       <TableRow>
                         <TableHead>Date</TableHead>
-                        <TableHead>Type</TableHead>
+                        <TableHead>Kind</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Payment</TableHead>
+                        <TableHead>Account</TableHead>
                         {!preview.fullBackup && <TableHead>Action</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {preview.fullBackup
-                        ? preview.transactions.slice(0, 50).map((t) => (
-                            <TableRow key={t.id}>
-                              <TableCell className="text-muted-foreground">{t.date}</TableCell>
-                              <TableCell>{t.type}</TableCell>
-                              <TableCell className="max-w-32 truncate">{t.description}</TableCell>
-                              <TableCell>{t.category}</TableCell>
-                              <TableCell className="text-right font-mono">
-                                {formatCurrency(t.amount)}
+                        ? preview.movements.slice(0, 50).map((movement) => (
+                            <TableRow key={movement.id}>
+                              <TableCell className="text-muted-foreground">
+                                {movement.date}
                               </TableCell>
-                              <TableCell>{t.paymentMethod}</TableCell>
+                              <TableCell>{MOVEMENT_KIND_LABELS[movement.kind]}</TableCell>
+                              <TableCell className="max-w-32 truncate">
+                                {movement.description}
+                              </TableCell>
+                              <TableCell>{categoryOf(movement) ?? '—'}</TableCell>
+                              <TableCell className="text-right font-mono">
+                                {formatCurrency(movementTotal(movement))}
+                              </TableCell>
+                              <TableCell>
+                                {ACCOUNT_LABELS[previewAccount(movement) ?? 'checking']}
+                              </TableCell>
                             </TableRow>
                           ))
                         : preview.plans.map((plan) => {
-                            const t = plan.transaction
+                            const movement = plan.movement
                             return (
                               <TableRow
-                                key={t.id}
+                                key={movement.id}
                                 className={isBlocked(plan) ? 'bg-destructive/5' : undefined}
                               >
-                                <TableCell className="text-muted-foreground">{t.date}</TableCell>
-                                <TableCell>{t.type}</TableCell>
-                                <TableCell className="max-w-32 truncate">{t.description}</TableCell>
-                                <TableCell>{t.category}</TableCell>
-                                <TableCell className="text-right font-mono">
-                                  {formatCurrency(t.amount)}
+                                <TableCell className="text-muted-foreground">
+                                  {movement.date}
                                 </TableCell>
-                                <TableCell>{t.paymentMethod}</TableCell>
+                                <TableCell>{MOVEMENT_KIND_LABELS[movement.kind]}</TableCell>
+                                <TableCell className="max-w-32 truncate">
+                                  {movement.description}
+                                </TableCell>
+                                <TableCell>{categoryOf(movement) ?? '—'}</TableCell>
+                                <TableCell className="text-right font-mono">
+                                  {formatCurrency(movementTotal(movement))}
+                                </TableCell>
+                                <TableCell>
+                                  {ACCOUNT_LABELS[previewAccount(movement) ?? 'checking']}
+                                </TableCell>
                                 <TableCell>{renderAction(plan)}</TableCell>
                               </TableRow>
                             )
                           })}
-                      {preview.fullBackup && preview.transactions.length > 50 && (
+                      {preview.fullBackup && preview.movements.length > 50 && (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center text-muted-foreground">
-                            ...and {preview.transactions.length - 50} more
+                            ...and {preview.movements.length - 50} more
                           </TableCell>
                         </TableRow>
                       )}
@@ -503,7 +522,7 @@ export default function ImportDialog({
         open={showConfirm}
         onOpenChange={setShowConfirm}
         title="Replace all data?"
-        message="Importing a backup replaces every current transaction and budget. This cannot be undone with Ctrl+Z."
+        message="Importing a backup replaces every current movement and budget. This cannot be undone with Ctrl+Z."
         confirmLabel="Replace data"
         destructive
         onConfirm={handleImport}

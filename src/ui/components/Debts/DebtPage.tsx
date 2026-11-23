@@ -1,10 +1,26 @@
-import { CheckCircleIcon, UserIcon, UsersIcon } from '@phosphor-icons/react'
-import { useMemo, useState } from 'react'
+import { UserIcon } from '@phosphor-icons/react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { SegmentedControl } from '@/components/ui/segmented-control'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { MoneyInput } from '@/components/ui/money-input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -13,481 +29,332 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { daysSince } from '@/domain/calculations'
-import type { Debt, ExpenseTransaction, Transaction } from '@/domain/entities'
-import { addCurrency, formatCurrency } from '@/lib/currency'
+import {
+  ACCOUNT_LABELS,
+  buildSettlement,
+  CASH_ACCOUNTS,
+  localYMD,
+  type Outstanding,
+  outstanding,
+} from '@/domain/ledger'
+import { formatCurrency, parseCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import { useFinance } from '@/ui/context'
+import { useToast } from '@/ui/context/ToastContext'
 import { useIsDesktop } from '@/ui/hooks/useIsDesktop'
-
-type DebtTransaction = ExpenseTransaction & { debts: Debt[] }
-
-function hasDebts(tx: Transaction): tx is DebtTransaction {
-  return tx.type === 'Expense' && Array.isArray(tx.debts) && tx.debts.length > 0
-}
 
 const BADGE_GREEN = 'text-green-600 bg-green-50 '
 const BADGE_AMBER = 'text-amber-600 bg-amber-50 '
-const BADGE_RED = 'text-red-600 bg-red-50 '
 
-function DebtUrgency({ days }: { days: number }) {
-  const urgency =
-    days > 30
-      ? { label: 'Overdue', color: BADGE_RED }
-      : days > 15
-        ? { label: 'Aging', color: BADGE_AMBER }
-        : { label: 'Recent', color: BADGE_GREEN }
-  return (
-    <Badge variant="outline" className={urgency.color}>
-      {urgency.label} ({days}d)
-    </Badge>
-  )
-}
+type Relation = 'receivable' | 'payable'
 
-function PersonCard({ person, onOpen }: { person: PersonData; onOpen: () => void }) {
-  return (
-    <div className={`px-3 py-1 ${person.allSettled ? 'opacity-50' : ''}`}>
-      <button
-        type="button"
-        onClick={onOpen}
-        className="flex min-h-10 w-full items-center gap-2 py-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-      >
-        <UserIcon className="size-3 shrink-0" />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{person.name}</span>
-        {person.allSettled ? (
-          <Badge variant="outline" className={BADGE_GREEN}>
-            All paid
-          </Badge>
-        ) : person.anySettled ? (
-          <Badge variant="outline" className={BADGE_AMBER}>
-            Partial
-          </Badge>
-        ) : (
-          <Badge variant="outline" className={BADGE_RED}>
-            Pending
-          </Badge>
-        )}
-      </button>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span>
-          Unsettled{' '}
-          <span className="font-mono text-foreground">
-            {formatCurrency(person.unsettledAmount)}
-          </span>
-        </span>
-        <span>
-          Total lent{' '}
-          <span className="font-mono text-foreground">{formatCurrency(person.totalAmount)}</span>
-        </span>
-        <span>{person.txCount} transactions</span>
-      </div>
-    </div>
-  )
-}
-
-function DebtorCard({
-  tx,
-  onOpen,
-  onToggleSettle,
-  onSettleAll,
+function RelationList({
+  title,
+  description,
+  relation,
+  rows,
+  emptyMessage,
+  onSettle,
+  isDesktop,
 }: {
-  tx: DebtTransaction
-  onOpen: () => void
-  onToggleSettle: (name: string) => void
-  onSettleAll: () => void
+  title: string
+  description: string
+  relation: Relation
+  rows: Outstanding[]
+  emptyMessage: string
+  onSettle: (row: Outstanding) => void
+  isDesktop: boolean
 }) {
-  const days = daysSince(tx.date)
-  const allSettled = tx.debts?.every((d) => d.settled) ?? true
-  const debtNames = [...new Set(tx.debts?.map((d) => d.name) ?? [])]
-  const splitCount = tx.debts?.length ?? 0
-
   return (
-    <div className={`px-3 py-2 ${allSettled ? 'opacity-50' : ''}`}>
-      <div className="flex items-start gap-2">
-        <button
-          type="button"
-          onClick={onOpen}
-          className="min-h-10 min-w-0 flex-1 py-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          <span className="flex items-start gap-2">
-            <span className="min-w-0 flex-1 text-sm font-medium break-words">{tx.description}</span>
-            <span className="shrink-0 font-mono text-sm">{formatCurrency(tx.amount)}</span>
-          </span>
-          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <UserIcon className="size-3 shrink-0" />
-            <span>{debtNames.length === 1 ? debtNames[0] : 'Multiple'}</span>
-            {allSettled ? (
-              <Badge variant="outline" className={BADGE_GREEN}>
-                Paid
-              </Badge>
-            ) : (
-              <DebtUrgency days={days} />
-            )}
-            <span>lent {tx.date}</span>
-          </span>
-        </button>
-        {splitCount > 1 && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-10 shrink-0"
-            onClick={onSettleAll}
-            title={allSettled ? 'Unsettle all' : 'Settle all'}
-            aria-label={allSettled ? 'Unsettle all' : 'Settle all'}
-          >
-            <CheckCircleIcon />
-          </Button>
-        )}
-      </div>
-
-      <div className="ml-2 mt-1 grid grid-cols-2 gap-1 bg-muted/30 p-1">
-        {tx.debts?.map((d) => (
-          <div key={d.name} className="flex min-w-0 items-center gap-1">
-            <span
-              className={`min-w-0 flex-1 break-words text-xs leading-tight text-muted-foreground ${d.settled ? 'line-through' : ''}`}
-            >
-              {d.name}: <span className="font-mono">{formatCurrency(d.amount)}</span>
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-10 shrink-0"
-              onClick={() => onToggleSettle(d.name)}
-              title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
-              aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
-            >
-              <CheckCircleIcon />
-            </Button>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-type ViewMode = 'transaction' | 'person'
-
-interface PersonData {
-  name: string
-  unsettledAmount: number
-  totalAmount: number
-  txCount: number
-  anySettled: boolean
-  allSettled: boolean
-}
-
-function aggregatePersonData(transactions: DebtTransaction[]): PersonData[] {
-  const map = new Map<string, Omit<PersonData, 'name'>>()
-  for (const tx of transactions) {
-    const debts = tx.debts.filter((d) => d.amount > 0)
-    for (const d of debts) {
-      let entry = map.get(d.name)
-      if (!entry) {
-        entry = {
-          unsettledAmount: 0,
-          totalAmount: 0,
-          txCount: 0,
-          anySettled: false,
-          allSettled: true,
-        }
-        map.set(d.name, entry)
-      }
-      entry.totalAmount = addCurrency(entry.totalAmount, d.amount)
-      entry.anySettled ||= d.settled
-      if (!d.settled) {
-        entry.unsettledAmount = addCurrency(entry.unsettledAmount, d.amount)
-        entry.allSettled = false
-      }
-    }
-    for (const name of new Set(debts.map((d) => d.name))) {
-      const entry = map.get(name)
-      if (entry) entry.txCount++
-    }
-  }
-  return [...map.entries()]
-    .map(([name, d]) => ({ name, ...d }))
-    .sort((a, b) => b.unsettledAmount - a.unsettledAmount)
-}
-
-export default function DebtPage() {
-  const { state, dispatch } = useFinance()
-  const isDesktop = useIsDesktop()
-  const [, navigate] = useLocation()
-  const [showSettled, setShowSettled] = useState(false)
-  const [viewMode, setViewMode] = useState<ViewMode>('transaction')
-
-  const debts = useMemo(
-    () =>
-      state.transactions
-        .filter(hasDebts)
-        .filter((t) => showSettled || t.debts.some((d) => !d.settled)),
-    [state.transactions, showSettled],
-  )
-
-  const personView = useMemo(
-    () => aggregatePersonData(debts).filter((d) => showSettled || d.unsettledAmount > 0),
-    [debts, showSettled],
-  )
-
-  function handleToggleSettle(id: string, debtName: string) {
-    dispatch({ type: 'SETTLE_DEBT', payload: { transactionId: id, debtName } })
-  }
-
-  function handleSettleAll(id: string) {
-    const tx = state.transactions.find((t) => t.id === id)
-    if (tx?.type !== 'Expense' || !tx.debts) return
-    for (const d of tx.debts) {
-      dispatch({ type: 'SETTLE_DEBT', payload: { transactionId: id, debtName: d.name } })
-    }
-  }
-
-  const emptyDebtsAction = { label: 'Go to Transactions', onClick: () => navigate('/') }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">
-          {showSettled ? 'All Debts' : 'Active Debts'}
-        </h2>
-        <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
-          <SegmentedControl
-            aria-label="Debt view"
-            value={viewMode}
-            onValueChange={(v) => setViewMode(v as ViewMode)}
-            options={[
-              {
-                value: 'transaction',
-                label: 'By transaction',
-                icon: <UserIcon className="size-3" />,
-              },
-              {
-                value: 'person',
-                label: 'By person',
-                icon: <UsersIcon className="size-3" />,
-              },
-            ]}
-          />
-          <label
-            htmlFor="show-settled"
-            className="flex min-h-10 cursor-pointer items-center gap-2 text-xs text-muted-foreground"
-          >
-            <Checkbox
-              id="show-settled"
-              checked={showSettled}
-              onCheckedChange={(c) => setShowSettled(c === true)}
-              aria-labelledby="show-settled-label"
-            />
-            <span id="show-settled-label">Show settled</span>
-          </label>
+    <section className="space-y-2">
+      <div className="flex items-end justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          <p className="text-xs text-muted-foreground">{description}</p>
         </div>
+        <Badge variant="outline" className={relation === 'receivable' ? BADGE_GREEN : BADGE_AMBER}>
+          {formatCurrency(rows.reduce((sum, row) => sum + row.amount, 0))}
+        </Badge>
       </div>
 
-      {isDesktop && viewMode === 'person' && personView.length > 0 && (
+      {rows.length === 0 ? (
+        <EmptyState message={emptyMessage} />
+      ) : isDesktop ? (
         <div className="border border-border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Person</TableHead>
-                <TableHead className="text-right">Unsettled</TableHead>
-                <TableHead className="text-right">Total Lent</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Transactions</TableHead>
+                <TableHead className="text-right">
+                  {relation === 'receivable' ? 'Owed to you' : 'You owe'}
+                </TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {personView.map((p) => (
-                <TableRow
-                  key={p.name}
-                  className={`${p.allSettled ? 'opacity-50' : ''} cursor-pointer hover:bg-muted/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring`}
-                  tabIndex={0}
-                  onClick={() => navigate(`/?debtor=${encodeURIComponent(p.name)}`)}
-                  onKeyDown={(e) => {
-                    if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
-                    e.preventDefault()
-                    navigate(`/?debtor=${encodeURIComponent(p.name)}`)
-                  }}
-                >
+              {rows.map((row) => (
+                <TableRow key={row.counterparty}>
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-1">
+                    <span className="flex items-center gap-1">
                       <UserIcon className="size-3" />
-                      {p.name}
-                    </div>
+                      {row.counterparty}
+                    </span>
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {formatCurrency(p.unsettledAmount)}
+                    {formatCurrency(row.amount)}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-muted-foreground">
-                    {formatCurrency(p.totalAmount)}
-                  </TableCell>
-                  <TableCell>
-                    {p.allSettled ? (
-                      <Badge variant="outline" className={BADGE_GREEN}>
-                        All paid
-                      </Badge>
-                    ) : p.anySettled ? (
-                      <Badge variant="outline" className={BADGE_AMBER}>
-                        Partial
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className={BADGE_RED}>
-                        Pending
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right text-xs text-muted-foreground">
-                    {p.txCount}
+                  <TableCell className="text-right">
+                    <Button variant="outline" size="sm" onClick={() => onSettle(row)}>
+                      Settle
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
-      )}
-
-      {isDesktop && !(viewMode === 'person' && personView.length > 0) && (
-        <div className="border border-border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Debtor</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Age</TableHead>
-                <TableHead>Date Lent</TableHead>
-                <TableHead>Debts</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {debts.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7}>
-                    <EmptyState
-                      variant="cell"
-                      message={`No ${showSettled ? 'debts' : 'active debts'}.`}
-                      action={emptyDebtsAction}
-                    />
-                  </TableCell>
-                </TableRow>
-              )}
-              {debts.map((tx) => {
-                const days = daysSince(tx.date)
-                const allSettled = tx.debts?.every((d) => d.settled) ?? true
-                const debtNames = [...new Set(tx.debts?.map((d) => d.name) ?? [])]
-                return (
-                  <TableRow
-                    key={tx.id}
-                    className={`${allSettled ? 'opacity-50' : ''} cursor-pointer hover:bg-muted/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring`}
-                    tabIndex={0}
-                    onClick={() => navigate(`/?tx=${tx.id}`)}
-                    onKeyDown={(e) => {
-                      if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' '))
-                        return
-                      e.preventDefault()
-                      navigate(`/?tx=${tx.id}`)
-                    }}
-                  >
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-1">
-                        <UserIcon className="size-3" />
-                        {debtNames.length === 1 ? debtNames[0] : 'Multiple'}
-                      </div>
-                    </TableCell>
-                    <TableCell>{tx.description}</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {formatCurrency(tx.amount)}
-                    </TableCell>
-                    <TableCell>
-                      {allSettled ? (
-                        <Badge variant="outline" className={BADGE_GREEN}>
-                          Paid
-                        </Badge>
-                      ) : (
-                        <DebtUrgency days={days} />
-                      )}
-                    </TableCell>
-                    <TableCell>{tx.date}</TableCell>
-                    <TableCell>
-                      <div className="text-xs space-y-0.5">
-                        {tx.debts?.map((d) => (
-                          <div key={d.name} className="flex items-center justify-between gap-2">
-                            <span
-                              className={`text-muted-foreground ${d.settled ? 'line-through' : ''}`}
-                            >
-                              {d.name}: {formatCurrency(d.amount)}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleToggleSettle(tx.id, d.name)
-                              }}
-                              title={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
-                              aria-label={d.settled ? `Unsettle ${d.name}` : `Settle ${d.name}`}
-                            >
-                              <CheckCircleIcon />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleSettleAll(tx.id)
-                        }}
-                        title={allSettled ? 'Unsettle all' : 'Settle all'}
-                        aria-label={allSettled ? 'Unsettle all' : 'Settle all'}
-                      >
-                        <CheckCircleIcon />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-
-      {!isDesktop && viewMode === 'person' && personView.length > 0 && (
+      ) : (
         <div className="space-y-2">
-          {personView.map((p) => (
-            <div key={p.name} className="border border-border">
-              <PersonCard
-                person={p}
-                onOpen={() => navigate(`/?debtor=${encodeURIComponent(p.name)}`)}
-              />
+          {rows.map((row) => (
+            <div
+              key={row.counterparty}
+              className="flex items-center justify-between gap-3 border border-border px-3 py-2"
+            >
+              <div className="min-w-0">
+                <p className="flex items-center gap-1 text-sm font-medium">
+                  <UserIcon className="size-3 shrink-0" />
+                  <span className="truncate">{row.counterparty}</span>
+                </p>
+                <p className="font-mono text-xs text-muted-foreground">
+                  {formatCurrency(row.amount)}
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => onSettle(row)}>
+                Settle
+              </Button>
             </div>
           ))}
         </div>
       )}
+    </section>
+  )
+}
 
-      {!isDesktop && !(viewMode === 'person' && personView.length > 0) && (
-        <div className="space-y-2">
-          {debts.length === 0 ? (
-            <EmptyState
-              message={`No ${showSettled ? 'debts' : 'active debts'}.`}
-              action={emptyDebtsAction}
+function SettleDialog({
+  relation,
+  row,
+  open,
+  onOpenChange,
+}: {
+  relation: Relation
+  row: Outstanding | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const { state, dispatch } = useFinance()
+  const { toast } = useToast()
+  const [cash, setCash] = useState('')
+  const [forgiven, setForgiven] = useState('')
+  const [account, setAccount] = useState<'checking' | 'voucher' | 'cash'>('checking')
+  const [date, setDate] = useState(localYMD())
+  const [description, setDescription] = useState('')
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: open is intentional to reset on dialog open
+  useEffect(() => {
+    setCash('')
+    setForgiven('')
+    setAccount('checking')
+    setDate(localYMD())
+    setDescription(row ? `Settled with ${row.counterparty}` : '')
+  }, [row, open])
+
+  function handleSave() {
+    if (!row) return
+    const paid = parseCurrency(cash)
+    const waived = parseCurrency(forgiven)
+
+    const settlement =
+      relation === 'receivable'
+        ? buildSettlement(
+            {
+              id: crypto.randomUUID(),
+              date,
+              description,
+              direction: 'receivable',
+              counterparty: row.counterparty,
+              received: paid,
+              forgiven: waived,
+              account,
+            },
+            state.movements,
+          )
+        : buildSettlement(
+            {
+              id: crypto.randomUUID(),
+              date,
+              description,
+              direction: 'payable',
+              counterparty: row.counterparty,
+              paid,
+              forgiven: waived,
+              account,
+            },
+            state.movements,
+          )
+
+    if (!settlement.ok) {
+      toast(settlement.reason, 'error')
+      return
+    }
+    dispatch({ type: 'ADD_MOVEMENTS', payload: [settlement.value] })
+    toast('Settlement recorded', 'success')
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{relation === 'receivable' ? 'Receive payment' : 'Pay someone'}</DialogTitle>
+          <DialogDescription>
+            {row
+              ? `${row.counterparty} · ${formatCurrency(row.amount)} outstanding`
+              : 'Record a settlement.'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="settle-cash" className="text-xs">
+                {relation === 'receivable' ? 'Received (R$)' : 'Paid (R$)'}
+              </Label>
+              <MoneyInput id="settle-cash" value={cash} onValueChange={setCash} />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="settle-forgiven" className="text-xs">
+                Forgiven (R$)
+              </Label>
+              <MoneyInput id="settle-forgiven" value={forgiven} onValueChange={setForgiven} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="settle-date" className="text-xs">
+                Date
+              </Label>
+              <Input
+                id="settle-date"
+                type="date"
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="settle-account" className="text-xs">
+                Account
+              </Label>
+              <Select
+                modal={false}
+                value={account}
+                onValueChange={(value) =>
+                  setAccount((value as 'checking' | 'voucher' | 'cash') ?? 'checking')
+                }
+              >
+                <SelectTrigger id="settle-account" className="w-full">
+                  <SelectValue>{ACCOUNT_LABELS[account]}</SelectValue>
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false}>
+                  {CASH_ACCOUNTS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {ACCOUNT_LABELS[option]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="settle-description" className="text-xs">
+              Description
+            </Label>
+            <Input
+              id="settle-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
             />
-          ) : (
-            debts.map((tx) => (
-              <div key={tx.id} className="border border-border">
-                <DebtorCard
-                  tx={tx}
-                  onOpen={() => navigate(`/?tx=${tx.id}`)}
-                  onToggleSettle={(name) => handleToggleSettle(tx.id, name)}
-                  onSettleAll={() => handleSettleAll(tx.id)}
-                />
-              </div>
-            ))
-          )}
+          </div>
         </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave}>Record</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export default function DebtPage() {
+  const { state } = useFinance()
+  const isDesktop = useIsDesktop()
+  const [, navigate] = useLocation()
+  const [settle, setSettle] = useState<{ relation: Relation; row: Outstanding } | null>(null)
+
+  const receivables = useMemo(() => outstanding(state.movements, 'receivable'), [state.movements])
+  const payables = useMemo(() => outstanding(state.movements, 'payable'), [state.movements])
+
+  const emptyAction = { label: 'Go to Transactions', onClick: () => navigate('/') }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold text-foreground">Debts</h2>
+        <p className="text-xs text-muted-foreground">
+          Money people owe you, and money you owe. Settlements never change your spending pace.
+        </p>
+      </div>
+
+      {receivables.length === 0 && payables.length === 0 ? (
+        <EmptyState
+          message="No debts outstanding. Split a purchase or pay with “Someone else” to start one."
+          action={emptyAction}
+        />
+      ) : (
+        <>
+          <RelationList
+            title="Owed to you"
+            description="Purchases you covered for someone else."
+            relation="receivable"
+            rows={receivables}
+            emptyMessage="Nobody owes you right now."
+            onSettle={(row) => setSettle({ relation: 'receivable', row })}
+            isDesktop={isDesktop}
+          />
+          <RelationList
+            title="You owe"
+            description="Purchases someone else covered for you."
+            relation="payable"
+            rows={payables}
+            emptyMessage="You do not owe anyone right now."
+            onSettle={(row) => setSettle({ relation: 'payable', row })}
+            isDesktop={isDesktop}
+          />
+        </>
       )}
+
+      <SettleDialog
+        relation={settle?.relation ?? 'receivable'}
+        row={settle?.row ?? null}
+        open={settle !== null}
+        onOpenChange={(open) => {
+          if (!open) setSettle(null)
+        }}
+      />
     </div>
   )
 }

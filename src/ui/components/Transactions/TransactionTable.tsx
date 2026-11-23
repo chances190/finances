@@ -1,11 +1,27 @@
-import { FunnelIcon, SortAscendingIcon, SortDescendingIcon, TrashIcon } from '@phosphor-icons/react'
+import {
+  ArrowUUpLeftIcon,
+  FunnelIcon,
+  SortAscendingIcon,
+  SortDescendingIcon,
+  TrashIcon,
+} from '@phosphor-icons/react'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
 import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'wouter'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { MoneyInput } from '@/components/ui/money-input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,
@@ -14,25 +30,47 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import {
   availableMonths,
-  compareTransactions,
+  compareMovements,
   currentYM,
+  type MovementSortKey,
   monthRelation,
-  type TransactionSortKey,
 } from '@/domain/calculations'
 import { allCategoryNames, categoryOptionsForMonth } from '@/domain/categories'
+import { ACCOUNT_BADGE_COLORS } from '@/domain/constants'
 import {
-  EXPENSE_PAYMENT_METHODS,
-  INCOME_PAYMENT_METHODS,
-  isExpensePaymentMethod,
-  isIncomePaymentMethod,
-  PAYMENT_METHOD_BADGE_COLORS,
-} from '@/domain/constants'
-import type { Debt, MonthlyFlow, PaymentMethod, Transaction } from '@/domain/entities'
-import { monthlyFlows } from '@/domain/entities'
-import { addCurrency, formatCurrency } from '@/lib/currency'
+  ACCOUNT_LABELS,
+  buildIncome,
+  buildPurchase,
+  buildRefund,
+  categoryOf,
+  counterpartyOf,
+  expenseAmount,
+  FUNDING_ACCOUNTS,
+  type FundingAccount,
+  fundingAccountOf,
+  grossPurchaseAmount,
+  incomeAmount,
+  localYMD,
+  MOVEMENT_KIND_LABELS,
+  type Movement,
+  movementMonth,
+  movementTotal,
+  refundAmount,
+  refundableAmount,
+  settlementTotal,
+  transferAccounts,
+} from '@/domain/ledger'
+import { addCurrency, formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import { useFinance } from '@/ui/context'
@@ -42,144 +80,186 @@ import { useScrollMargin } from '@/ui/hooks/useScrollMargin'
 import SmartTransactionInput from './SmartTransactionInput'
 import TransactionForm from './TransactionForm'
 
-const SORT_KEYS: [string, string][] = [
-  ['paymentMethod', 'Payment'],
-  ['amount', 'Amount'],
-  ['description', 'Description'],
-  ['category', 'Category'],
-  ['date', 'Date'],
+const SORT_OPTIONS: { value: string; label: string; compact: string }[] = [
+  { value: 'date:desc', label: 'Date: newest first', compact: 'Date ↓' },
+  { value: 'date:asc', label: 'Date: oldest first', compact: 'Date ↑' },
+  { value: 'amount:desc', label: 'Amount: high to low', compact: 'Amount ↓' },
+  { value: 'amount:asc', label: 'Amount: low to high', compact: 'Amount ↑' },
+  { value: 'description:asc', label: 'Description: A to Z', compact: 'Description ↑' },
+  { value: 'description:desc', label: 'Description: Z to A', compact: 'Description ↓' },
+  { value: 'category:asc', label: 'Category: A to Z', compact: 'Category ↑' },
+  { value: 'account:asc', label: 'Account: A to Z', compact: 'Account ↑' },
 ]
 
-const SORT_ORDER_LABELS: Record<string, [string, string]> = {
-  paymentMethod: ['Z to A', 'A to Z'],
-  amount: ['High to low', 'Low to high'],
-  description: ['Z to A', 'A to Z'],
-  category: ['Z to A', 'A to Z'],
-  date: ['Newest first', 'Oldest first'],
+function accountOf(movement: Movement): FundingAccount | null {
+  if (movement.kind === 'transfer') {
+    const accounts = transferAccounts(movement)
+    return (accounts?.[0] as FundingAccount | undefined) ?? null
+  }
+  if (movement.kind === 'adjustment') {
+    const posting = movement.postings.find((candidate) => candidate.account !== 'adjustment')
+    return posting ? (posting.account as FundingAccount) : null
+  }
+  return fundingAccountOf(movement)
 }
 
-const SORT_OPTIONS = SORT_KEYS.flatMap(([key, label]) => {
-  const [desc, asc] = SORT_ORDER_LABELS[key]
-  return [
-    { value: `${key}:desc`, label: `${label}: ${desc}`, compact: `${label} ↓` },
-    { value: `${key}:asc`, label: `${label}: ${asc}`, compact: `${label} ↑` },
-  ]
-})
+function amountOf(movement: Movement): number {
+  switch (movement.kind) {
+    case 'purchase':
+      return grossPurchaseAmount(movement)
+    case 'income':
+      return incomeAmount(movement)
+    case 'refund':
+      return refundAmount(movement)
+    case 'settlement':
+      return settlementTotal(movement)
+    default:
+      return movementTotal(movement)
+  }
+}
 
-function PaymentBadge({ method, installment }: { method: PaymentMethod; installment?: string }) {
+function amountClass(movement: Movement): string {
+  if (movement.kind === 'income' || movement.kind === 'refund') return 'text-green-600'
+  if (movement.kind === 'purchase') return 'text-red-600'
+  return 'text-muted-foreground'
+}
+
+function detailOf(movement: Movement): string {
+  if (movement.kind === 'transfer') {
+    const accounts = transferAccounts(movement)
+    if (accounts) return `${ACCOUNT_LABELS[accounts[0]]} → ${ACCOUNT_LABELS[accounts[1]]}`
+  }
+  if (movement.kind === 'purchase') {
+    const payer = movement.postings.find((posting) => posting.account === 'payable')?.counterparty
+    if (payer) return `Paid by ${payer}`
+    const owed = movement.postings
+      .filter((posting) => posting.account === 'receivable' && posting.counterparty)
+      .map((posting) => posting.counterparty)
+    if (owed.length > 0) return `Owed by ${owed.join(', ')}`
+  }
+  if (movement.kind === 'settlement') {
+    const counterparty = counterpartyOf(movement)
+    if (counterparty) return `Settled with ${counterparty}`
+  }
+  return '—'
+}
+
+function ownedShare(movement: Movement): number {
+  return expenseAmount(movement)
+}
+
+function AccountBadge({ account }: { account: FundingAccount | null }) {
+  if (!account) return <span className="text-xs text-muted-foreground">—</span>
   return (
-    <Badge variant="outline" className={PAYMENT_METHOD_BADGE_COLORS[method]}>
-      {method}
-      {installment && ` · Installment ${installment}`}
+    <Badge variant="outline" className={ACCOUNT_BADGE_COLORS[account]}>
+      {account === 'payable' ? 'Someone else' : ACCOUNT_LABELS[account]}
     </Badge>
   )
 }
 
-function debtsOf(tx: Transaction): Debt[] {
-  return tx.type === 'Expense' ? (tx.debts ?? []) : []
-}
-
-function othersOwe(flow: MonthlyFlow): number {
-  return addCurrency(flow.amount, -flow.ownAmount)
-}
-
-function SplitBreakdown({ flow }: { flow: MonthlyFlow }) {
-  return (
-    <div className="space-y-0.5 text-xs">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-muted-foreground">Others</span>
-        <span className="font-mono">{formatCurrency(othersOwe(flow))}</span>
-      </div>
-      <div className="flex items-baseline justify-between gap-2 font-medium">
-        <span>You</span>
-        <span className="font-mono">{formatCurrency(flow.ownAmount)}</span>
-      </div>
-    </div>
-  )
-}
-
-const TransactionCard = memo(function TransactionCard({
-  tx,
-  flow,
-  onEdit,
+const MovementCard = memo(function MovementCard({
+  movement,
+  onOpen,
+  onRefund,
   onDelete,
 }: {
-  tx: Transaction
-  flow: MonthlyFlow
-  onEdit: (tx: Transaction) => void
+  movement: Movement
+  onOpen: (movement: Movement) => void
+  onRefund: (movement: Movement) => void
   onDelete: (id: string) => void
 }) {
-  const debts = debtsOf(tx)
-  const isFuture = monthRelation(flow.referenceMonth) === 'future'
+  const isFuture = monthRelation(movementMonth(movement)) === 'future'
+  const account = accountOf(movement)
 
   return (
     <div className={`px-3 py-1.5 ${isFuture ? 'opacity-45' : ''}`}>
       <div className="flex items-start gap-2">
         <button
           type="button"
-          onClick={() => onEdit(tx)}
+          onClick={() => onOpen(movement)}
           className="min-w-0 flex-1 rounded-none py-1 text-left hover:bg-muted/30 focus-visible:outline focus-visible:outline-ring"
-          title="Edit transaction"
+          title={
+            movement.kind === 'purchase' || movement.kind === 'income'
+              ? 'Edit movement'
+              : 'View movement'
+          }
         >
           <span className="flex items-start justify-between gap-2">
-            <span className="flex min-w-0 items-start gap-1 text-sm font-medium">
-              <span className="min-w-0 flex-1 break-words">{tx.description}</span>
-              {debts.length > 0 && debts.every((d) => d.settled) && (
-                <Badge
-                  variant="outline"
-                  className="shrink-0 text-[10px] text-green-600 bg-green-50"
-                >
-                  Paid
-                </Badge>
-              )}
+            <span className="min-w-0 flex-1 break-words text-sm font-medium">
+              {movement.description}
             </span>
-            <span
-              className={`shrink-0 font-mono text-sm font-semibold ${tx.type === 'Income' ? 'text-green-600' : 'text-red-600'}`}
-            >
-              {formatCurrency(flow.amount)}
+            <span className={`shrink-0 font-mono text-sm font-semibold ${amountClass(movement)}`}>
+              {formatCurrency(amountOf(movement))}
             </span>
           </span>
           <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-            <PaymentBadge
-              method={tx.paymentMethod}
-              installment={
-                flow.installmentIndex != null
-                  ? `${flow.installmentIndex + 1}/${flow.installmentTotal}`
-                  : undefined
-              }
-            />
-            <span>{flow.installmentIndex != null ? flow.referenceMonth : tx.date}</span>
             <Badge variant="outline" className="text-[10px]">
-              {tx.category}
+              {MOVEMENT_KIND_LABELS[movement.kind]}
             </Badge>
+            <AccountBadge account={account} />
+            {categoryOf(movement) && (
+              <Badge variant="outline" className="text-[10px]">
+                {categoryOf(movement)}
+              </Badge>
+            )}
+            <span>{movement.date}</span>
           </span>
+          {detailOf(movement) !== '—' && (
+            <span className="mt-1 block text-[10px] text-muted-foreground">
+              {detailOf(movement)}
+            </span>
+          )}
         </button>
+        {movement.kind === 'purchase' && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mt-1 size-10"
+            onClick={(event) => {
+              event.stopPropagation()
+              onRefund(movement)
+            }}
+            aria-label="Received back"
+          >
+            <ArrowUUpLeftIcon />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon"
           className="mt-1 size-10"
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete(tx.id)
+          onClick={(event) => {
+            event.stopPropagation()
+            onDelete(movement.id)
           }}
-          aria-label="Delete transaction"
+          aria-label="Delete movement"
         >
           <TrashIcon />
         </Button>
       </div>
 
-      {othersOwe(flow) > 0 && (
-        <div className="ml-2 mt-1 bg-muted/30 p-2">
-          <SplitBreakdown flow={flow} />
-        </div>
-      )}
+      {movement.kind === 'purchase' &&
+        (movement.links?.length || ownedShare(movement) !== amountOf(movement)) && (
+          <div className="ml-2 mt-1 bg-muted/30 p-2 text-xs">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-muted-foreground">Others</span>
+              <span className="font-mono">
+                {formatCurrency(addCurrency(amountOf(movement), -ownedShare(movement)))}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between gap-2 font-medium">
+              <span>You</span>
+              <span className="font-mono">{formatCurrency(ownedShare(movement))}</span>
+            </div>
+          </div>
+        )}
     </div>
   )
 })
 
 function getParamList(params: URLSearchParams, key: string): string[] {
-  const val = params.get(key)
-  return val ? val.split(',').filter(Boolean) : []
+  const value = params.get(key)
+  return value ? value.split(',').filter(Boolean) : []
 }
 
 function FilterGroup({
@@ -248,28 +328,28 @@ const TransactionFilters = memo(function TransactionFilters({
   filterType,
   filterMonth,
   filterCategories,
-  filterPayments,
-  filterDebtors,
+  filterAccounts,
+  filterCounterparties,
   months,
   allCategories,
-  allDebtors,
+  allCounterparties,
   updateParam,
   wide = false,
 }: {
   filterType: string
   filterMonth: string
   filterCategories: string[]
-  filterPayments: string[]
-  filterDebtors: string[]
+  filterAccounts: string[]
+  filterCounterparties: string[]
   months: string[]
   allCategories: string[]
-  allDebtors: string[]
+  allCounterparties: string[]
   updateParam: (key: string, value: string | string[] | null) => void
   wide?: boolean
 }) {
   return (
     <>
-      <Select value={filterType} onValueChange={(v) => updateParam('type', v)}>
+      <Select value={filterType} onValueChange={(value) => updateParam('type', value)}>
         <SelectTrigger
           className={
             wide
@@ -286,7 +366,7 @@ const TransactionFilters = memo(function TransactionFilters({
         </SelectContent>
       </Select>
 
-      <Select value={filterMonth} onValueChange={(v) => updateParam('month', v)}>
+      <Select value={filterMonth} onValueChange={(value) => updateParam('month', value)}>
         <SelectTrigger
           className={
             wide
@@ -298,21 +378,21 @@ const TransactionFilters = memo(function TransactionFilters({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All months</SelectItem>
-          {months.map((m) => {
-            const rel = monthRelation(m)
+          {months.map((month) => {
+            const relation = monthRelation(month)
             return (
               <SelectItem
-                key={m}
-                value={m}
+                key={month}
+                value={month}
                 className={
-                  rel === 'future'
+                  relation === 'future'
                     ? 'text-muted-foreground/60'
-                    : rel === 'current'
+                    : relation === 'current'
                       ? 'text-primary font-medium'
                       : ''
                 }
               >
-                {m}
+                {month}
               </SelectItem>
             )
           })}
@@ -320,15 +400,17 @@ const TransactionFilters = memo(function TransactionFilters({
       </Select>
 
       <FilterGroup
-        idPrefix="pay-filter"
-        label="Payment"
-        options={[...EXPENSE_PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS]}
-        selected={filterPayments}
-        count={filterPayments.length}
-        onToggle={(pm, on) =>
+        idPrefix="account-filter"
+        label="Account"
+        options={FUNDING_ACCOUNTS.map((account) =>
+          account === 'payable' ? 'Someone else' : ACCOUNT_LABELS[account],
+        )}
+        selected={filterAccounts}
+        count={filterAccounts.length}
+        onToggle={(account, on) =>
           updateParam(
-            'payment',
-            on ? [...filterPayments, pm] : filterPayments.filter((p) => p !== pm),
+            'account',
+            on ? [...filterAccounts, account] : filterAccounts.filter((item) => item !== account),
           )
         }
         wide={wide}
@@ -340,26 +422,30 @@ const TransactionFilters = memo(function TransactionFilters({
         options={allCategories}
         selected={filterCategories}
         count={filterCategories.length}
-        onToggle={(cat, on) =>
+        onToggle={(category, on) =>
           updateParam(
             'category',
-            on ? [...filterCategories, cat] : filterCategories.filter((c) => c !== cat),
+            on
+              ? [...filterCategories, category]
+              : filterCategories.filter((item) => item !== category),
           )
         }
         wide={wide}
       />
 
-      {allDebtors.length > 0 && (
+      {allCounterparties.length > 0 && (
         <FilterGroup
-          idPrefix="debtor-filter"
-          label="Debtor"
-          options={allDebtors}
-          selected={filterDebtors}
-          count={filterDebtors.length}
-          onToggle={(name, on) =>
+          idPrefix="person-filter"
+          label="Person"
+          options={allCounterparties}
+          selected={filterCounterparties}
+          count={filterCounterparties.length}
+          onToggle={(person, on) =>
             updateParam(
-              'debtor',
-              on ? [...filterDebtors, name] : filterDebtors.filter((d) => d !== name),
+              'person',
+              on
+                ? [...filterCounterparties, person]
+                : filterCounterparties.filter((item) => item !== person),
             )
           }
           wide={wide}
@@ -369,65 +455,66 @@ const TransactionFilters = memo(function TransactionFilters({
   )
 })
 
-type TransactionRowData = { tx: Transaction; flow: MonthlyFlow }
-
-const TransactionRowCells = memo(function TransactionRowCells({
-  tx,
-  flow,
+const MovementRowCells = memo(function MovementRowCells({
+  movement,
+  onOpen,
+  onRefund,
   onDelete,
 }: {
-  tx: Transaction
-  flow: MonthlyFlow
+  movement: Movement
+  onOpen: (movement: Movement) => void
+  onRefund: (movement: Movement) => void
   onDelete: (id: string) => void
 }) {
-  const txDebts = debtsOf(tx)
-  const allDebtsSettled = txDebts.every((d) => d.settled)
-
+  const account = accountOf(movement)
   return (
     <>
       <TableCell>
-        <PaymentBadge method={tx.paymentMethod} />
+        <AccountBadge account={account} />
       </TableCell>
-      <TableCell
-        className={`text-right font-mono text-xs ${tx.type === 'Income' ? 'text-green-600' : 'text-red-600'}`}
-      >
-        {formatCurrency(flow.amount)}
+      <TableCell className={cn('text-right font-mono text-xs', amountClass(movement))}>
+        {formatCurrency(amountOf(movement))}
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-1.5">
-          <div className="min-w-0 flex-1 truncate">{tx.description}</div>
-          {txDebts.length > 0 && allDebtsSettled && (
-            <Badge variant="outline" className="shrink-0 text-[10px] text-green-600 bg-green-50 ">
-              Paid
-            </Badge>
-          )}
+          <div className="min-w-0 flex-1 truncate">{movement.description}</div>
+          <Badge variant="outline" className="shrink-0 text-[10px]">
+            {MOVEMENT_KIND_LABELS[movement.kind]}
+          </Badge>
         </div>
       </TableCell>
-      <TableCell className="text-xs">{tx.category}</TableCell>
-      <TableCell className="text-xs">
-        {flow.installmentIndex != null ? flow.referenceMonth : tx.date}
+      <TableCell className="text-xs">{categoryOf(movement) ?? '—'}</TableCell>
+      <TableCell className="text-xs">{movement.date}</TableCell>
+      <TableCell className="max-w-36 truncate text-xs text-muted-foreground">
+        {detailOf(movement)}
       </TableCell>
-      <TableCell className="text-center text-xs">
-        {flow.installmentIndex != null ? (
-          <Badge variant="outline" className="text-xs whitespace-nowrap">
-            {flow.installmentIndex + 1}/{flow.installmentTotal}
-          </Badge>
-        ) : null}
-      </TableCell>
-      <TableCell className="text-xs">
-        {othersOwe(flow) > 0 ? (
-          <SplitBreakdown flow={flow} />
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-      </TableCell>
-      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-        <span className="flex gap-1 justify-end">
+      <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
+        <span className="flex justify-end gap-1">
+          {(movement.kind === 'purchase' || movement.kind === 'income') && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => onOpen(movement)}
+              aria-label="Edit movement"
+            >
+              <span className="text-xs">Edit</span>
+            </Button>
+          )}
+          {movement.kind === 'purchase' && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => onRefund(movement)}
+              aria-label="Received back"
+            >
+              <ArrowUUpLeftIcon />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon-xs"
-            onClick={() => onDelete(tx.id)}
-            aria-label="Delete transaction"
+            onClick={() => onDelete(movement.id)}
+            aria-label="Delete movement"
           >
             <TrashIcon />
           </Button>
@@ -437,16 +524,18 @@ const TransactionRowCells = memo(function TransactionRowCells({
   )
 })
 
-const DesktopTransactionList = memo(function DesktopTransactionList({
-  rows,
-  onEdit,
+const DesktopMovementList = memo(function DesktopMovementList({
+  movements,
+  onOpen,
+  onRefund,
   onDelete,
   onSort,
   sortKey,
   sortDir,
 }: {
-  rows: TransactionRowData[]
-  onEdit: (tx: Transaction) => void
+  movements: Movement[]
+  onOpen: (movement: Movement) => void
+  onRefund: (movement: Movement) => void
   onDelete: (id: string) => void
   onSort: (key: string) => void
   sortKey: string | null
@@ -455,7 +544,7 @@ const DesktopTransactionList = memo(function DesktopTransactionList({
   const bodyRef = useRef<HTMLTableSectionElement>(null)
   const scrollMargin = useScrollMargin(bodyRef)
   const rowVirtualizer = useWindowVirtualizer({
-    count: rows.length,
+    count: movements.length,
     estimateSize: () => 41,
     overscan: 8,
     scrollMargin,
@@ -470,9 +559,9 @@ const DesktopTransactionList = memo(function DesktopTransactionList({
   const indicator = (key: string) => {
     if (sortKey !== key) return null
     return sortDir === 'asc' ? (
-      <SortAscendingIcon className="size-3 inline ml-0.5" />
+      <SortAscendingIcon className="ml-0.5 inline size-3" />
     ) : (
-      <SortDescendingIcon className="size-3 inline ml-0.5" />
+      <SortDescendingIcon className="ml-0.5 inline size-3" />
     )
   }
 
@@ -484,13 +573,13 @@ const DesktopTransactionList = memo(function DesktopTransactionList({
             <TableHead className="w-24">
               <button
                 type="button"
-                onClick={() => onSort('paymentMethod')}
+                onClick={() => onSort('account')}
                 className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
               >
-                Payment{indicator('paymentMethod')}
+                Account{indicator('account')}
               </button>
             </TableHead>
-            <TableHead className="text-right w-24">
+            <TableHead className="w-24 text-right">
               <button
                 type="button"
                 onClick={() => onSort('amount')}
@@ -526,32 +615,31 @@ const DesktopTransactionList = memo(function DesktopTransactionList({
                 Date{indicator('date')}
               </button>
             </TableHead>
-            <TableHead className="w-24 text-center">Installment</TableHead>
-            <TableHead className="w-28">Split</TableHead>
-            <TableHead className="text-right w-20">Actions</TableHead>
+            <TableHead className="w-36">Detail</TableHead>
+            <TableHead className="w-24 text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <tbody ref={bodyRef} className="[&_tr:last-child]:border-0">
-          {rows.length === 0 && (
+          {movements.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8}>
-                <EmptyState variant="cell" message="No transactions yet." />
+              <TableCell colSpan={7}>
+                <EmptyState variant="cell" message="No movements yet." />
               </TableCell>
             </TableRow>
           )}
 
           {paddingTop > 0 && (
             <tr aria-hidden>
-              <td colSpan={8} style={{ height: paddingTop }} />
+              <td colSpan={7} style={{ height: paddingTop }} />
             </tr>
           )}
 
           {virtualRows.map((virtualRow) => {
-            const row = rows[virtualRow.index]
-            const isFuture = monthRelation(row.flow.referenceMonth) === 'future'
+            const movement = movements[virtualRow.index]
+            const isFuture = monthRelation(movementMonth(movement)) === 'future'
             return (
               <tr
-                key={`${row.tx.id}-${row.flow.referenceMonth}-${row.flow.installmentIndex ?? 0}`}
+                key={movement.id}
                 data-index={virtualRow.index}
                 ref={rowVirtualizer.measureElement}
                 className={cn(
@@ -559,21 +647,31 @@ const DesktopTransactionList = memo(function DesktopTransactionList({
                   isFuture && 'opacity-45',
                 )}
                 tabIndex={0}
-                onClick={() => onEdit(row.tx)}
-                onKeyDown={(e) => {
-                  if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
-                  e.preventDefault()
-                  onEdit(row.tx)
+                onClick={() => onOpen(movement)}
+                onKeyDown={(event) => {
+                  if (
+                    event.target !== event.currentTarget ||
+                    (event.key !== 'Enter' && event.key !== ' ')
+                  ) {
+                    return
+                  }
+                  event.preventDefault()
+                  onOpen(movement)
                 }}
               >
-                <TransactionRowCells tx={row.tx} flow={row.flow} onDelete={onDelete} />
+                <MovementRowCells
+                  movement={movement}
+                  onOpen={onOpen}
+                  onRefund={onRefund}
+                  onDelete={onDelete}
+                />
               </tr>
             )
           })}
 
           {paddingBottom > 0 && (
             <tr aria-hidden>
-              <td colSpan={8} style={{ height: paddingBottom }} />
+              <td colSpan={7} style={{ height: paddingBottom }} />
             </tr>
           )}
         </tbody>
@@ -582,20 +680,22 @@ const DesktopTransactionList = memo(function DesktopTransactionList({
   )
 })
 
-const MobileTransactionList = memo(function MobileTransactionList({
-  rows,
-  onEdit,
+const MobileMovementList = memo(function MobileMovementList({
+  movements,
+  onOpen,
+  onRefund,
   onDelete,
 }: {
-  rows: TransactionRowData[]
-  onEdit: (tx: Transaction) => void
+  movements: Movement[]
+  onOpen: (movement: Movement) => void
+  onRefund: (movement: Movement) => void
   onDelete: (id: string) => void
 }) {
   const listRef = useRef<HTMLDivElement>(null)
   const scrollMargin = useScrollMargin(listRef)
   const rowVirtualizer = useWindowVirtualizer({
-    count: rows.length,
-    estimateSize: () => 96,
+    count: movements.length,
+    estimateSize: () => 104,
     overscan: 8,
     gap: 8,
     scrollMargin,
@@ -606,19 +706,19 @@ const MobileTransactionList = memo(function MobileTransactionList({
     <div
       ref={listRef}
       style={
-        rows.length > 0
+        movements.length > 0
           ? { height: rowVirtualizer.getTotalSize(), position: 'relative' }
           : undefined
       }
     >
-      {rows.length === 0 ? (
-        <EmptyState message="No transactions yet." />
+      {movements.length === 0 ? (
+        <EmptyState message="No movements yet." />
       ) : (
         virtualRows.map((virtualRow) => {
-          const row = rows[virtualRow.index]
+          const movement = movements[virtualRow.index]
           return (
             <div
-              key={`${row.tx.id}-${row.flow.referenceMonth}-${row.flow.installmentIndex ?? 0}`}
+              key={movement.id}
               data-index={virtualRow.index}
               ref={rowVirtualizer.measureElement}
               style={{
@@ -630,7 +730,12 @@ const MobileTransactionList = memo(function MobileTransactionList({
               }}
             >
               <div className="border border-border">
-                <TransactionCard tx={row.tx} flow={row.flow} onEdit={onEdit} onDelete={onDelete} />
+                <MovementCard
+                  movement={movement}
+                  onOpen={onOpen}
+                  onRefund={onRefund}
+                  onDelete={onDelete}
+                />
               </div>
             </div>
           )
@@ -640,14 +745,188 @@ const MobileTransactionList = memo(function MobileTransactionList({
   )
 })
 
+function RefundDialog({
+  purchase,
+  open,
+  onOpenChange,
+}: {
+  purchase: Movement | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const { state, dispatch } = useFinance()
+  const { toast } = useToast()
+  const [amount, setAmount] = useState('')
+  const [account, setAccount] = useState<FundingAccount>('card')
+  const [date, setDate] = useState(localYMD())
+  const [description, setDescription] = useState('Received back')
+
+  const available = purchase ? refundableAmount(purchase, state.movements) : 0
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: open is intentional to reset on dialog open
+  useEffect(() => {
+    setAmount('')
+    setDate(localYMD())
+    setDescription('Received back')
+    setAccount(purchase ? (fundingAccountOf(purchase) ?? 'card') : 'card')
+  }, [purchase, open])
+
+  function handleSave() {
+    if (!purchase) return
+    const parsed = parseCurrency(amount)
+    const result = buildRefund({
+      id: crypto.randomUUID(),
+      date,
+      description,
+      amount: parsed,
+      account,
+      purchase,
+      existing: state.movements,
+    })
+    if (!result.ok) {
+      toast(result.reason, 'error')
+      return
+    }
+    startTransition(() => dispatch({ type: 'ADD_MOVEMENTS', payload: [result.value] }))
+    toast('Refund recorded', 'success')
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Received back</DialogTitle>
+          <DialogDescription>
+            Net this amount against “{purchase?.description ?? 'the purchase'}”. Up to{' '}
+            {formatCurrency(available)} remains.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label htmlFor="refund-amount" className="text-xs">
+              Amount (R$)
+            </Label>
+            <MoneyInput id="refund-amount" value={amount} onValueChange={setAmount} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="refund-date" className="text-xs">
+                Date
+              </Label>
+              <Input
+                id="refund-date"
+                type="date"
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="refund-account" className="text-xs">
+                Received in
+              </Label>
+              <Select
+                modal={false}
+                value={account}
+                onValueChange={(value) => setAccount((value ?? 'card') as FundingAccount)}
+              >
+                <SelectTrigger id="refund-account" className="w-full">
+                  <SelectValue>{ACCOUNT_LABELS[account]}</SelectValue>
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false}>
+                  {FUNDING_ACCOUNTS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {ACCOUNT_LABELS[option]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="refund-description" className="text-xs">
+              Description
+            </Label>
+            <Input
+              id="refund-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={available <= 0}>
+            Record
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function MovementDetailsDialog({
+  movement,
+  open,
+  onOpenChange,
+}: {
+  movement: Movement | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{movement?.description ?? 'Movement'}</DialogTitle>
+          <DialogDescription>
+            {movement ? `${MOVEMENT_KIND_LABELS[movement.kind]} · ${movement.date}` : ''}
+          </DialogDescription>
+        </DialogHeader>
+        {movement && (
+          <div className="border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Account</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Person</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {movement.postings.map((posting, index) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: posting rows are positional
+                  <TableRow key={index}>
+                    <TableCell className="text-xs">{ACCOUNT_LABELS[posting.account]}</TableCell>
+                    <TableCell className="text-xs">{posting.category ?? '—'}</TableCell>
+                    <TableCell className="text-xs">{posting.counterparty ?? '—'}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">
+                      {formatPlainCurrency(posting.amount)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export default function TransactionTable() {
   const { state, dispatch } = useFinance()
   const [searchParams, setSearchParams] = useSearchParams()
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [editingTx, setEditingTx] = useState<Transaction | null>(null)
+  const [editingMovement, setEditingMovement] = useState<Movement | null>(null)
   const [showEditForm, setShowEditForm] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [refundPurchase, setRefundPurchase] = useState<Movement | null>(null)
+  const [detailsMovement, setDetailsMovement] = useState<Movement | null>(null)
   const { toast } = useToast()
   const isDesktop = useIsDesktop()
 
@@ -655,9 +934,9 @@ export default function TransactionTable() {
   const filterMonth = searchParams.get('month') ?? 'all'
   const filterType = searchParams.get('type') ?? 'all'
   const filterCategories = useMemo(() => getParamList(searchParams, 'category'), [searchParams])
-  const filterPayments = useMemo(() => getParamList(searchParams, 'payment'), [searchParams])
-  const filterDebtors = useMemo(() => getParamList(searchParams, 'debtor'), [searchParams])
-  const filterTxId = searchParams.get('tx')
+  const filterAccounts = useMemo(() => getParamList(searchParams, 'account'), [searchParams])
+  const filterCounterparties = useMemo(() => getParamList(searchParams, 'person'), [searchParams])
+  const filterMovementId = searchParams.get('movement')
 
   const [localSearch, setLocalSearch] = useState(filterSearch)
 
@@ -669,13 +948,10 @@ export default function TransactionTable() {
     if (localSearch === filterSearch) return
     const timer = setTimeout(() => {
       setSearchParams(
-        (prev) => {
-          if (localSearch) {
-            prev.set('search', localSearch)
-          } else {
-            prev.delete('search')
-          }
-          return prev
+        (previous) => {
+          if (localSearch) previous.set('search', localSearch)
+          else previous.delete('search')
+          return previous
         },
         { replace: true },
       )
@@ -684,133 +960,137 @@ export default function TransactionTable() {
   }, [localSearch, filterSearch, setSearchParams])
 
   useEffect(() => {
-    if (filterTxId) {
-      const tx = state.transactions.find((t) => t.id === filterTxId)
-      if (tx) {
-        setEditingTx(tx)
+    if (!filterMovementId) return
+    const movement = state.movements.find((candidate) => candidate.id === filterMovementId)
+    if (movement) {
+      if (movement.kind === 'purchase' || movement.kind === 'income') {
+        setEditingMovement(movement)
         setShowEditForm(true)
+      } else {
+        setDetailsMovement(movement)
       }
-      setSearchParams(
-        (prev) => {
-          prev.delete('tx')
-          return prev
-        },
-        { replace: true },
-      )
     }
-  }, [filterTxId, setSearchParams, state.transactions])
+    setSearchParams(
+      (previous) => {
+        previous.delete('movement')
+        return previous
+      },
+      { replace: true },
+    )
+  }, [filterMovementId, setSearchParams, state.movements])
 
   const updateParam = useCallback(
     (key: string, value: string | string[] | null) => {
-      setSearchParams((prev) => {
+      setSearchParams((previous) => {
         if (value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
-          prev.delete(key)
+          previous.delete(key)
         } else if (Array.isArray(value)) {
-          prev.set(key, value.join(','))
+          previous.set(key, value.join(','))
         } else if (value === 'all') {
-          prev.delete(key)
+          previous.delete(key)
         } else {
-          prev.set(key, value)
+          previous.set(key, value)
         }
-        return prev
+        return previous
       })
     },
     [setSearchParams],
   )
 
-  const months = useMemo(() => availableMonths(state.transactions), [state.transactions])
+  const months = useMemo(() => availableMonths(state.movements), [state.movements])
 
   const knownDescriptions = useMemo(() => {
-    const descs = new Set<string>()
-    for (const t of state.transactions) {
-      if (t.description) descs.add(t.description)
-    }
-    return Array.from(descs).sort()
-  }, [state.transactions])
+    const descriptions = new Set<string>()
+    for (const movement of state.movements) descriptions.add(movement.description)
+    return Array.from(descriptions).sort()
+  }, [state.movements])
 
   const allCategories = useMemo(
-    () => allCategoryNames(state.budgets, state.transactions),
-    [state.budgets, state.transactions],
+    () => allCategoryNames(state.budgets, state.movements),
+    [state.budgets, state.movements],
   )
 
   const categoriesForMonth = useCallback(
     (month: string | null) =>
-      categoryOptionsForMonth(month ?? currentYM(), state.budgets, state.transactions),
-    [state.budgets, state.transactions],
+      categoryOptionsForMonth(month ?? currentYM(), state.budgets, state.movements),
+    [state.budgets, state.movements],
   )
 
-  const allDebtors = useMemo(() => {
+  const allCounterparties = useMemo(() => {
     const names = new Set<string>()
-    for (const t of state.transactions) {
-      for (const d of debtsOf(t)) {
-        if (d.name) names.add(d.name)
+    for (const movement of state.movements) {
+      for (const posting of movement.postings) {
+        if (posting.counterparty) names.add(posting.counterparty)
       }
     }
     return Array.from(names).sort()
-  }, [state.transactions])
+  }, [state.movements])
 
   const filtered = useMemo(() => {
-    let txs = state.transactions
-    if (filterType !== 'all') {
-      txs = txs.filter((t) => t.type === filterType)
+    let movements = state.movements
+    if (filterType === 'Expense') {
+      movements = movements.filter(
+        (movement) => movement.kind === 'purchase' || movement.kind === 'refund',
+      )
+    } else if (filterType === 'Income') {
+      movements = movements.filter((movement) => movement.kind === 'income')
     }
     if (filterMonth !== 'all') {
-      txs = txs.filter((t) => monthlyFlows(t).some((f) => f.referenceMonth === filterMonth))
+      movements = movements.filter((movement) => movementMonth(movement) === filterMonth)
     }
     if (filterSearch) {
-      const q = filterSearch.toLowerCase()
-      txs = txs.filter((t) => t.description.toLowerCase().includes(q))
+      const needle = filterSearch.toLowerCase()
+      movements = movements.filter((movement) =>
+        movement.description.toLowerCase().includes(needle),
+      )
     }
     if (filterCategories.length > 0) {
-      txs = txs.filter((t) => filterCategories.includes(t.category))
+      movements = movements.filter(
+        (movement) =>
+          categoryOf(movement) && filterCategories.includes(categoryOf(movement) as string),
+      )
     }
-    if (filterPayments.length > 0) {
-      txs = txs.filter((t) => filterPayments.includes(t.paymentMethod))
+    if (filterAccounts.length > 0) {
+      movements = movements.filter((movement) => {
+        const account = accountOf(movement)
+        if (!account) return false
+        const label = account === 'payable' ? 'Someone else' : ACCOUNT_LABELS[account]
+        return filterAccounts.includes(label)
+      })
     }
-    if (filterDebtors.length > 0) {
-      txs = txs.filter((t) => debtsOf(t).some((d) => filterDebtors.includes(d.name)))
+    if (filterCounterparties.length > 0) {
+      movements = movements.filter((movement) =>
+        movement.postings.some(
+          (posting) => posting.counterparty && filterCounterparties.includes(posting.counterparty),
+        ),
+      )
     }
     if (sortKey) {
-      txs = [...txs].sort((a, b) =>
-        compareTransactions(a, b, sortKey as TransactionSortKey, sortDir),
+      movements = [...movements].sort((a, b) =>
+        compareMovements(a, b, sortKey as MovementSortKey, sortDir),
       )
     } else {
-      txs = [...txs].sort((a, b) => b.date.localeCompare(a.date))
+      movements = [...movements].sort((a, b) => b.date.localeCompare(a.date))
     }
-    return txs
+    return movements
   }, [
-    state.transactions,
+    state.movements,
     filterType,
     filterMonth,
     filterSearch,
     filterCategories,
-    filterPayments,
-    filterDebtors,
+    filterAccounts,
+    filterCounterparties,
     sortKey,
     sortDir,
   ])
-
-  const rows = useMemo(
-    () =>
-      filtered.flatMap((tx) =>
-        monthlyFlows(tx)
-          .filter((f) => filterMonth === 'all' || f.referenceMonth === filterMonth)
-          .map((flow) => ({ tx, flow }))
-          .sort(
-            (a, b) =>
-              b.flow.referenceMonth.localeCompare(a.flow.referenceMonth) ||
-              (a.flow.installmentIndex ?? 0) - (b.flow.installmentIndex ?? 0),
-          ),
-      ),
-    [filtered, filterMonth],
-  )
 
   const activeFilterCount =
     (filterType !== 'all' ? 1 : 0) +
     (filterMonth !== 'all' ? 1 : 0) +
     filterCategories.length +
-    filterPayments.length +
-    filterDebtors.length
+    filterAccounts.length +
+    filterCounterparties.length
 
   const handleSort = useCallback(
     (key: string) => {
@@ -833,66 +1113,78 @@ export default function TransactionTable() {
     description: string
     amount: number
     category: string | null
-    paymentMethod: PaymentMethod | null
+    paymentMethod: FundingAccount | null
+    kind: 'income' | 'expense' | null
     date: string
   }) {
     if (row.amount <= 0) return
-    const amount = row.amount
+    const account =
+      row.paymentMethod && FUNDING_ACCOUNTS.includes(row.paymentMethod)
+        ? row.paymentMethod
+        : 'checking'
 
-    const method = row.paymentMethod ?? 'Debit/PIX'
-
-    startTransition(() => {
-      if (isIncomePaymentMethod(method)) {
-        dispatch({
-          type: 'ADD_TRANSACTIONS',
-          payload: [
-            {
-              id: crypto.randomUUID(),
-              type: 'Income',
-              date: row.date,
-              description: row.description,
-              amount,
-              category: 'Income',
-              paymentMethod: method,
-            },
-          ],
-        })
-      } else {
-        dispatch({
-          type: 'ADD_TRANSACTIONS',
-          payload: [
-            {
-              id: crypto.randomUUID(),
-              type: 'Expense',
-              date: row.date,
-              description: row.description,
-              amount,
-              category: row.category ?? 'Other',
-              paymentMethod: isExpensePaymentMethod(method) ? method : 'Debit/PIX',
-            },
-          ],
-        })
+    if (row.kind === 'income') {
+      const result = buildIncome({
+        id: crypto.randomUUID(),
+        date: row.date,
+        description: row.description,
+        amount: row.amount,
+        account: account === 'voucher' || account === 'cash' ? account : 'checking',
+        category: 'Income',
+      })
+      if (!result.ok) {
+        toast(result.reason, 'error')
+        return
       }
+      startTransition(() => dispatch({ type: 'ADD_MOVEMENTS', payload: [result.value] }))
+      toast('Income added', 'success')
+      return
+    }
+
+    const result = buildPurchase({
+      id: crypto.randomUUID(),
+      date: row.date,
+      description: row.description,
+      amount: row.amount,
+      category: row.category ?? 'Other',
+      account,
     })
+    if (!result.ok) {
+      toast(result.reason, 'error')
+      return
+    }
+    startTransition(() => dispatch({ type: 'ADD_MOVEMENTS', payload: result.value }))
     toast('Transaction added', 'success')
   }
 
   const handleDelete = useCallback(
     (id: string) => {
-      startTransition(() => dispatch({ type: 'DELETE_TRANSACTION', payload: id }))
+      const refunds = state.movements
+        .filter((movement) => movement.kind === 'refund' && movement.links?.includes(id))
+        .map((movement) => movement.id)
+      startTransition(() => {
+        dispatch({ type: 'DELETE_MOVEMENT', payload: id })
+        for (const refundId of refunds) {
+          dispatch({ type: 'DELETE_MOVEMENT', payload: refundId })
+        }
+      })
       toast('Transaction deleted', 'info')
     },
-    [dispatch, toast],
+    [dispatch, state.movements, toast],
   )
 
-  const handleEdit = useCallback((tx: Transaction) => {
-    setEditingTx(tx)
-    setShowEditForm(true)
+  const handleOpen = useCallback((movement: Movement) => {
+    if (movement.kind === 'purchase' || movement.kind === 'income') {
+      setEditingMovement(movement)
+      setShowEditForm(true)
+    } else {
+      setDetailsMovement(movement)
+    }
   }, [])
 
   const handleFormClose = useCallback((open: boolean) => {
     setShowEditForm(open)
-    if (!open) setEditingTx(null)
+    if (!open) setEditingMovement(null)
   }, [])
 
   const clearAll =
@@ -921,22 +1213,18 @@ export default function TransactionTable() {
         <Input
           placeholder="Search description..."
           value={localSearch}
-          onChange={(e) => setLocalSearch(e.target.value)}
+          onChange={(event) => setLocalSearch(event.target.value)}
           className="h-10 min-w-0 flex-1 text-xs sm:h-7 sm:w-44 sm:flex-none"
           aria-label="Search transactions"
         />
         {!isDesktop && (
           <Select
-            value={sortKey ? `${sortKey}:${sortDir}` : 'none'}
-            onValueChange={(v) => {
-              if (v === null || v === 'none') {
-                setSortKey(null)
-                setSortDir('desc')
-              } else {
-                const [key, direction] = v.split(':')
-                setSortKey(key)
-                setSortDir(direction as 'asc' | 'desc')
-              }
+            value={sortKey ? `${sortKey}:${sortDir}` : 'date:desc'}
+            onValueChange={(value) => {
+              if (!value) return
+              const [key, direction] = value.split(':')
+              setSortKey(key === 'date' && direction === 'desc' ? null : key)
+              setSortDir(direction as 'asc' | 'desc')
             }}
           >
             <SelectTrigger
@@ -945,12 +1233,11 @@ export default function TransactionTable() {
             >
               <SelectValue>
                 {SORT_OPTIONS.find(
-                  (option) => option.value === (sortKey ? `${sortKey}:${sortDir}` : ''),
+                  (option) => option.value === (sortKey ? `${sortKey}:${sortDir}` : 'date:desc'),
                 )?.compact ?? 'Sort'}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">Default order</SelectItem>
               {SORT_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -964,11 +1251,11 @@ export default function TransactionTable() {
             filterType={filterType}
             filterMonth={filterMonth}
             filterCategories={filterCategories}
-            filterPayments={filterPayments}
-            filterDebtors={filterDebtors}
+            filterAccounts={filterAccounts}
+            filterCounterparties={filterCounterparties}
             months={months}
             allCategories={allCategories}
-            allDebtors={allDebtors}
+            allCounterparties={allCounterparties}
             updateParam={updateParam}
           />
         ) : (
@@ -993,11 +1280,11 @@ export default function TransactionTable() {
                   filterType={filterType}
                   filterMonth={filterMonth}
                   filterCategories={filterCategories}
-                  filterPayments={filterPayments}
-                  filterDebtors={filterDebtors}
+                  filterAccounts={filterAccounts}
+                  filterCounterparties={filterCounterparties}
                   months={months}
                   allCategories={allCategories}
-                  allDebtors={allDebtors}
+                  allCounterparties={allCounterparties}
                   updateParam={updateParam}
                   wide
                 />
@@ -1011,23 +1298,45 @@ export default function TransactionTable() {
       </div>
 
       {isDesktop ? (
-        <DesktopTransactionList
-          rows={rows}
-          onEdit={handleEdit}
+        <DesktopMovementList
+          movements={filtered}
+          onOpen={handleOpen}
+          onRefund={setRefundPurchase}
           onDelete={handleDelete}
           onSort={handleSort}
           sortKey={sortKey}
           sortDir={sortDir}
         />
       ) : (
-        <MobileTransactionList rows={rows} onEdit={handleEdit} onDelete={handleDelete} />
+        <MobileMovementList
+          movements={filtered}
+          onOpen={handleOpen}
+          onRefund={setRefundPurchase}
+          onDelete={handleDelete}
+        />
       )}
 
       {showEditForm && (
-        <TransactionForm open onOpenChange={handleFormClose} editTransaction={editingTx} />
+        <TransactionForm open onOpenChange={handleFormClose} editMovement={editingMovement} />
       )}
 
       {showAddForm && <TransactionForm open onOpenChange={setShowAddForm} />}
+
+      <RefundDialog
+        purchase={refundPurchase}
+        open={refundPurchase !== null}
+        onOpenChange={(open) => {
+          if (!open) setRefundPurchase(null)
+        }}
+      />
+
+      <MovementDetailsDialog
+        movement={detailsMovement}
+        open={detailsMovement !== null}
+        onOpenChange={(open) => {
+          if (!open) setDetailsMovement(null)
+        }}
+      />
     </div>
   )
 }

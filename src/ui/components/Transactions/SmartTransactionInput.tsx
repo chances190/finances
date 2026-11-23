@@ -3,7 +3,7 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { localYMD } from '@/domain/calculations'
-import type { PaymentMethod } from '@/domain/entities'
+import type { FundingAccount } from '@/domain/ledger'
 import { formatPlainCurrency } from '@/lib/currency'
 import {
   acceptSuggestion,
@@ -16,7 +16,8 @@ type ParsedRow = {
   description: string
   amount: number
   category: string | null
-  paymentMethod: PaymentMethod | null
+  paymentMethod: FundingAccount | null
+  kind: 'income' | 'expense' | null
   date: string
 }
 
@@ -73,6 +74,7 @@ export default function SmartTransactionInput({
       amount: parsed.amount,
       category: parsed.category,
       paymentMethod: parsed.paymentMethod,
+      kind: parsed.kind,
       date: parsed.date ?? localYMD(),
     })
     setRaw('')

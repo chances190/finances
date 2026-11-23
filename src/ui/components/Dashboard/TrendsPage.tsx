@@ -15,7 +15,6 @@ import {
   yearRelation,
   yearSummary,
 } from '@/domain/calculations'
-import { monthlyFlows } from '@/domain/entities'
 import { formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import LazyChart from '@/ui/components/Common/LazyChart'
@@ -35,11 +34,8 @@ export default function TrendsPage() {
 
   const years = useMemo(() => {
     const y = new Set<string>()
-    for (const t of state.transactions) {
-      const flows = monthlyFlows(t)
-      for (const f of flows) {
-        y.add(f.referenceMonth.slice(0, 4))
-      }
+    for (const movement of state.movements) {
+      y.add(movement.date.slice(0, 4))
     }
     for (const b of state.budgets) {
       y.add(b.referenceMonth.slice(0, 4))
@@ -49,7 +45,7 @@ export default function TrendsPage() {
       .filter((yearStr) => Number(yearStr) <= currentYear)
       .sort()
       .reverse()
-  }, [state.transactions, state.budgets])
+  }, [state.movements, state.budgets])
 
   const defaultYear = String(new Date().getFullYear())
   const selectedYear = searchParams.get('year') ?? defaultYear
@@ -66,8 +62,8 @@ export default function TrendsPage() {
   }
 
   const yearData = useMemo(
-    () => yearSummary(state.transactions, Number(selectedYear)),
-    [state.transactions, selectedYear],
+    () => yearSummary(state.movements, Number(selectedYear)),
+    [state.movements, selectedYear],
   )
 
   const timeSeriesMonths = useMemo(() => {
@@ -78,19 +74,16 @@ export default function TrendsPage() {
 
   const timeSeriesData = useMemo(
     () =>
-      categoryTimeSeries(state.transactions, timeSeriesMonths) as {
+      categoryTimeSeries(state.movements, timeSeriesMonths) as {
         month: string
         [cat: string]: number | string
       }[],
-    [state.transactions, timeSeriesMonths],
+    [state.movements, timeSeriesMonths],
   )
 
   const isCurrentYear = Number(selectedYear) === new Date().getFullYear()
 
-  const commitmentsData = useMemo(
-    () => futureCommitments(state.transactions, 12),
-    [state.transactions],
-  )
+  const commitmentsData = useMemo(() => futureCommitments(state.movements, 12), [state.movements])
 
   const commitmentsMax = useMemo(() => {
     const sorted = [...state.budgets].sort((a, b) =>
@@ -103,8 +96,8 @@ export default function TrendsPage() {
   }, [state.budgets])
 
   const yearlyBudgetVsActual = useMemo(
-    () => budgetVsActualYear(state.transactions, state.budgets, Number(selectedYear)),
-    [state.transactions, state.budgets, selectedYear],
+    () => budgetVsActualYear(state.movements, state.budgets, Number(selectedYear)),
+    [state.movements, state.budgets, selectedYear],
   )
 
   const topCategories = useMemo(() => {

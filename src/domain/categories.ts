@@ -1,4 +1,5 @@
-import type { Budget, Transaction } from './entities'
+import type { Budget } from './entities'
+import type { Movement } from './ledger'
 
 export function monthOf(date: string): string {
   return date.slice(0, 7)
@@ -23,20 +24,22 @@ export function budgetForMonth(month: string, budgets: Budget[]): Budget | null 
 export function categoryOptionsForMonth(
   month: string,
   budgets: Budget[],
-  transactions: Transaction[],
+  movements: Movement[],
 ): string[] {
   const budget = budgets.find((candidate) => candidate.referenceMonth === month)
   if (budget) return budgetCategoryNames(budget)
-  return allCategoryNames(budgets, transactions)
+  return allCategoryNames(budgets, movements)
 }
 
-export function allCategoryNames(budgets: Budget[], transactions: Transaction[]): string[] {
+export function allCategoryNames(budgets: Budget[], movements: Movement[]): string[] {
   const names = new Set<string>()
   for (const budget of budgets) {
     for (const name of budgetCategoryNames(budget)) names.add(name)
   }
-  for (const t of transactions) {
-    if (t.type === 'Expense') names.add(t.category)
+  for (const movement of movements) {
+    for (const posting of movement.postings) {
+      if (posting.category) names.add(posting.category)
+    }
   }
   return [...names].sort()
 }

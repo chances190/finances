@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { expenseAmount, fundingAccountOf, incomeAmount, movementTotal } from '../domain/ledger'
 import { importOFX } from './exchange/ofx'
 
 const HEADER = `OFXHEADER:100
@@ -27,6 +28,7 @@ const CARD = `${HEADER}<OFX>
 ${stmt('DEBIT', '20260927000000[-3:BRT]', '-6.64', 'a1', 'Drogasil')}
 ${stmt('DEBIT', '20260926000000[-3:BRT]', '-56.13', 'a2', 'Opencode')}
 ${stmt('CREDIT', '20260907000000[-3:BRT]', '1318.49', 'a3', 'Pagamento recebido')}
+${stmt('CREDIT', '20260908000000[-3:BRT]', '25.00', 'a4', 'Refund store')}
 </BANKTRANLIST></CCSTMTRS></CCSTMTTRNRS></CREDITCARDMSGSRSV1>
 </OFX>`
 
@@ -40,42 +42,45 @@ ${stmt('CREDIT', '20261019000000[-3:BRT]', '70.00', 'b4', 'Transferência recebi
 </OFX>`
 
 describe('importOFX', () => {
-  test('maps a credit card statement to Credit expenses', () => {
-    const { transactions, skipped, source } = importOFX(CARD, [])
+  test('maps a credit card statement to card purchases and a card credit', () => {
+    const { movements, skipped, source } = importOFX(CARD, [])
 
     expect(source).toBe('card')
-    expect(transactions).toHaveLength(2)
-    expect(transactions[0]).toMatchObject({
+    expect(movements).toHaveLength(3)
+    expect(movements[0]).toMatchObject({
       date: '2026-09-27',
-      type: 'Expense',
-      paymentMethod: 'Credit',
-      amount: 6.64,
+      kind: 'purchase',
       description: 'Drogasil',
     })
+    expect(fundingAccountOf(movements[0])).toBe('card')
+    expect(movementTotal(movements[0])).toBe(6.64)
+
+    const credit = movements[2]
+    expect(credit.kind).toBe('adjustment')
+    expect(expenseAmount(credit)).toBe(-25)
+
     expect(skipped).toHaveLength(1)
     expect(skipped[0].reason).toBe('card bill payment')
   })
 
-  test('maps a bank statement to Debit expenses and cleans Pix memos', () => {
-    const { transactions, skipped, source } = importOFX(BANK, [])
+  test('maps a bank statement to checking purchases and income', () => {
+    const { movements, skipped, source } = importOFX(BANK, [])
 
     expect(source).toBe('bank')
-    expect(transactions).toHaveLength(2)
+    expect(movements).toHaveLength(2)
 
-    const [sent, received] = transactions
+    const [sent, received] = movements
     expect(sent).toMatchObject({
       date: '2026-10-01',
-      type: 'Expense',
-      paymentMethod: 'Debit/PIX',
-      amount: 128,
+      kind: 'purchase',
       description: 'Francisco Gabriel de Lima Brasil',
     })
-    expect(received).toMatchObject({
-      type: 'Income',
-      paymentMethod: 'Transfer',
-      amount: 70,
-      description: 'BRENDA MORAIS DO NASCIMENTO',
-    })
+    expect(fundingAccountOf(sent)).toBe('checking')
+    expect(movementTotal(sent)).toBe(128)
+
+    expect(received.kind).toBe('income')
+    expect(incomeAmount(received)).toBe(70)
+    expect(received.description).toBe('BRENDA MORAIS DO NASCIMENTO')
 
     expect(skipped.map((entry) => entry.reason)).toEqual([
       'investment transfer',
@@ -83,11 +88,11 @@ describe('importOFX', () => {
     ])
   })
 
-  test('skips transactions already imported', () => {
+  test('skips movements already imported', () => {
     const first = importOFX(BANK, [])
-    const second = importOFX(BANK, first.transactions)
+    const second = importOFX(BANK, first.movements)
 
-    expect(second.transactions).toHaveLength(0)
+    expect(second.movements).toHaveLength(0)
     expect(second.skipped.filter((entry) => entry.reason === 'already imported')).toHaveLength(2)
   })
 
@@ -99,6 +104,6 @@ ${stmt('DEBIT', '20260926000000[-3:BRT]', '-56.13', 'same', 'Opencode')}
 </BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1>
 </OFX>`
 
-    expect(importOFX(shared, []).transactions).toHaveLength(2)
+    expect(importOFX(shared, []).movements).toHaveLength(2)
   })
 })

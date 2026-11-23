@@ -1,20 +1,36 @@
 import { describe, expect, test } from 'bun:test'
-import type { FinanceData } from '../domain/entities'
+import type { Budget } from '../domain/entities'
+import {
+  buildPurchase,
+  fundingAccountOf,
+  incomeAmount,
+  movementTotal,
+  outstanding,
+} from '../domain/ledger'
 import { importJSON } from './backup/json'
 import { importCSV } from './exchange/csv'
 
 const H =
   'ref,date,type,amount,category,paymentMethod,description,installmentTotal,installmentIndex,installmentRef,debtName,debtAmount'
 
+const budget: Budget = {
+  referenceMonth: '2026-07',
+  plannedIncome: 5000,
+  plannedMealVoucher: 0,
+  investmentRate: 0.2,
+  categoryLimits: { Food: 500 },
+}
+
 describe('importCSV', () => {
-  test('parses a valid CSV', () => {
+  test('parses an income row into a ledger movement', () => {
     const csv = `${H}\nr001,2026-07-05,Income,5000,Salary,Salary,Salary,,,,,`
-    const { transactions, skippedRows } = importCSV(csv)
-    expect(transactions).toHaveLength(1)
+    const { movements, skippedRows } = importCSV(csv)
+
     expect(skippedRows).toEqual([])
-    expect(transactions[0].amount).toBe(5000)
-    expect(transactions[0].type).toBe('Income')
-    expect(transactions[0].paymentMethod).toBe('Salary')
+    expect(movements).toHaveLength(1)
+    expect(movements[0].kind).toBe('income')
+    expect(incomeAmount(movements[0])).toBe(5000)
+    expect(fundingAccountOf(movements[0])).toBe('checking')
   })
 
   test('throws on empty CSV', () => {
@@ -27,8 +43,9 @@ describe('importCSV', () => {
 
   test('skips malformed rows with reasons', () => {
     const csv = `${H}\nr001,2026-07-05,Income,5000,Salary,Salary,Salary,,,,,\nmalformed-row-with-no-commas`
-    const { transactions, skippedRows } = importCSV(csv)
-    expect(transactions).toHaveLength(1)
+    const { movements, skippedRows } = importCSV(csv)
+
+    expect(movements).toHaveLength(1)
     expect(skippedRows).toHaveLength(1)
     expect(skippedRows[0].line).toBe(3)
     expect(skippedRows[0].reason).toContain('wrong number of columns')
@@ -60,9 +77,9 @@ describe('importCSV', () => {
     ]
 
     for (const { row, reason, detail } of invalidRows) {
-      const { transactions, skippedRows } = importCSV(`${H}\n${row}`)
+      const { movements, skippedRows } = importCSV(`${H}\n${row}`)
 
-      expect(transactions).toHaveLength(0)
+      expect(movements).toHaveLength(0)
       expect(skippedRows).toHaveLength(1)
       expect(skippedRows[0].reason).toContain(reason)
       if (detail) expect(skippedRows[0].reason).toContain(detail)
@@ -71,125 +88,82 @@ describe('importCSV', () => {
 
   test('canonicalizes uppercase type and payment method', () => {
     const csv = `${H}\nr001,2026-07-05,EXPENSE,10,Food,DEBIT/PIX,Buy,,,,,`
-    const { transactions, skippedRows } = importCSV(csv)
+    const { movements, skippedRows } = importCSV(csv)
 
     expect(skippedRows).toEqual([])
-    expect(transactions[0]).toMatchObject({ type: 'Expense', paymentMethod: 'Debit/PIX' })
+    expect(movements[0].kind).toBe('purchase')
+    expect(fundingAccountOf(movements[0])).toBe('checking')
   })
 
-  test('imports a debt with 1NF splits', () => {
+  test('imports shares from debt rows', () => {
     const csv = `${H}\nr001,2026-07-10,Expense,300,Food,Debit/PIX,Dinner,,,,Alice,100\nr001,2026-07-10,Expense,300,Food,Debit/PIX,Dinner,,,,Bob,200`
-    const { transactions } = importCSV(csv)
-    const [t] = transactions
-    if (t.type !== 'Expense') throw new Error('expected an expense')
-    expect(t.debts).toHaveLength(2)
-    expect(t.debts?.[0].name).toBe('Alice')
-    expect(t.debts?.[0].amount).toBe(100)
-    expect(t.debts?.[1].name).toBe('Bob')
-    expect(t.debts?.[1].amount).toBe(200)
+    const { movements } = importCSV(csv)
+
+    expect(movements).toHaveLength(1)
+    expect(movementTotal(movements[0])).toBe(300)
+    expect(outstanding(movements, 'receivable')).toEqual([
+      { counterparty: 'Alice', amount: 100 },
+      { counterparty: 'Bob', amount: 200 },
+    ])
   })
 
-  test('imports head-anchored installments', () => {
+  test('imports installments as separate dated purchases', () => {
     const csv = `${H}\nr001,2026-07-01,Expense,1200,Electronics,Credit,TV,3,1,,,\nr002,2026-08-01,Expense,1200,Electronics,Credit,TV,,2,r001,,\nr003,2026-09-01,Expense,1200,Electronics,Credit,TV,,3,r001,,`
-    const { transactions } = importCSV(csv)
-    expect(transactions).toHaveLength(1)
-    const [t] = transactions
-    if (t.type !== 'Expense') throw new Error('expected an expense')
-    expect(t.installments).toBe(3)
-    expect(t.amount).toBe(1200)
-  })
+    const { movements } = importCSV(csv)
 
-  test('reports multiple skipped rows with reasons', () => {
-    const csv = `${H}\nr001,2026-07-05,Income,5000,Salary,Salary,Salary,,,,,\nr002,2026-07-06,INVALID,10,Food,Debit/PIX,Bread,,,,,\nbad-row`
-    const { skippedRows } = importCSV(csv)
-    expect(skippedRows).toHaveLength(2)
-    expect(skippedRows[0].reason).toContain('invalid type')
-    expect(skippedRows[1].reason).toContain('wrong number of columns')
+    expect(movements).toHaveLength(3)
+    expect(movements.map((movement) => movement.date)).toEqual([
+      '2026-07-01',
+      '2026-08-01',
+      '2026-09-01',
+    ])
+    expect(movements.map(movementTotal)).toEqual([400, 400, 400])
   })
 })
 
-describe('CSV round-trip', () => {
-  test('simple transaction preserves data', () => {
-    const csv = `${H}\nr001,2026-07-15,Expense,150.5,Food,Debit/PIX,Test transaction,,,,,`
-    const { transactions } = importCSV(csv)
-    const [t] = transactions
-    expect(t.amount).toBe(150.5)
-    expect(t.description).toBe('Test transaction')
-  })
-})
+describe('JSON import', () => {
+  test('reads a ledger snapshot', () => {
+    const purchase = buildPurchase({
+      id: 'p1',
+      date: '2026-07-15',
+      description: 'Test',
+      amount: 150.5,
+      category: 'Food',
+      account: 'checking',
+    })
+    if (!purchase.ok) throw new Error(purchase.reason)
 
-describe('importJSON', () => {
-  test('round-trips transactions and budgets', () => {
-    const data: FinanceData = {
-      transactions: [
-        {
-          id: 'tx-1',
-          type: 'Expense',
-          date: '2026-07-01',
-          description: 'Groceries',
-          amount: 120.5,
-          category: 'Food',
-          paymentMethod: 'Debit/PIX',
-        },
-      ],
-      budgets: [
-        {
-          referenceMonth: '2026-07',
-          plannedIncome: 5000,
-          plannedMealVoucher: 500,
-          investmentRate: 0.2,
-          categoryLimits: { Food: 1000 },
-        },
-      ],
-    }
-    const result = importJSON(JSON.stringify(data))
-    expect(result.data.transactions).toEqual(data.transactions)
-    expect(result.data.budgets).toEqual(data.budgets)
-    expect(result.skippedTransactions).toHaveLength(0)
-    expect(result.skippedBudgets).toBe(0)
+    const result = importJSON(JSON.stringify({ movements: purchase.value, budgets: [budget] }))
+
+    expect(result.data.movements).toHaveLength(1)
+    expect(result.data.budgets).toEqual([budget])
+    expect(result.skippedMovements).toEqual([])
   })
 
-  test('reports skipped transactions with reasons', () => {
-    const data = {
+  test('migrates a legacy snapshot', () => {
+    const legacy = {
       transactions: [
         {
-          id: 'tx-1',
-          type: 'INVALID',
-          date: '2026-07-01',
-          description: 'Bad',
-          amount: 100,
-          category: 'Other',
-          paymentMethod: 'Debit/PIX',
-        },
-      ],
-      budgets: [{ referenceMonth: '2026-07' }],
-    }
-    const result = importJSON(JSON.stringify(data))
-    expect(result.data.transactions).toHaveLength(0)
-    expect(result.skippedTransactions).toHaveLength(1)
-    expect(result.skippedTransactions[0].reason).toContain('invalid type')
-    expect(result.skippedBudgets).toBe(1)
-  })
-
-  test('reports income with expense payment method', () => {
-    const data = {
-      transactions: [
-        {
-          id: 'tx-1',
+          id: 'i1',
           type: 'Income',
-          date: '2026-07-01',
+          date: '2026-07-05',
           description: 'Salary',
           amount: 5000,
-          category: 'Salary',
-          paymentMethod: 'Debit/PIX',
+          category: 'Income',
+          paymentMethod: 'Salary',
         },
       ],
-      budgets: [],
+      budgets: [budget],
     }
-    const result = importJSON(JSON.stringify(data))
-    expect(result.data.transactions).toHaveLength(0)
-    expect(result.skippedTransactions).toHaveLength(1)
-    expect(result.skippedTransactions[0].reason).toContain('invalid payment method')
-    expect(result.skippedTransactions[0].reason).toContain('Debit/PIX')
+
+    const result = importJSON(JSON.stringify(legacy))
+
+    expect(result.data.movements).toHaveLength(1)
+    expect(result.data.movements[0].kind).toBe('income')
+    expect(result.data.budgets).toEqual([budget])
+  })
+
+  test('throws on malformed JSON', () => {
+    expect(() => importJSON('{')).toThrow()
   })
 })

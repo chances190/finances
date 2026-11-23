@@ -12,53 +12,71 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { currentYM, localYMD } from '@/domain/calculations'
 import { categoryOptionsForMonth, monthOf } from '@/domain/categories'
 import {
-  EXPENSE_PAYMENT_METHODS,
-  INCOME_PAYMENT_METHODS,
-  isExpensePaymentMethod,
-  isIncomePaymentMethod,
-} from '@/domain/constants'
-import type { Debt, PaymentMethod, Transaction, TransactionType } from '@/domain/entities'
-import { addCurrency, formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
-import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
+  ACCOUNT_LABELS,
+  buildIncome,
+  buildPurchase,
+  CASH_ACCOUNTS,
+  categoryOf,
+  currentYM,
+  FUNDING_ACCOUNTS,
+  type FundingAccount,
+  fundingAccountOf,
+  incomeAmount,
+  localYMD,
+  type Movement,
+  movementTotal,
+  type PurchaseShare,
+} from '@/domain/ledger'
+import { addCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
 import { useFinance } from '@/ui/context'
 import { useToast } from '@/ui/context/ToastContext'
-import DebtConfigModal from './DebtConfigModal'
+import SplitConfigModal from './SplitConfigModal'
 
 const ImportDialog = lazy(() => import('@/ui/components/Common/ImportDialog'))
 
-interface EditFormState {
-  type: TransactionType
+interface FormState {
+  type: 'Expense' | 'Income'
   date: string
   amount: string
   description: string
   category: string
-  paymentMethod: PaymentMethod
+  account: FundingAccount
+  counterparty: string
   installmentTotal: number
 }
 
 interface TransactionFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  editTransaction?: Transaction | null
+  editMovement?: Movement | null
 }
 
-function initialForm(
-  editTransaction: Transaction | null | undefined,
-  defaultCategory: string,
-): EditFormState {
-  if (editTransaction) {
+function initialForm(movement: Movement | null | undefined, defaultCategory: string): FormState {
+  if (movement?.kind === 'income') {
     return {
-      type: editTransaction.type,
-      date: editTransaction.date,
-      amount: formatPlainCurrency(editTransaction.amount),
-      description: editTransaction.description,
-      category: editTransaction.category,
-      paymentMethod: editTransaction.paymentMethod,
-      installmentTotal:
-        editTransaction.type === 'Expense' ? (editTransaction.installments ?? 1) : 1,
+      type: 'Income',
+      date: movement.date,
+      amount: formatPlainCurrency(incomeAmount(movement)),
+      description: movement.description,
+      category: categoryOf(movement) ?? 'Income',
+      account: (fundingAccountOf(movement) as FundingAccount) ?? 'checking',
+      counterparty: '',
+      installmentTotal: 1,
+    }
+  }
+  if (movement?.kind === 'purchase') {
+    return {
+      type: 'Expense',
+      date: movement.date,
+      amount: formatPlainCurrency(movementTotal(movement)),
+      description: movement.description,
+      category: categoryOf(movement) ?? defaultCategory,
+      account: fundingAccountOf(movement) ?? 'checking',
+      counterparty:
+        movement.postings.find((posting) => posting.account === 'payable')?.counterparty ?? '',
+      installmentTotal: 1,
     }
   }
   return {
@@ -67,75 +85,52 @@ function initialForm(
     amount: '',
     description: '',
     category: defaultCategory,
-    paymentMethod: 'Debit/PIX',
+    account: 'checking',
+    counterparty: '',
     installmentTotal: 1,
   }
+}
+
+function sharesOf(movement: Movement | null | undefined): PurchaseShare[] {
+  if (movement?.kind !== 'purchase') return []
+  return movement.postings
+    .filter((posting) => posting.account === 'receivable' && posting.counterparty)
+    .map((posting) => ({ counterparty: posting.counterparty as string, amount: posting.amount }))
 }
 
 export default function TransactionForm({
   open,
   onOpenChange,
-  editTransaction,
+  editMovement,
 }: TransactionFormProps) {
   const { dispatch, state } = useFinance()
   const { toast } = useToast()
   const defaultCategory =
-    categoryOptionsForMonth(currentYM(), state.budgets, state.transactions)[0] ?? 'Other'
+    categoryOptionsForMonth(currentYM(), state.budgets, state.movements)[0] ?? 'Other'
 
-  const [form, setForm] = useState<EditFormState>(() =>
-    initialForm(editTransaction, defaultCategory),
-  )
+  const [form, setForm] = useState<FormState>(() => initialForm(editMovement, defaultCategory))
+  const [shares, setShares] = useState<PurchaseShare[]>(() => sharesOf(editMovement))
+  const [showSplitConfig, setShowSplitConfig] = useState(false)
+  const [showCsvImport, setShowCsvImport] = useState(false)
 
   const categories = useMemo(() => {
     const month = form.date ? monthOf(form.date) : currentYM()
-    const options = categoryOptionsForMonth(month, state.budgets, state.transactions)
+    const options = categoryOptionsForMonth(month, state.budgets, state.movements)
     return options.includes(form.category) ? options : [form.category, ...options]
-  }, [form.date, form.category, state.budgets, state.transactions])
+  }, [form.date, form.category, state.budgets, state.movements])
 
-  const [debts, setDebts] = useState<Debt[]>(() =>
-    editTransaction?.type === 'Expense' && editTransaction.debts ? [...editTransaction.debts] : [],
-  )
-  const [showDebtConfig, setShowDebtConfig] = useState(false)
-  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
-  const [showCsvImport, setShowCsvImport] = useState(false)
-  const debtTotal = debts.reduce((sum, debt) => addCurrency(sum, debt.amount), 0)
-  const purchaseAmount = parseCurrency(form.amount)
-  const userShare = Math.max(0, addCurrency(purchaseAmount, -debtTotal))
-  const debtOverage = Math.max(0, addCurrency(debtTotal, -purchaseAmount))
-
+  // biome-ignore lint/correctness/useExhaustiveDependencies: open is intentional to reset on dialog open
   useEffect(() => {
-    if (editTransaction) {
-      setForm({
-        type: editTransaction.type,
-        date: editTransaction.date,
-        amount: formatPlainCurrency(editTransaction.amount),
-        description: editTransaction.description,
-        category: editTransaction.category,
-        paymentMethod: editTransaction.paymentMethod,
-        installmentTotal:
-          editTransaction.type === 'Expense' ? (editTransaction.installments ?? 1) : 1,
-      })
-      setDebts(
-        editTransaction.type === 'Expense' && editTransaction.debts
-          ? [...editTransaction.debts]
-          : [],
-      )
-    } else if (open) {
-      setForm({
-        type: 'Expense',
-        date: localYMD(),
-        amount: '',
-        description: '',
-        category: defaultCategory,
-        paymentMethod: 'Debit/PIX',
-        installmentTotal: 1,
-      })
-      setDebts([])
-    }
-  }, [editTransaction, open, defaultCategory])
+    setForm(initialForm(editMovement, defaultCategory))
+    setShares(sharesOf(editMovement))
+  }, [editMovement, open, defaultCategory])
+
+  const amount = parseCurrency(form.amount)
+  const shareTotal = shares.reduce((sum, share) => addCurrency(sum, share.amount), 0)
+  const userShare = Math.max(0, addCurrency(amount, -shareTotal))
+  const overBy = Math.max(0, addCurrency(shareTotal, -amount))
 
   function handleSave() {
-    const amount = parseCurrency(form.amount)
     if (amount <= 0) {
       toast('Amount must be greater than 0', 'error')
       return
@@ -144,69 +139,74 @@ export default function TransactionForm({
       toast('Description is required', 'error')
       return
     }
-    if (form.type === 'Expense' && debts.length > 0) {
-      const debtTotal = debts.reduce((s, d) => addCurrency(s, d.amount), 0)
-      if (debtTotal > amount) {
-        toast('Total debts cannot exceed purchase amount', 'error')
-        return
-      }
+    if (form.type === 'Expense' && form.account === 'payable' && !form.counterparty.trim()) {
+      toast('Name who paid for this purchase', 'error')
+      return
     }
-
-    const category = form.type === 'Income' ? 'Income' : form.category
-    const importId = editTransaction?.importId ? { importId: editTransaction.importId } : {}
-
-    if (form.type === 'Income') {
-      if (!isIncomePaymentMethod(form.paymentMethod)) return
-      commit({
-        id: editTransaction?.id ?? crypto.randomUUID(),
-        type: 'Income',
-        date: form.date,
-        description: form.description,
-        amount,
-        category,
-        paymentMethod: form.paymentMethod,
-        ...importId,
-      })
+    if (form.type === 'Expense' && overBy > 0) {
+      toast('Shares cannot exceed the purchase amount', 'error')
       return
     }
 
-    if (!isExpensePaymentMethod(form.paymentMethod)) return
-    commit({
-      id: editTransaction?.id ?? crypto.randomUUID(),
-      type: 'Expense',
+    if (form.type === 'Income') {
+      const result = buildIncome({
+        id: editMovement?.id ?? crypto.randomUUID(),
+        date: form.date,
+        description: form.description,
+        amount,
+        account:
+          form.account === 'voucher' ? 'voucher' : form.account === 'cash' ? 'cash' : 'checking',
+        category: 'Income',
+      })
+      if (!result.ok) {
+        toast(result.reason, 'error')
+        return
+      }
+      commit([result.value])
+      return
+    }
+
+    const result = buildPurchase({
+      id: editMovement?.id ?? crypto.randomUUID(),
       date: form.date,
       description: form.description,
       amount,
-      category,
-      paymentMethod: form.paymentMethod,
-      ...(form.paymentMethod === 'Credit' && form.installmentTotal > 1
-        ? { installments: form.installmentTotal }
-        : {}),
-      ...(debts.length > 0 ? { debts } : {}),
-      ...importId,
+      category: form.category,
+      account: form.account,
+      ...(form.account === 'payable' ? { counterparty: form.counterparty.trim() } : {}),
+      shares: shares.filter((share) => share.counterparty.trim() && share.amount > 0),
+      installments: editMovement ? 1 : form.installmentTotal,
     })
+    if (!result.ok) {
+      toast(result.reason, 'error')
+      return
+    }
+    commit(result.value)
   }
 
-  function commit(transaction: Transaction) {
+  function commit(movements: Movement[]) {
+    const editing = Boolean(editMovement)
     startTransition(() => {
-      if (editTransaction) {
-        dispatch({ type: 'UPDATE_TRANSACTION', payload: transaction })
+      if (editing) {
+        for (const movement of movements) {
+          dispatch({ type: 'UPDATE_MOVEMENT', payload: movement })
+        }
       } else {
-        dispatch({ type: 'ADD_TRANSACTIONS', payload: [transaction] })
+        dispatch({ type: 'ADD_MOVEMENTS', payload: movements })
       }
     })
-    if (!editTransaction) toast('Transaction added', 'success')
+    toast(editing ? 'Transaction updated' : 'Transaction added', 'success')
     onOpenChange(false)
   }
 
-  const amount = parseCurrency(form.amount)
+  const accounts = form.type === 'Income' ? CASH_ACCOUNTS : FUNDING_ACCOUNTS
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editTransaction ? 'Edit Transaction' : 'Add Transaction'}</DialogTitle>
+            <DialogTitle>{editMovement ? 'Edit Transaction' : 'Add Transaction'}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3">
@@ -214,15 +214,15 @@ export default function TransactionForm({
               aria-label="Transaction type"
               className="w-full"
               value={form.type}
-              onValueChange={(v) => {
-                const type = v as TransactionType
-                setForm((f) => ({
-                  ...f,
+              onValueChange={(value) => {
+                const type = value as 'Expense' | 'Income'
+                setForm((current) => ({
+                  ...current,
                   type,
-                  paymentMethod: type === 'Income' ? 'Salary' : 'Debit/PIX',
-                  ...(type === 'Income' ? { installmentTotal: 1 } : {}),
+                  account: type === 'Income' ? 'checking' : 'checking',
+                  installmentTotal: 1,
                 }))
-                setDebts([])
+                setShares([])
               }}
               options={[
                 { value: 'Expense', label: 'Expense' },
@@ -239,7 +239,9 @@ export default function TransactionForm({
                   id="tx-date"
                   type="date"
                   value={form.date}
-                  onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, date: event.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-1">
@@ -249,7 +251,7 @@ export default function TransactionForm({
                 <MoneyInput
                   id="tx-amount"
                   value={form.amount}
-                  onValueChange={(amount) => setForm((f) => ({ ...f, amount }))}
+                  onValueChange={(value) => setForm((current) => ({ ...current, amount: value }))}
                 />
               </div>
             </div>
@@ -261,36 +263,37 @@ export default function TransactionForm({
               <Input
                 id="tx-description"
                 value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, description: event.target.value }))
+                }
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className={`min-w-0 space-y-1 ${form.type === 'Income' ? 'col-span-2' : ''}`}>
-                <Label htmlFor="tx-payment" className="text-xs">
-                  Payment Method
+            <div
+              className={`grid grid-cols-2 gap-2 ${form.type === 'Income' ? 'sm:grid-cols-1' : ''}`}
+            >
+              <div className="min-w-0 space-y-1">
+                <Label htmlFor="tx-account" className="text-xs">
+                  {form.type === 'Income' ? 'Received in' : 'Paid with'}
                 </Label>
                 <Select
                   modal={false}
-                  value={form.paymentMethod}
-                  onValueChange={(v) =>
-                    setForm((f) => ({
-                      ...f,
-                      paymentMethod: (v ??
-                        (form.type === 'Income' ? 'Salary' : 'Debit/PIX')) as PaymentMethod,
+                  value={form.account}
+                  onValueChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      account: (value ?? 'checking') as FundingAccount,
+                      installmentTotal: value === 'card' ? current.installmentTotal : 1,
                     }))
                   }
                 >
-                  <SelectTrigger id="tx-payment" className="w-full min-w-0">
-                    <SelectValue>{form.paymentMethod}</SelectValue>
+                  <SelectTrigger id="tx-account" className="w-full min-w-0">
+                    <SelectValue>{ACCOUNT_LABELS[form.account]}</SelectValue>
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false}>
-                    {(form.type === 'Income'
-                      ? INCOME_PAYMENT_METHODS
-                      : EXPENSE_PAYMENT_METHODS
-                    ).map((pm) => (
-                      <SelectItem key={pm} value={pm}>
-                        {pm}
+                    {accounts.map((account) => (
+                      <SelectItem key={account} value={account}>
+                        {account === 'payable' ? 'Someone else' : ACCOUNT_LABELS[account]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -304,15 +307,17 @@ export default function TransactionForm({
                   <Select
                     modal={false}
                     value={form.category}
-                    onValueChange={(v) => setForm((f) => ({ ...f, category: v ?? 'Other' }))}
+                    onValueChange={(value) =>
+                      setForm((current) => ({ ...current, category: value ?? 'Other' }))
+                    }
                   >
                     <SelectTrigger id="tx-category" className="w-full min-w-0">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent alignItemWithTrigger={false}>
-                      {categories.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -321,7 +326,23 @@ export default function TransactionForm({
               )}
             </div>
 
-            {form.type === 'Expense' && form.paymentMethod === 'Credit' && (
+            {form.type === 'Expense' && form.account === 'payable' && (
+              <div className="space-y-1">
+                <Label htmlFor="tx-payer" className="text-xs">
+                  Who paid?
+                </Label>
+                <Input
+                  id="tx-payer"
+                  placeholder="Name"
+                  value={form.counterparty}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, counterparty: event.target.value }))
+                  }
+                />
+              </div>
+            )}
+
+            {form.type === 'Expense' && !editMovement && form.account === 'card' && (
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
                   <Label htmlFor="tx-installments" className="text-xs">
@@ -336,10 +357,10 @@ export default function TransactionForm({
                   max="48"
                   value={form.installmentTotal}
                   className="h-10 w-24 text-right"
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      installmentTotal: Math.max(1, parseInt(e.target.value, 10) || 1),
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      installmentTotal: Math.max(1, Number.parseInt(event.target.value, 10) || 1),
                     }))
                   }
                 />
@@ -355,61 +376,56 @@ export default function TransactionForm({
                       Split this expense with people who owe you.
                     </p>
                   </div>
-                  {debts.length > 0 && (
+                  {shares.length > 0 && (
                     <Button
                       variant="outline"
                       size="sm"
                       className="h-10 shrink-0"
-                      onClick={() => setShowDebtConfig(true)}
+                      onClick={() => setShowSplitConfig(true)}
                     >
                       Edit split
                     </Button>
                   )}
                 </div>
-                {debts.length === 0 ? (
+                {shares.length === 0 ? (
                   <Button
                     variant="outline"
                     size="sm"
                     className="h-10"
-                    disabled={!(parseCurrency(form.amount) > 0)}
-                    onClick={() => setShowDebtConfig(true)}
+                    disabled={!(amount > 0)}
+                    onClick={() => setShowSplitConfig(true)}
                   >
                     Add people
                   </Button>
                 ) : (
-                  <>
-                    <div className="border border-border p-2 text-xs">
-                      {debts.map((debt) => (
-                        <div
-                          key={debt.name}
-                          className="flex items-baseline justify-between gap-3 py-0.5"
-                        >
-                          <span className="min-w-0 break-words">{debt.name}</span>
-                          <span className="shrink-0 font-mono">{formatCurrency(debt.amount)}</span>
-                        </div>
-                      ))}
-                      <div className="flex items-baseline justify-between gap-3 py-0.5 font-medium">
-                        <span>You</span>
-                        <span className="shrink-0 font-mono">{formatCurrency(userShare)}</span>
+                  <div className="border border-border p-2 text-xs">
+                    {shares.map((share) => (
+                      <div
+                        key={share.counterparty}
+                        className="flex items-baseline justify-between gap-3 py-0.5"
+                      >
+                        <span className="min-w-0 break-words">{share.counterparty}</span>
+                        <span className="shrink-0 font-mono">
+                          {formatPlainCurrency(share.amount)}
+                        </span>
                       </div>
-                      <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-border pt-1 font-medium">
-                        <span>Purchase total</span>
-                        <span className="shrink-0 font-mono">{formatCurrency(purchaseAmount)}</span>
-                      </div>
+                    ))}
+                    <div className="flex items-baseline justify-between gap-3 py-0.5 font-medium">
+                      <span>You</span>
+                      <span className="shrink-0 font-mono">{formatPlainCurrency(userShare)}</span>
                     </div>
-                    {debtOverage > 0 && (
-                      <p className="text-xs text-destructive">
-                        Splits exceed the purchase by {formatCurrency(debtOverage)}.
-                      </p>
-                    )}
-                  </>
+                    <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-border pt-1 font-medium">
+                      <span>Purchase total</span>
+                      <span className="shrink-0 font-mono">{formatPlainCurrency(amount)}</span>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
           </div>
 
           <div className="flex gap-2 justify-end pt-4">
-            {!editTransaction && (
+            {!editMovement && (
               <Button
                 variant="outline"
                 size="sm"
@@ -422,50 +438,25 @@ export default function TransactionForm({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>{editTransaction ? 'Update' : 'Add'}</Button>
+            <Button onClick={handleSave}>{editMovement ? 'Update' : 'Add'}</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {showDebtConfig && (
-        <DebtConfigModal
-          open
-          onOpenChange={setShowDebtConfig}
-          debts={debts}
-          onRemoveAll={() => setShowRemoveConfirm(true)}
-          onDebtsChange={(d) => {
-            setDebts(d)
-            setShowDebtConfig(false)
-          }}
-          totalAmount={amount}
-        />
-      )}
+      <SplitConfigModal
+        open={showSplitConfig}
+        onOpenChange={setShowSplitConfig}
+        shares={shares}
+        onSharesChange={setShares}
+        onRemoveAll={() => setShares([])}
+        totalAmount={amount}
+      />
 
       {showCsvImport && (
         <Suspense fallback={null}>
-          <ImportDialog
-            open
-            onOpenChange={setShowCsvImport}
-            mode="transactions"
-            onImported={() => onOpenChange(false)}
-          />
+          <ImportDialog open={showCsvImport} onOpenChange={setShowCsvImport} mode="transactions" />
         </Suspense>
       )}
-
-      <ConfirmDialog
-        open={showRemoveConfirm}
-        onOpenChange={(o) => {
-          if (!o) setShowRemoveConfirm(false)
-        }}
-        title="Remove shared expense?"
-        message="This will remove all people and their amounts from this expense."
-        confirmLabel="Remove"
-        onConfirm={() => {
-          setDebts([])
-          setShowDebtConfig(false)
-          setShowRemoveConfirm(false)
-        }}
-      />
     </>
   )
 }

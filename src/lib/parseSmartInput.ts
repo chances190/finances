@@ -1,5 +1,4 @@
-import { EXPENSE_PAYMENT_METHODS, INCOME_PAYMENT_METHODS } from '@/domain/constants'
-import type { PaymentMethod } from '@/domain/entities'
+import type { FundingAccount } from '@/domain/ledger'
 import { parseCurrency } from './currency'
 import { dateCompletions, matchDateAt, parsePortugueseDate } from './dates'
 
@@ -7,7 +6,8 @@ export interface SmartParseResult {
   amount: number | null
   description: string
   category: string | null
-  paymentMethod: PaymentMethod | null
+  paymentMethod: FundingAccount | null
+  kind: 'income' | 'expense' | null
   date: string | null
   error: string | null
 }
@@ -27,10 +27,27 @@ const AMOUNT_RE = /(?:R\$\s?)?\d+(?:\.\d{3})*,\d{2}/iy
 const WHITESPACE_RE = /\s/
 const MAX_REGISTRY_WORDS = 3
 
-const PAYMENT_VALUES = [...EXPENSE_PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS]
-const PAYMENT_LOOKUP = new Map<string, PaymentMethod>(
-  PAYMENT_VALUES.map((value) => [value.toLowerCase(), value]),
-)
+interface PaymentAlias {
+  label: string
+  account: FundingAccount
+  kind: 'income' | 'expense'
+}
+
+const PAYMENT_ALIASES: PaymentAlias[] = [
+  { label: 'Checking', account: 'checking', kind: 'expense' },
+  { label: 'Debit/PIX', account: 'checking', kind: 'expense' },
+  { label: 'Pix', account: 'checking', kind: 'expense' },
+  { label: 'Credit', account: 'card', kind: 'expense' },
+  { label: 'Card', account: 'card', kind: 'expense' },
+  { label: 'Voucher Debit', account: 'voucher', kind: 'expense' },
+  { label: 'Cash', account: 'cash', kind: 'expense' },
+  { label: 'Someone else', account: 'payable', kind: 'expense' },
+  { label: 'Salary', account: 'checking', kind: 'income' },
+  { label: 'Transfer', account: 'checking', kind: 'income' },
+  { label: 'Voucher', account: 'voucher', kind: 'income' },
+]
+const PAYMENT_VALUES = PAYMENT_ALIASES.map((alias) => alias.label)
+const PAYMENT_LOOKUP = new Map(PAYMENT_ALIASES.map((alias) => [alias.label.toLowerCase(), alias]))
 
 export function detectDateMonth(text: string): string | null {
   for (let index = 0; index < text.length; index++) {
@@ -48,7 +65,7 @@ function wordEnd(text: string, from: number): number {
   return index
 }
 
-function matchRegistry(text: string, index: number, lookup: Map<string, string>): number | null {
+function matchRegistry(text: string, index: number, lookup: Map<string, unknown>): number | null {
   let best: number | null = null
   let end = index + 1
   for (let word = 0; word < MAX_REGISTRY_WORDS; word++) {
@@ -123,7 +140,8 @@ function analyze(text: string, categories: readonly string[]): Analysis {
 
   let amount: number | null = null
   let category: string | null = null
-  let paymentMethod: string | null = null
+  let paymentMethod: FundingAccount | null = null
+  let kind: 'income' | 'expense' | null = null
   let error: string | null = null
 
   spans.forEach((span, i) => {
@@ -142,7 +160,9 @@ function analyze(text: string, categories: readonly string[]): Analysis {
           error ??= 'Multiple payment methods'
           break
         }
-        paymentMethod = PAYMENT_LOOKUP.get(span.raw.slice(1).toLowerCase()) ?? null
+        const alias = PAYMENT_LOOKUP.get(span.raw.slice(1).toLowerCase())
+        paymentMethod = alias?.account ?? null
+        kind = alias?.kind ?? null
         break
       }
       case 'date':
@@ -198,6 +218,7 @@ function analyze(text: string, categories: readonly string[]): Analysis {
     description: description.runs === 1 ? description.text : '',
     category,
     paymentMethod,
+    kind,
     date,
     error,
     lastSlotEnd: stillTyping ? (slotSpan?.start ?? 0) : (slotSpan?.end ?? 0),
@@ -222,8 +243,11 @@ function lastIndexOf(spans: Span[], keep: boolean[]): number {
 }
 
 export function parseSmartInput(text: string, categories: readonly string[]): SmartParseResult {
-  const { amount, description, category, paymentMethod, date, error } = analyze(text, categories)
-  return { amount, description, category, paymentMethod, date, error }
+  const { amount, description, category, paymentMethod, kind, date, error } = analyze(
+    text,
+    categories,
+  )
+  return { amount, description, category, paymentMethod, kind, date, error }
 }
 
 function prefixFilter(items: readonly string[], prefix: string): string[] {

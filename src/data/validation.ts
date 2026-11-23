@@ -1,16 +1,49 @@
-import {
-  DEFAULT_INVESTMENT_RATE,
-  EXPENSE_PAYMENT_METHODS,
-  INCOME_PAYMENT_METHODS,
-  TRANSACTION_TYPES,
-} from '../domain/constants'
-import type {
-  Budget,
-  FinanceData,
-  PaymentMethod,
-  Transaction,
-  TransactionType,
-} from '../domain/entities'
+import { DEFAULT_INVESTMENT_RATE } from '../domain/constants'
+import type { Budget } from '../domain/entities'
+
+// Legacy snapshot shape, kept only to read old localStorage/JSON/Drive data.
+export const LEGACY_TRANSACTION_TYPES = ['Income', 'Expense'] as const
+export type LegacyTransactionType = (typeof LEGACY_TRANSACTION_TYPES)[number]
+
+export const LEGACY_EXPENSE_PAYMENT_METHODS = ['Debit/PIX', 'Credit', 'Voucher Debit'] as const
+export const LEGACY_INCOME_PAYMENT_METHODS = ['Salary', 'Transfer', 'Voucher'] as const
+export type LegacyExpensePaymentMethod = (typeof LEGACY_EXPENSE_PAYMENT_METHODS)[number]
+export type LegacyIncomePaymentMethod = (typeof LEGACY_INCOME_PAYMENT_METHODS)[number]
+export type LegacyPaymentMethod = LegacyExpensePaymentMethod | LegacyIncomePaymentMethod
+
+export interface LegacyDebt {
+  name: string
+  amount: number
+  settled: boolean
+}
+
+interface LegacyTransactionBase {
+  id: string
+  date: string
+  description: string
+  amount: number
+  category: string
+  importId?: string
+}
+
+export interface LegacyIncomeTransaction extends LegacyTransactionBase {
+  type: 'Income'
+  paymentMethod: LegacyIncomePaymentMethod
+}
+
+export interface LegacyExpenseTransaction extends LegacyTransactionBase {
+  type: 'Expense'
+  paymentMethod: LegacyExpensePaymentMethod
+  installments?: number
+  debts?: LegacyDebt[]
+}
+
+export type LegacyTransaction = LegacyIncomeTransaction | LegacyExpenseTransaction
+
+export interface LegacyFinanceData {
+  transactions: LegacyTransaction[]
+  budgets: Budget[]
+}
 
 export type SkipReason = string
 
@@ -35,13 +68,16 @@ function isNonNegativeFinite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
 }
 
-function canonicalType(value: unknown): TransactionType | null {
+function canonicalType(value: unknown): LegacyTransactionType | null {
   if (typeof value !== 'string') return null
   const needle = value.trim().toLowerCase()
-  return TRANSACTION_TYPES.find((type) => type.toLowerCase() === needle) ?? null
+  return LEGACY_TRANSACTION_TYPES.find((type) => type.toLowerCase() === needle) ?? null
 }
 
-function canonicalMethod<T extends PaymentMethod>(value: unknown, methods: readonly T[]): T | null {
+function canonicalMethod<T extends LegacyPaymentMethod>(
+  value: unknown,
+  methods: readonly T[],
+): T | null {
   if (typeof value !== 'string') return null
   const needle = value.trim().toLowerCase()
   return methods.find((method) => method.toLowerCase() === needle) ?? null
@@ -49,7 +85,7 @@ function canonicalMethod<T extends PaymentMethod>(value: unknown, methods: reado
 
 export function validateTransaction(
   value: unknown,
-): { ok: true; tx: Transaction } | { ok: false; reason: SkipReason } {
+): { ok: true; tx: LegacyTransaction } | { ok: false; reason: SkipReason } {
   if (!value || typeof value !== 'object') return { ok: false, reason: 'not an object' }
   const t = value as Record<string, unknown>
 
@@ -66,36 +102,38 @@ export function validateTransaction(
   if (typeof t.category !== 'string' || t.category.trim() === '') {
     return { ok: false, reason: 'category must be a non-empty string' }
   }
-  if (t.importId != null && typeof t.importId !== 'string')
+  if (t.importId != null && typeof t.importId !== 'string') {
     return { ok: false, reason: 'importId must be a string' }
+  }
 
   const type = canonicalType(t.type)
   if (type === null) {
     return {
       ok: false,
-      reason: `invalid type: "${t.type}" (expected: ${TRANSACTION_TYPES.join(', ')})`,
+      reason: `invalid type: "${t.type}" (expected: ${LEGACY_TRANSACTION_TYPES.join(', ')})`,
     }
   }
 
-  let paymentMethod: PaymentMethod
+  let paymentMethod: LegacyPaymentMethod
   if (type === 'Income') {
-    const method = canonicalMethod(t.paymentMethod, INCOME_PAYMENT_METHODS)
+    const method = canonicalMethod(t.paymentMethod, LEGACY_INCOME_PAYMENT_METHODS)
     if (method === null) {
       return {
         ok: false,
-        reason: `invalid payment method: "${t.paymentMethod}" for Income (expected: ${INCOME_PAYMENT_METHODS.join(', ')})`,
+        reason: `invalid payment method: "${t.paymentMethod}" for Income (expected: ${LEGACY_INCOME_PAYMENT_METHODS.join(', ')})`,
       }
     }
     paymentMethod = method
-    if (t.installments != null)
+    if (t.installments != null) {
       return { ok: false, reason: 'Income transaction cannot have installments' }
+    }
     if (t.debts != null) return { ok: false, reason: 'Income transaction cannot have debts' }
   } else {
-    const method = canonicalMethod(t.paymentMethod, EXPENSE_PAYMENT_METHODS)
+    const method = canonicalMethod(t.paymentMethod, LEGACY_EXPENSE_PAYMENT_METHODS)
     if (method === null) {
       return {
         ok: false,
-        reason: `invalid payment method: "${t.paymentMethod}" for Expense (expected: ${EXPENSE_PAYMENT_METHODS.join(', ')})`,
+        reason: `invalid payment method: "${t.paymentMethod}" for Expense (expected: ${LEGACY_EXPENSE_PAYMENT_METHODS.join(', ')})`,
       }
     }
     paymentMethod = method
@@ -104,16 +142,18 @@ export function validateTransaction(
   if (t.debts != null) {
     if (!Array.isArray(t.debts)) return { ok: false, reason: 'debts must be an array' }
     let debtCents = 0
-    for (const d of t.debts) {
-      if (!d || typeof d !== 'object') return { ok: false, reason: 'invalid debt entry' }
-      const debt = d as Record<string, unknown>
+    for (const entry of t.debts) {
+      if (!entry || typeof entry !== 'object') return { ok: false, reason: 'invalid debt entry' }
+      const debt = entry as Record<string, unknown>
       if (typeof debt.name !== 'string' || debt.name.trim() === '') {
         return { ok: false, reason: 'debt.name must be a non-empty string' }
       }
-      if (!isNonNegativeFinite(debt.amount))
+      if (!isNonNegativeFinite(debt.amount)) {
         return { ok: false, reason: 'debt.amount must be a non-negative number' }
-      if (typeof debt.settled !== 'boolean')
+      }
+      if (typeof debt.settled !== 'boolean') {
         return { ok: false, reason: 'debt.settled must be a boolean' }
+      }
       debtCents += Math.round(debt.amount * 100)
     }
     if (debtCents > Math.round((t.amount as number) * 100)) {
@@ -142,7 +182,7 @@ export function validateTransaction(
       paymentMethod,
       description: (t.description as string).trim(),
       category: (t.category as string).trim(),
-    } as Transaction,
+    } as LegacyTransaction,
   }
 }
 
@@ -178,7 +218,7 @@ export interface SkippedEntry {
 }
 
 export interface ValidationResult {
-  data: FinanceData
+  data: LegacyFinanceData
   skippedTransactions: SkippedEntry[]
   skippedBudgets: number
 }
@@ -197,27 +237,21 @@ export function validateFinanceData(value: unknown): ValidationResult {
     throw new Error('Invalid data: budgets must be an array')
   }
 
-  const validTransactions: Transaction[] = []
+  const validTransactions: LegacyTransaction[] = []
   const skippedTransactions: SkippedEntry[] = []
 
-  for (let i = 0; i < data.transactions.length; i++) {
-    const result = validateTransaction(data.transactions[i])
-    if (result.ok) {
-      validTransactions.push(result.tx)
-    } else {
-      skippedTransactions.push({ index: i, reason: result.reason })
-    }
+  for (let index = 0; index < data.transactions.length; index++) {
+    const result = validateTransaction(data.transactions[index])
+    if (result.ok) validTransactions.push(result.tx)
+    else skippedTransactions.push({ index, reason: result.reason })
   }
 
   const validBudgets: Budget[] = []
   let skippedBudgets = 0
-  for (const value of data.budgets) {
-    const budget = parseBudget(value)
-    if (budget) {
-      validBudgets.push(budget)
-    } else {
-      skippedBudgets += 1
-    }
+  for (const entry of data.budgets) {
+    const budget = parseBudget(entry)
+    if (budget) validBudgets.push(budget)
+    else skippedBudgets += 1
   }
 
   return {

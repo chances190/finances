@@ -12,7 +12,7 @@ export default function ExportImport() {
         variant="outline"
         size="xs"
         title="Backup all data (transactions + budgets)"
-        onClick={() => exportJSON({ transactions: state.transactions, budgets: state.budgets })}
+        onClick={() => exportJSON({ movements: state.movements, budgets: state.budgets })}
       >
         Export Backup (.json)
       </Button>
@@ -20,7 +20,7 @@ export default function ExportImport() {
         variant="outline"
         size="xs"
         title="Export transactions only (exchange format)"
-        onClick={() => exportCSV(state.transactions)}
+        onClick={() => exportCSV(state.movements)}
       >
         Export Transactions (.csv)
       </Button>

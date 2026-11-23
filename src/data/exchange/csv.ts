@@ -1,9 +1,14 @@
 import Papa from 'papaparse'
-import type { Transaction } from '../../domain/entities'
-import { monthlyFlows } from '../../domain/entities'
+import {
+  buildIncome,
+  buildPurchase,
+  grossPurchaseAmount,
+  incomeAmount,
+  type Movement,
+  type PurchaseShare,
+} from '../../domain/ledger'
 import { parseCurrency, parseCurrencyStrict } from '../../lib/currency'
 import { downloadBlob } from '../download'
-import { validateTransaction } from '../validation'
 
 const HEADERS = [
   'ref',
@@ -20,64 +25,99 @@ const HEADERS = [
   'debtAmount',
 ] as const
 
-export function exportCSV(transactions: Transaction[]): void {
+function expenseAccount(method: string): 'checking' | 'card' | 'voucher' | null {
+  const needle = method.trim().toLowerCase()
+  if (needle === 'credit') return 'card'
+  if (needle === 'voucher debit') return 'voucher'
+  if (needle === 'debit/pix') return 'checking'
+  return null
+}
+
+function incomeAccount(method: string): 'checking' | 'voucher' | null {
+  const needle = method.trim().toLowerCase()
+  if (needle === 'voucher') return 'voucher'
+  if (needle === 'salary' || needle === 'transfer') return 'checking'
+  return null
+}
+
+function exportMethod(movement: Movement): string | null {
+  if (movement.kind === 'income') {
+    const account = movement.postings.find((posting) => posting.amount > 0)?.account
+    return account === 'voucher' ? 'Voucher' : 'Transfer'
+  }
+  if (movement.kind !== 'purchase') return null
+  const account = movement.postings.find(
+    (posting) => posting.amount < 0 && posting.account !== 'expense',
+  )?.account
+  if (account === 'payable') return null
+  if (account === 'card') return 'Credit'
+  if (account === 'voucher') return 'Voucher Debit'
+  return 'Debit/PIX'
+}
+
+export function exportCSV(movements: Movement[]): void {
   const rows: string[][] = []
   let refCounter = 0
 
-  for (const t of transactions) {
+  for (const movement of movements) {
+    const method = exportMethod(movement)
+    if (!method) continue
     const ref = `r${String(++refCounter).padStart(3, '0')}`
+    const category = movement.postings.find((posting) => posting.category)?.category ?? 'Other'
 
-    if (t.type === 'Expense' && t.installments && t.installments > 1) {
-      const flows = monthlyFlows(t)
-      for (let i = 0; i < flows.length; i++) {
-        const f = flows[i]
-        rows.push([
-          i === 0 ? ref : `r${String(++refCounter).padStart(3, '0')}`,
-          t.date,
-          t.type,
-          String(t.amount),
-          t.category,
-          t.paymentMethod,
-          t.description,
-          i === 0 ? String(t.installments) : '',
-          String((f.installmentIndex ?? 0) + 1),
-          i > 0 ? ref : '',
-          '',
-          '',
-        ])
-      }
-    } else if (t.type === 'Expense' && t.debts && t.debts.length > 0) {
-      for (const d of t.debts) {
-        rows.push([
-          ref,
-          t.date,
-          t.type,
-          String(t.amount),
-          t.category,
-          t.paymentMethod,
-          t.description,
-          '',
-          '',
-          '',
-          d.name,
-          String(d.amount),
-        ])
-      }
-    } else {
+    if (movement.kind === 'income') {
       rows.push([
         ref,
-        t.date,
-        t.type,
-        String(t.amount),
-        t.category,
-        t.paymentMethod,
-        t.description,
+        movement.date,
+        'Income',
+        String(incomeAmount(movement)),
+        category,
+        method,
+        movement.description,
         '',
         '',
         '',
         '',
         '',
       ])
+      continue
+    }
+
+    const shares = movement.postings.filter(
+      (posting) => posting.account === 'receivable' && posting.counterparty,
+    )
+    if (shares.length === 0) {
+      rows.push([
+        ref,
+        movement.date,
+        'Expense',
+        String(grossPurchaseAmount(movement)),
+        category,
+        method,
+        movement.description,
+        '',
+        '',
+        '',
+        '',
+        '',
+      ])
+    } else {
+      for (const share of shares) {
+        rows.push([
+          ref,
+          movement.date,
+          'Expense',
+          String(grossPurchaseAmount(movement)),
+          category,
+          method,
+          movement.description,
+          '',
+          '',
+          '',
+          share.counterparty as string,
+          String(share.amount),
+        ])
+      }
     }
   }
 
@@ -92,14 +132,14 @@ export interface SkippedRow {
 }
 
 export interface CSVImportResult {
-  transactions: Transaction[]
+  movements: Movement[]
   skippedRows: SkippedRow[]
 }
 
-function validateAmount(s: string): number | null {
-  const value = parseCurrencyStrict(s)
-  if (value === null || value <= 0) return null
-  return value
+function validateAmount(value: string): number | null {
+  const amount = parseCurrencyStrict(value)
+  if (amount === null || amount <= 0) return null
+  return amount
 }
 
 type CSVRow = Record<string, string>
@@ -118,76 +158,109 @@ export function importCSV(csv: string): CSVImportResult {
 
   const malformedRows = new Set(
     parsed.errors
-      .filter((e) => e.code === 'TooFewFields' || e.code === 'TooManyFields')
-      .map((e) => e.row ?? -1),
+      .filter((error) => error.code === 'TooFewFields' || error.code === 'TooManyFields')
+      .map((error) => error.row ?? -1),
   )
 
-  const skippedRows: SkippedRow[] = [...malformedRows].map((rowIdx) => ({
-    line: rowIdx + 2,
+  const skippedRows: SkippedRow[] = [...malformedRows].map((rowIndex) => ({
+    line: rowIndex + 2,
     reason: 'wrong number of columns',
   }))
 
   const installmentChildRefs = new Set(
-    parsed.data.filter((r) => r.installmentRef).map((r) => r.ref),
+    parsed.data.filter((row) => row.installmentRef).map((row) => row.ref),
   )
 
   const byRef = new Map<string, { firstIndex: number; rows: CSVRow[] }>()
-  for (let i = 0; i < parsed.data.length; i++) {
-    if (malformedRows.has(i)) continue
-    const row = parsed.data[i]
+  for (let index = 0; index < parsed.data.length; index++) {
+    if (malformedRows.has(index)) continue
+    const row = parsed.data[index]
     if (!row.ref || installmentChildRefs.has(row.ref)) continue
     const existing = byRef.get(row.ref)
-    if (existing) {
-      existing.rows.push(row)
-    } else {
-      byRef.set(row.ref, { firstIndex: i, rows: [row] })
-    }
+    if (existing) existing.rows.push(row)
+    else byRef.set(row.ref, { firstIndex: index, rows: [row] })
   }
 
-  const transactions: Transaction[] = []
+  const movements: Movement[] = []
 
-  for (const [, { firstIndex, rows }] of byRef) {
+  for (const [ref, { firstIndex, rows }] of byRef) {
     const first = rows[0]
     const line = firstIndex + 2
-
     const amount = validateAmount(first.amount)
     if (amount === null) {
       skippedRows.push({ line, reason: `invalid amount: "${first.amount}"` })
       continue
     }
 
-    const draft: Record<string, unknown> = {
-      id: crypto.randomUUID(),
-      type: first.type,
-      date: first.date,
-      description: first.description || '',
-      amount,
-      category: first.category || 'Other',
-      paymentMethod: first.paymentMethod,
-    }
+    const type = first.type.trim().toLowerCase()
+    const importId = `csv:${ref}:${first.date}:${amount}:${first.description ?? ''}`
 
-    if (first.installmentTotal && !first.installmentRef) {
-      draft.installments = parseInt(first.installmentTotal, 10) || 1
-    }
-
-    if (first.debtName && rows.some((r) => r.debtName)) {
-      draft.debts = rows
-        .filter((r) => r.debtName)
-        .map((r) => ({
-          name: r.debtName,
-          amount: parseCurrency(r.debtAmount || '0'),
-          settled: false,
-        }))
-    }
-
-    const validated = validateTransaction(draft)
-    if (!validated.ok) {
-      skippedRows.push({ line, reason: validated.reason })
+    if (type === 'income') {
+      const account = incomeAccount(first.paymentMethod)
+      if (!account) {
+        skippedRows.push({
+          line,
+          reason: `invalid payment method: "${first.paymentMethod}"`,
+        })
+        continue
+      }
+      const result = buildIncome({
+        id: crypto.randomUUID(),
+        date: first.date,
+        description: first.description || 'Imported income',
+        amount,
+        account,
+        category: first.category || 'Income',
+        importId,
+      })
+      if (!result.ok) {
+        skippedRows.push({ line, reason: result.reason })
+        continue
+      }
+      movements.push(result.value)
       continue
     }
-    transactions.push(validated.tx)
+
+    if (type !== 'expense') {
+      skippedRows.push({ line, reason: `invalid type: "${first.type}"` })
+      continue
+    }
+
+    const account = expenseAccount(first.paymentMethod)
+    if (!account) {
+      skippedRows.push({
+        line,
+        reason: `invalid payment method: "${first.paymentMethod}"`,
+      })
+      continue
+    }
+
+    const shares: PurchaseShare[] = rows
+      .filter((row) => row.debtName)
+      .map((row) => ({
+        counterparty: row.debtName,
+        amount: parseCurrency(row.debtAmount || '0'),
+      }))
+    const installments = Math.max(1, Number.parseInt(first.installmentTotal || '1', 10) || 1)
+
+    const result = buildPurchase({
+      id: crypto.randomUUID(),
+      date: first.date,
+      description: first.description || 'Imported purchase',
+      amount,
+      category: first.category || 'Other',
+      account,
+      shares: shares.filter((share) => share.counterparty.trim() && share.amount > 0),
+      installments,
+      importId,
+    })
+    if (!result.ok) {
+      skippedRows.push({ line, reason: result.reason })
+      continue
+    }
+    movements.push(...result.value)
   }
 
   skippedRows.sort((a, b) => a.line - b.line)
-  return { transactions, skippedRows }
+  return { movements, skippedRows }
 }

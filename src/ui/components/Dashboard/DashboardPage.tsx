@@ -14,17 +14,15 @@ import {
   budgetVsActual,
   currentYM,
   daysInMonth,
-  expensesByMonth,
-  groupedByPaymentMethod,
-  incomeByPaymentMethod,
-  mealVoucherBalance,
+  expensesByAccount,
+  incomeByAccount,
+  incomeByMonth,
   monthRelation,
   type PaceStatus,
+  paceByMonth,
   spendingPace,
-  totalByMonth,
 } from '@/domain/calculations'
-import { PAYMENT_METHOD_CHART_COLORS } from '@/domain/constants'
-import type { PaymentMethod } from '@/domain/entities'
+import { ACCOUNT_COLORS, ACCOUNT_LABELS, type FundingAccount } from '@/domain/ledger'
 import { formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import LazyChart from '@/ui/components/Common/LazyChart'
@@ -49,10 +47,11 @@ export default function DashboardPage() {
   const [, navigate] = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const months = useMemo(() => availableMonths(state.transactions), [state.transactions])
+  const months = useMemo(() => availableMonths(state.movements), [state.movements])
+  const monthOptions = months.length > 0 ? months : [currentYM()]
 
   const nowYM = currentYM()
-  const defaultMonth = months.includes(nowYM) ? nowYM : (months[0] ?? '')
+  const defaultMonth = months.includes(nowYM) ? nowYM : monthOptions[0]
   const selectedMonth = searchParams.get('month') ?? defaultMonth
 
   function setSelectedMonth(month: string) {
@@ -73,33 +72,34 @@ export default function DashboardPage() {
 
   const monthData = useMemo(() => {
     if (!selectedMonth) return null
-    const income = totalByMonth(state.transactions, selectedMonth)
-    const expenses = expensesByMonth(state.transactions, selectedMonth)
+    const income = incomeByMonth(state.movements, selectedMonth)
+    const expenses = paceByMonth(state.movements, selectedMonth)
+    const voucherIncome = incomeByAccount(state.movements, selectedMonth).voucher ?? 0
+    const voucherSpent = expensesByAccount(state.movements, selectedMonth).voucher ?? 0
     return {
       income,
       expenses,
       balance: income - expenses,
-      mealVoucher: mealVoucherBalance(state.transactions, selectedMonth),
-      incomeByMethod: incomeByPaymentMethod(state.transactions, selectedMonth),
+      mealVoucher: voucherIncome - voucherSpent,
     }
-  }, [state.transactions, selectedMonth])
+  }, [state.movements, selectedMonth])
 
   const budgetVsActualData = useMemo(
-    () => budgetVsActual(state.transactions, budget),
-    [state.transactions, budget],
+    () => budgetVsActual(state.movements, budget),
+    [state.movements, budget],
   )
 
   const paymentMethodData = useMemo(() => {
     if (!selectedMonth) return []
-    const grouped = groupedByPaymentMethod(state.transactions, selectedMonth)
+    const grouped = expensesByAccount(state.movements, selectedMonth)
     return Object.entries(grouped)
-      .filter(([, v]) => v > 0)
-      .map(([method, amount]) => ({
-        name: method,
-        value: amount,
-        color: PAYMENT_METHOD_CHART_COLORS[method as PaymentMethod],
+      .filter(([, value]) => value > 0)
+      .map(([account, amount]) => ({
+        name: ACCOUNT_LABELS[account as FundingAccount],
+        value: amount as number,
+        color: ACCOUNT_COLORS[account as FundingAccount],
       }))
-  }, [state.transactions, selectedMonth])
+  }, [state.movements, selectedMonth])
 
   const today = new Date()
   const currentMonth = currentYM(today)
@@ -112,14 +112,23 @@ export default function DashboardPage() {
         : 0
 
   const pace = useMemo(
-    () => spendingPace(state.transactions, budget, currentDay),
-    [state.transactions, budget, currentDay],
+    () => spendingPace(state.movements, budget, currentDay),
+    [state.movements, budget, currentDay],
   )
 
   const dailyQuota = monthDays > 0 ? pace.limit / monthDays : 0
   const dailyAvg = currentDay > 0 ? pace.spentSoFar / currentDay : 0
   const invested = budget ? budget.plannedIncome * budget.investmentRate : 0
   const paceStatus = PACE_STATUS[pace.status]
+
+  if (state.movements.length === 0) {
+    return (
+      <EmptyState
+        message="No transaction data available."
+        action={{ label: 'Go to Transactions', onClick: () => navigate('/') }}
+      />
+    )
+  }
 
   if (!monthData) {
     return (
@@ -139,7 +148,7 @@ export default function DashboardPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {months.map((m) => {
+            {monthOptions.map((m) => {
               const rel = monthRelation(m)
               return (
                 <SelectItem

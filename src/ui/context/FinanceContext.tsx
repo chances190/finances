@@ -8,7 +8,8 @@ import {
   useRef,
 } from 'react'
 import { loadData, saveData } from '../../data/repository'
-import type { AuditEntry, Budget, FinanceData, Transaction } from '../../domain/entities'
+import type { AuditEntry, Budget, FinanceData } from '../../domain/entities'
+import type { Movement } from '../../domain/ledger'
 
 function scheduleSave(callback: () => void): number {
   return typeof window.requestIdleCallback === 'function'
@@ -25,7 +26,7 @@ function cancelSave(handle: number): void {
 }
 
 export interface FinanceState {
-  transactions: Transaction[]
+  movements: Movement[]
   budgets: Budget[]
   auditLog: AuditEntry[]
   redoStack: AuditEntry[]
@@ -34,10 +35,9 @@ export interface FinanceState {
 
 export type FinanceAction =
   | { type: 'LOAD'; payload: FinanceData }
-  | { type: 'ADD_TRANSACTIONS'; payload: Transaction[] }
-  | { type: 'UPDATE_TRANSACTION'; payload: Transaction }
-  | { type: 'DELETE_TRANSACTION'; payload: string }
-  | { type: 'SETTLE_DEBT'; payload: { transactionId: string; debtName: string } }
+  | { type: 'ADD_MOVEMENTS'; payload: Movement[] }
+  | { type: 'UPDATE_MOVEMENT'; payload: Movement }
+  | { type: 'DELETE_MOVEMENT'; payload: string }
   | { type: 'UPSERT_BUDGET'; payload: Budget }
   | { type: 'DELETE_BUDGET'; payload: string }
   | { type: 'IMPORT'; payload: FinanceData }
@@ -46,28 +46,26 @@ export type FinanceAction =
   | { type: 'REDO' }
   | { type: 'CLEAR_AUDIT' }
 
-function snapshot(state: FinanceState): { transactions: Transaction[]; budgets: Budget[] } {
+function snapshot(state: FinanceState): { movements: Movement[]; budgets: Budget[] } {
   // Every reducer mutation replaces these arrays instead of mutating them, so
   // snapshots can share the references without an O(n) copy per action.
-  return { transactions: state.transactions, budgets: state.budgets }
+  return { movements: state.movements, budgets: state.budgets }
 }
 
 function describeAction(action: FinanceAction): string {
   switch (action.type) {
-    case 'ADD_TRANSACTIONS':
-      return `Added ${action.payload.length} transaction(s)`
-    case 'UPDATE_TRANSACTION':
-      return `Updated transaction "${action.payload.description}"`
-    case 'DELETE_TRANSACTION':
-      return `Deleted transaction`
-    case 'SETTLE_DEBT':
-      return `Settled debt "${action.payload.debtName}"`
+    case 'ADD_MOVEMENTS':
+      return `Added ${action.payload.length} movement(s)`
+    case 'UPDATE_MOVEMENT':
+      return `Updated movement "${action.payload.description}"`
+    case 'DELETE_MOVEMENT':
+      return 'Deleted movement'
     case 'UPSERT_BUDGET':
       return `Saved budget for ${action.payload.referenceMonth}`
     case 'DELETE_BUDGET':
       return `Deleted budget for ${action.payload}`
     case 'IMPORT':
-      return `Imported ${action.payload.transactions.length} transaction(s)`
+      return `Imported ${action.payload.movements.length} movement(s)`
     case 'UNDO':
       return 'Undo'
     case 'REDO':
@@ -77,57 +75,53 @@ function describeAction(action: FinanceAction): string {
   }
 }
 
+function appendMovements(state: FinanceState, movements: Movement[]): Movement[] {
+  const existing = new Set(state.movements.map((movement) => movement.id))
+  return [...state.movements, ...movements.filter((movement) => !existing.has(movement.id))]
+}
+
 function mutate(state: FinanceState, action: FinanceAction): FinanceState {
   switch (action.type) {
-    case 'ADD_TRANSACTIONS':
-      return { ...state, transactions: [...state.transactions, ...action.payload] }
+    case 'ADD_MOVEMENTS':
+      return { ...state, movements: appendMovements(state, action.payload) }
 
-    case 'UPDATE_TRANSACTION':
+    case 'UPDATE_MOVEMENT':
       return {
         ...state,
-        transactions: state.transactions.map((t) =>
-          t.id === action.payload.id ? action.payload : t,
+        movements: state.movements.map((movement) =>
+          movement.id === action.payload.id ? action.payload : movement,
         ),
       }
 
-    case 'DELETE_TRANSACTION':
+    case 'DELETE_MOVEMENT':
       return {
         ...state,
-        transactions: state.transactions.filter((t) => t.id !== action.payload),
+        movements: state.movements.filter((movement) => movement.id !== action.payload),
       }
-
-    case 'SETTLE_DEBT': {
-      const { transactionId, debtName } = action.payload
-      return {
-        ...state,
-        transactions: state.transactions.map((t) => {
-          if (t.id !== transactionId || t.type !== 'Expense' || !t.debts) return t
-          return {
-            ...t,
-            debts: t.debts.map((d) => (d.name === debtName ? { ...d, settled: !d.settled } : d)),
-          }
-        }),
-      }
-    }
 
     case 'UPSERT_BUDGET': {
       const budget = action.payload
-      const idx = state.budgets.findIndex((b) => b.referenceMonth === budget.referenceMonth)
-      if (idx >= 0) {
+      const index = state.budgets.findIndex(
+        (candidate) => candidate.referenceMonth === budget.referenceMonth,
+      )
+      if (index >= 0) {
         const nextBudgets = [...state.budgets]
-        nextBudgets[idx] = budget
+        nextBudgets[index] = budget
         return { ...state, budgets: nextBudgets }
       }
       return { ...state, budgets: [...state.budgets, budget] }
     }
 
     case 'DELETE_BUDGET':
-      return { ...state, budgets: state.budgets.filter((b) => b.referenceMonth !== action.payload) }
+      return {
+        ...state,
+        budgets: state.budgets.filter((budget) => budget.referenceMonth !== action.payload),
+      }
 
     case 'IMPORT':
       return {
         ...state,
-        transactions: action.payload.transactions,
+        movements: action.payload.movements,
         budgets: action.payload.budgets,
       }
 
@@ -137,10 +131,9 @@ function mutate(state: FinanceState, action: FinanceAction): FinanceState {
 }
 
 const MUTATION_TYPES = new Set<FinanceAction['type']>([
-  'ADD_TRANSACTIONS',
-  'UPDATE_TRANSACTION',
-  'DELETE_TRANSACTION',
-  'SETTLE_DEBT',
+  'ADD_MOVEMENTS',
+  'UPDATE_MOVEMENT',
+  'DELETE_MOVEMENT',
   'UPSERT_BUDGET',
   'DELETE_BUDGET',
   'IMPORT',
@@ -151,19 +144,19 @@ function reducer(state: FinanceState, action: FinanceAction): FinanceState {
     case 'LOAD':
       return {
         ...state,
-        transactions: action.payload.transactions,
+        movements: action.payload.movements,
         budgets: action.payload.budgets,
         loaded: true,
       }
 
     case 'UNDO': {
-      const entry = state.auditLog.find((e) => e.id === action.payload)
+      const entry = state.auditLog.find((candidate) => candidate.id === action.payload)
       if (!entry) return state
       return {
         ...state,
-        transactions: entry.snapshot.transactions,
+        movements: entry.snapshot.movements,
         budgets: entry.snapshot.budgets,
-        auditLog: state.auditLog.filter((e) => e.id !== action.payload),
+        auditLog: state.auditLog.filter((candidate) => candidate.id !== action.payload),
         redoStack: [{ ...entry, forwardSnapshot: snapshot(state) }, ...state.redoStack],
       }
     }
@@ -173,7 +166,7 @@ function reducer(state: FinanceState, action: FinanceAction): FinanceState {
       if (!redoEntry?.forwardSnapshot) return state
       return {
         ...state,
-        transactions: redoEntry.forwardSnapshot.transactions,
+        movements: redoEntry.forwardSnapshot.movements,
         budgets: redoEntry.forwardSnapshot.budgets,
         auditLog: [
           { ...redoEntry, snapshot: snapshot(state), forwardSnapshot: undefined },
@@ -186,7 +179,7 @@ function reducer(state: FinanceState, action: FinanceAction): FinanceState {
     case 'APPLY_REMOTE':
       return {
         ...state,
-        transactions: action.payload.transactions,
+        movements: action.payload.movements,
         budgets: action.payload.budgets,
       }
 
@@ -221,7 +214,7 @@ const FinanceContext = createContext<{
 
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, {
-    transactions: [],
+    movements: [],
     budgets: [],
     auditLog: [],
     redoStack: [],
@@ -237,7 +230,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = loadData()
-    dispatch({ type: 'LOAD', payload: saved ?? { transactions: [], budgets: [] } })
+    dispatch({ type: 'LOAD', payload: saved ?? { movements: [], budgets: [] } })
   }, [])
 
   useEffect(() => {
@@ -247,16 +240,16 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       return
     }
     const handle = scheduleSave(() =>
-      saveData({ transactions: state.transactions, budgets: state.budgets }),
+      saveData({ movements: state.movements, budgets: state.budgets }),
     )
     return () => cancelSave(handle)
-  }, [state.transactions, state.budgets, state.loaded])
+  }, [state.movements, state.budgets, state.loaded])
 
   useEffect(() => {
     const flush = () => {
       if (!latestState.current.loaded) return
       saveData({
-        transactions: latestState.current.transactions,
+        movements: latestState.current.movements,
         budgets: latestState.current.budgets,
       })
     }
@@ -268,7 +261,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 }
 
 export function useFinance() {
-  const ctx = useContext(FinanceContext)
-  if (!ctx) throw new Error('useFinance must be used within FinanceProvider')
-  return ctx
+  const context = useContext(FinanceContext)
+  if (!context) throw new Error('useFinance must be used within FinanceProvider')
+  return context
 }

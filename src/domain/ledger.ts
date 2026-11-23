@@ -238,7 +238,9 @@ export function buildPurchase(input: PurchaseInput): BuildResult<Movement[]> {
           ? `${input.description} (${index + 1}/${installments})`
           : input.description,
       postings,
-      ...(index === 0 && input.importId ? { importId: input.importId } : {}),
+      ...(input.importId
+        ? { importId: index === 0 ? input.importId : `${input.importId}:${index + 1}` }
+        : {}),
       ...(index > 0 ? { links: [input.id] } : {}),
     })
   }

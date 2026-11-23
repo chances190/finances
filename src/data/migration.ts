@@ -1,21 +1,14 @@
-import type { FinanceData, Transaction } from '../domain/entities'
-import {
-  addMonthsToDate,
-  buildIncome,
-  buildPurchase,
-  buildSettlement,
-  type LedgerData,
-  type Movement,
-} from '../domain/ledger'
+import type { LedgerData, Movement } from '../domain/ledger'
+import { addMonthsToDate, buildIncome, buildPurchase, buildSettlement } from '../domain/ledger'
 import { type LedgerValidationResult, validateLedgerData } from './ledgerValidation'
-import { validateFinanceData } from './validation'
+import { type LegacyFinanceData, type LegacyTransaction, validateFinanceData } from './validation'
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
 function migrateTransaction(
-  transaction: Transaction,
+  transaction: LegacyTransaction,
   index: number,
   movements: Movement[],
   skipped: { index: number; reason: string }[],
@@ -91,7 +84,7 @@ function migrateTransaction(
   })
 }
 
-function migrateLegacy(value: FinanceData): LedgerValidationResult {
+function migrateLegacy(value: LegacyFinanceData): LedgerValidationResult {
   const movements: Movement[] = []
   const skippedMovements: { index: number; reason: string }[] = []
   for (let index = 0; index < value.transactions.length; index++) {
