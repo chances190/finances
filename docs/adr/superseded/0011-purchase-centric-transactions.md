@@ -1,10 +1,10 @@
 ---
 id: 0011
 title: purchase-centric-transactions
-status: Accepted
+status: Superseded
 date: 2026-09-08
 supersedes: []
-superseded_by: null
+superseded_by: 0014
 ---
 
 # 0011. Purchase-Centric Transactions (Derived Installment Flows, Debts as Attachments)

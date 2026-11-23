@@ -1,57 +1,41 @@
 # Repository Roadmap
 
-*Goal: a feature-complete single-user personal finance tracker — transactions, budgets, debts, dashboard, trends, CSV import/export, dark mode. Direction: optional Google Drive sync now, then transactions re-profile, then skeleton loading, then advance-pay.*
+*Goal: a feature-complete single-user personal finance tracker — transactions, budgets, debts, dashboard, trends, CSV import/export, dark mode. Direction: pace-first ledger rewrite now, then Drive sync verification, then skeleton loading, then advance-pay.*
 
 ---
 
 ## Active Card
 > *There can only be ONE Active Card at a time. Finish or push to Next before opening another.*
 
-- **Google Drive snapshot sync (opened 2026-11-04):** add optional cross-device sync for the same single-user dataset, so phone and desktop see the same transactions and budgets without manual file transfer. Local data stays authoritative; sync is one JSON snapshot in Google Drive's hidden `appDataFolder`, guarded by a remote version/ETag.
+- **Pace-first ledger rewrite (opened 2026-11-23):** replace the stored `Transaction` model with a minimal `movements` + `postings` ledger (ADR-0014) so spending pace nets by construction and payables, receivables, and settlement history are first-class, while the UI stays intent-first.
 
-  **Decisions (closed — do not relitigate):**
-  - **Google Drive `appDataFolder` only.** OAuth through Google Identity Services with the `drive.appdata` scope. A single stateless Cloudflare Pages Function exchanges the authorization code and holds the client secret; there is no sync backend, database, or stored user data. The app never sees the user's other Drive files.
-  - **Refresh-token auth.** GIS code model in popup mode; refresh token in an `HttpOnly` cookie scoped to `/api/google`; access token in memory. Replaces the token model, which forced re-consent every few minutes.
-  - **One snapshot, not a sync engine.** Upload `{ transactions, budgets }` as `finances.json`. No outbox, tombstones, per-record `_syncStatus`, CRDT, or field-level merge.
-  - **Local-first.** `localStorage` remains the primary store; sync never blocks a local write. IndexedDB migration is out of scope.
-  - **Triggers:** app start, `online`, tab visibility, and a manual **Sync now**. Debounce local changes ~4 s. No Background Sync API and no polling.
-  - **Version guard.** Persist `lastSyncedRemoteVersion` / `lastSyncedAt`, a dirty flag, and a hash of the last uploaded snapshot. Before updating, compare the remote version and use `If-Match`/ETag. If the remote changed and local is dirty, prompt **Pull** / **Push**. No silent clobber, and a remote version carrying our own last upload is not a conflict.
-  - **Strict render isolation.** Sync state lives outside `FinanceContext`; `TransactionTable` must not re-render because sync state changed. Serialization runs in `requestIdleCallback`/after paint; upload is a background `fetch`.
-
-  **Trade-offs / risks:**
-  - **Google-only dependency.** The Cloudflare Pages Function is now part of the trust boundary: it holds the client secret and the refresh-token cookie, so Origin/CSRF checks and rate limiting matter. Test the standalone PWA flow on iOS before calling it done.
-  - **Testing-mode refresh tokens** expire after seven days until the OAuth consent screen is published; a weekly reconnect is possible during development.
-  - **Full snapshot per settled change.** Fine at current data size, but only if it stays off the render path. A per-record sync model is explicitly rejected.
-  - **The stale-device prompt is the only conflict UI.** Concurrent editing is unsupported by design; two offline edits still surface one prompt rather than merging.
-  - **`appDataFolder` is private to the app, not end-to-end encrypted.** Google can read the file. Passphrase encryption is deferred.
-  - **OAuth verification.** Test-user mode is enough while undeployed; public release needs Google verification for the scope.
+  **Decisions (closed):**
+  - Consumption-basis pace: `expense postings − refund postings`. Transfers, settlements, forgiveness, and adjustments are pace-neutral.
+  - Fixed account enum (`checking`, `card`, `voucher`, `cash`, `receivable`, `payable`, `income`, `expense`, `forgiveness`, `adjustment`). Categories remain metadata; budgets remain a separate planning layer.
+  - Reimbursements are linked contra-expense postings, not a transaction kind. Refunds are entered as "Received back" on the linked purchase.
+  - Payables and receivables are first-class. Old `settled` debts migrate as received in full; the user can edit amounts after migration.
+  - Balances are derived but hidden from the primary dashboard. No account setup, no debit/credit language, no journal editor.
+  - Non-goals: chart of accounts, periods/close, multi-currency, reconciliation workflow, full accounting suite.
 
   **Acceptance Criteria (DoD):**
-  - Connect and disconnect Google Drive from a single control outside the transaction table; the granted scope is `drive.appdata` only and the app cannot list the user's other files.
-  - First sync creates `finances.json` in `appDataFolder`; later syncs update the same file.
-  - Add, edit, and delete on device A; sync; device B reloads and sees the change. The reverse direction works too.
-  - An offline edit on A persists locally and uploads on reconnect, visibility, or **Sync now**; no data is lost.
-  - If the remote version changed since the last sync and local is dirty, the Pull/Push prompt appears. Choosing Pull replaces local; Push uploads; neither path silently clobbers.
-  - Sync status is visible: last synced time, syncing, error, and reconnect. No toast spam.
-  - **Performance guard:** capture a baseline 4x-throttled mobile trace of the current transactions page at ~1,097 rows. Sync must add no long task over 100 ms, no extra `TransactionTable` render, and no measurable change to mutation-to-paint.
-  - `bun run typecheck`, `bunx biome check src/ functions/`, `bun test`, `bun run build` all green.
-  - **Lead Architect verifies the phone + desktop round trip with the same Google account.**
+  - Strongly typed ledger: discriminated movement kinds, fixed account enum, builders that reject invalid states; each movement balances; settlement ≤ relation; refund ≤ linked purchase; an `importId` links once.
+  - Selectors cover monthly income/expense, category, payment method, pace, budget vs actual, year summary, receivables, payables; golden tests preserve current report outputs with the known double-count fixed.
+  - Scenarios: shared dinner with receivable; partial payment + forgiveness; friend-paid dinner with payable; merchant refund; card-bill transfer; OFX link/create.
+  - UI: Expense | Income only; "Received back" on a purchase; settle dialog with received/forgiven; "You owe" and "Owed to you" lists; import preview links instead of field adoption; details drawer for postings.
+  - Migration: current JSON/CSV/OFX and Drive snapshot to the ledger adapter; old settled debts default received; `bun run typecheck`, `bunx biome check src/ functions/`, `bun test`, `bun run build` green.
+  - Lead Architect verifies add, refund, settle, payable, and import on the phone.
 
   **Out of Scope:**
-  - IndexedDB migration; `localStorage` stays.
-  - Outbox, tombstones, per-record sync metadata, CRDTs, field-level merge, or a conflict UI beyond the single stale-device prompt.
-  - Background Sync API; sync triggers are app start, `online`, visibility, and manual action only.
-  - End-to-end encryption / passphrase UX.
-  - Multi-user or shared datasets; concurrent editing.
-  - Dropbox, OneDrive, remoteStorage, or a custom sync backend. The Cloudflare Function only exchanges OAuth tokens; it stores no sync data.
-  - Real-time sync or polling.
-  - Reworking the transaction table's remaining performance problems; that is a separate concern.
+  - Account-balance reconciliation or bank-sync accuracy.
+  - Chart-of-accounts UI, periods, multi-currency, approvals.
+  - Rewriting auth/sync transport; only the snapshot shape changes.
 
 ---
 
 ## Next Cards
 > *Direction-only one-liners for future work in this milestone.*
 
+- **Google Drive sync — device verification (parked 2026-11-23):** the code landed (`edbf643`, `f8241fa`, `513ef0e`; ADR-0012 Proposed) with the `appDataFolder` snapshot, refresh-token cookie, version guard and Pull/Push prompt. Only the phone + desktop round-trip sign-off remains; re-open before public release.
 - **Skeleton loading states for Dashboard:** Lightweight loading placeholders for `DashboardPage` (carried over from the old UI/UX plan, Commit 9 — never implemented). Kept separate from the mobile card on purpose: it is one file and near-mechanical, and bundling it would have blurred two unrelated DoDs.
 - **Transactions page re-profile:** capture a fresh 4x-throttled mobile trace of the virtualized transaction list at ~1,097 rows and identify any remaining long task over 100 ms. Kept separate from sync, which must not regress this baseline.
 - **Advance-pay for credit installments:** Let the user pay the next N installments now and shift the remainder. Requires a `paidInstallments` marker in the model — a domain change, so it wants its own card and likely an ADR.
@@ -61,6 +45,7 @@
 ## Done Cards
 > *Completed cards with objective outcomes.*
 
+- **Transaction input and import reconciliation (Active Card, opened/closed 2026-11-23):** mobile category select verified at 360×740 in add and edit (`3947657`); imported Expense rows reconcile same-day/same-value with adopt/overwrite/keep-both, single-match adopt and multi-match prompt (`b4ece27`); 233 tests, typecheck/lint/build green.
 - **Mobile design — from-scratch mobile surfaces (Active Card, opened 2026-09-28, closed 2026-11-04):** closed by Lead Architect sign-off at 360×740. The mobile surfaces and the 360px layout gate were accepted; no code changes in this close-out.
 - **UI/UX Consistency Pass + income/debt UX unification (Active Card, opened 2026-08-07, closed 2026-09-26):** 19 of 20 audit findings closed, plus a scoped close-out. Final pass (`b71a7d8`): `EmptyState` gained a `cell` variant and the three in-table empty states (`TransactionTable`, `BudgetPage`, `DebtPage`) now render through it; the single-split settle control in `DebtPage` became a ghost `Button` with `aria-label` (was plain text flipping `100%` ↔ `Settled`); `rounded-none` stripped from `CSVImportDialog`'s dropzone, error box and skipped list. Audit items (d) and B6 verified as already implemented and struck; (e) moot — the "Details" column no longer exists. Version-mismatch guidance dropped as a non-goal: the app is undeployed, so there is no legacy document to detect, and `AGENTS.md` forbids the compatibility shim an ADR for it would have prescribed. The audit doc behind the card was deleted on close; its findings live here and in git history. Net +87/−24, 195 tests, all gates green.
 - **Span-based smart input parser (2026-09-26, `91c7b4c`):** implemented to `docs/text-input-specification.md`, the spec being the source of truth. Replaced the token + regex pre-pass parser with a maximal-munch span lexer and the §3 commitment model: provisional candidates (bare weekdays, `hoje`/`ontem`/`anteontem`/`amanhã`) commit by default and are demoted into the Description only when committing would break it. New `dateGrammar.ts` is the single source of truth for §2.2 date forms — ordered sticky patterns for lexing, structured shapes for §4 completions — so parser and autocompleter cannot disagree. Categories/payment methods resolve against their registries, which is what makes `@Meal Voucher` a single span. `parseSmartInput` now takes the category registry. `parseDate.ts` deleted (no consumers; its English/`dd/mm` fallbacks fall outside §2.2). Net +1101 lines incl. 422 lines of spec-derived tests, 195 tests, all gates green.
