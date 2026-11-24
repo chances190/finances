@@ -70,7 +70,7 @@ function formatLastSynced(timestamp: number | null): string {
   <DialogContent>
     <DialogHeader>
       <DialogTitle>Sync</DialogTitle>
-      <DialogDescription>Backup and sync your transactions trough Google Drive.</DialogDescription>
+      <DialogDescription>Backup and sync your transactions through Google Drive.</DialogDescription>
     </DialogHeader>
 
     <div class="grid gap-2 border border-border p-3">
@@ -127,14 +127,14 @@ function formatLastSynced(timestamp: number | null): string {
       <DialogHeader>
         <DialogTitle>Backup changed</DialogTitle>
         <DialogDescription>
-          <p>
+          <span class="block">
             The remote backup is newer than the last sync on this device, and you have local changes
             that have not been uploaded.
-          </p>
-          <p class="mt-2">
+          </span>
+          <span class="mt-2 block">
             Pull replaces this device's data with the remote backup. Push keeps this device's data
             and replaces the remote backup.
-          </p>
+          </span>
         </DialogDescription>
       </DialogHeader>
 
