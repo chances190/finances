@@ -115,8 +115,8 @@ function withAnnotation(
         annotations: {
           today: {
             type: 'line',
-            xMin: currentDay,
-            xMax: currentDay,
+            xMin: String(currentDay),
+            xMax: String(currentDay),
             borderColor: palette.muted,
             borderDash: [2, 2],
             label: {
