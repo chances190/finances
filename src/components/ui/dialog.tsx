@@ -1,8 +1,32 @@
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
 import { XIcon } from '@phosphor-icons/react'
-import type * as React from 'react'
+import * as React from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+
+// Mobile Chrome can report a layout viewport far wider than the screen (zoom,
+// installed-app viewport quirks), which makes `sm:` dialogs overflow. The only
+// reliable width is the visual viewport, so expose it as a CSS variable.
+function useVisualViewportVars() {
+  React.useLayoutEffect(() => {
+    const viewport = window.visualViewport
+    if (!viewport) return
+    const root = document.documentElement
+    const update = () => {
+      root.style.setProperty('--visual-viewport-width', `${viewport.width}px`)
+      root.style.setProperty('--visual-viewport-height', `${viewport.height}px`)
+      root.style.setProperty('--visual-viewport-left', `${viewport.offsetLeft}px`)
+      root.style.setProperty('--visual-viewport-top', `${viewport.offsetTop}px`)
+    }
+    update()
+    viewport.addEventListener('resize', update)
+    viewport.addEventListener('scroll', update)
+    return () => {
+      viewport.removeEventListener('resize', update)
+      viewport.removeEventListener('scroll', update)
+    }
+  }, [])
+}
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
@@ -25,7 +49,7 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        'fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
+        'fixed left-[var(--visual-viewport-left,0px)] top-[var(--visual-viewport-top,0px)] isolate z-50 h-[var(--visual-viewport-height,100svh)] w-[var(--visual-viewport-width,100vw)] bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
         className,
       )}
       {...props}
@@ -35,7 +59,7 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
 
 const SIDES = {
   center:
-    'top-1/2 left-1/2 w-full max-w-[calc(100%-2rem)] sm:max-w-sm max-h-[calc(100svh-2rem)] -translate-x-1/2 -translate-y-1/2 data-open:zoom-in-95 data-closed:zoom-out-95',
+    'left-[calc(var(--visual-viewport-left,0px)+var(--visual-viewport-width,100vw)/2)] top-[calc(var(--visual-viewport-top,0px)+var(--visual-viewport-height,100svh)/2)] w-full max-w-[min(24rem,calc(var(--visual-viewport-width,100vw)-2rem))] max-h-[calc(min(100svh,var(--visual-viewport-height,100svh))-2rem)] -translate-x-1/2 -translate-y-1/2 data-open:zoom-in-95 data-closed:zoom-out-95',
   right:
     'inset-y-0 right-0 w-72 max-w-[80vw] translate-x-0 translate-y-0 data-open:slide-in-from-right data-closed:slide-out-to-right',
 } as const
@@ -50,6 +74,7 @@ function DialogContent({
   showCloseButton?: boolean
   side?: keyof typeof SIDES
 }) {
+  useVisualViewportVars()
   return (
     <DialogPortal>
       <DialogOverlay />
