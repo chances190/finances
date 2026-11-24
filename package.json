@@ -16,6 +16,7 @@
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@tanstack/svelte-virtual": "^3.13.54",
     "bits-ui": "^2.22.0",
     "clsx": "^2.1.1",
     "currency.js": "^2.0.4",

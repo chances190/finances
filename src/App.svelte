@@ -4,6 +4,7 @@ import MobileNav from '@/components/shell/MobileNav.svelte'
 import PageStub from '@/components/shell/PageStub.svelte'
 import Tabs from '@/components/shell/Tabs.svelte'
 import Toasts from '@/components/shell/Toasts.svelte'
+import TransactionTable from '@/components/transactions/TransactionTable.svelte'
 import { initRouter, navigate, router } from '@/lib/router.svelte'
 import { finance, flushFinance, loadFinance } from '@/lib/stores/finance.svelte'
 import { toast } from '@/lib/stores/toast.svelte'
@@ -95,7 +96,7 @@ onMount(() => {
       {:else if router.path === '/history'}
         <PageStub title="Actions" />
       {:else}
-        <PageStub title="Transactions" />
+        <TransactionTable />
       {/if}
 
       {#snippet failed(_error, reset)}
