@@ -326,7 +326,7 @@ export default function ImportDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-2xl">
+        <DialogContent className="grid max-h-[calc(100svh-2rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               {mode === 'transactions' ? 'Import transactions' : 'Import backup'}
@@ -415,7 +415,7 @@ export default function ImportDialog({
                     ))}
                   </div>
                 )}
-                <div className="max-h-[60dvh] space-y-2 overflow-y-auto sm:hidden">
+                <div className="max-h-[60svh] space-y-2 overflow-y-auto sm:hidden">
                   {preview.fullBackup
                     ? preview.movements.slice(0, 50).map((movement) => (
                         <div key={movement.id} className="border border-border p-2">

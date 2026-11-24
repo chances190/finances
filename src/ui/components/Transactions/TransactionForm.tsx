@@ -49,7 +49,7 @@ interface FormState {
   account: FundingAccount
   method: PaymentMethod
   counterparty: string
-  installmentTotal: number
+  installmentTotal: string
 }
 
 interface TransactionFormProps {
@@ -91,7 +91,7 @@ function initialForm(
       account: accountForPaymentMethod(method),
       method,
       counterparty: '',
-      installmentTotal: 1,
+      installmentTotal: '1',
     }
   }
   if (movement?.kind === 'purchase') {
@@ -110,7 +110,7 @@ function initialForm(
       method,
       counterparty:
         movement.postings.find((posting) => posting.account === 'payable')?.counterparty ?? '',
-      installmentTotal: Math.max(1, group.length),
+      installmentTotal: String(Math.max(1, group.length)),
     }
   }
   return {
@@ -122,7 +122,7 @@ function initialForm(
     account: 'checking',
     method: 'Debit/PIX',
     counterparty: '',
-    installmentTotal: 1,
+    installmentTotal: '1',
   }
 }
 
@@ -274,7 +274,7 @@ export default function TransactionForm({
         form.account === 'payable'
           ? []
           : shares.filter((share) => share.counterparty.trim() && share.amount > 0),
-      installments: form.installmentTotal,
+      installments: Math.max(1, Number.parseInt(form.installmentTotal, 10) || 1),
       ...(editRoot?.importId ? { importId: editRoot.importId } : {}),
     })
     if (!result.ok) {
@@ -500,12 +500,24 @@ export default function TransactionForm({
                     type="number"
                     min="1"
                     max="48"
+                    inputMode="numeric"
                     value={form.installmentTotal}
                     className="h-10 w-24 text-right"
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        installmentTotal: Math.max(1, Number.parseInt(event.target.value, 10) || 1),
+                        installmentTotal: event.target.value,
+                      }))
+                    }
+                    onBlur={() =>
+                      setForm((current) => ({
+                        ...current,
+                        installmentTotal: String(
+                          Math.min(
+                            48,
+                            Math.max(1, Number.parseInt(current.installmentTotal, 10) || 1),
+                          ),
+                        ),
                       }))
                     }
                   />
