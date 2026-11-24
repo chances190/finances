@@ -1,6 +1,8 @@
 <script lang="ts">
 import { onMount } from 'svelte'
 import BudgetPage from '@/components/budgets/BudgetPage.svelte'
+import DashboardPage from '@/components/dashboard/DashboardPage.svelte'
+import TrendsPage from '@/components/dashboard/TrendsPage.svelte'
 import DebtPage from '@/components/debts/DebtPage.svelte'
 import MobileNav from '@/components/shell/MobileNav.svelte'
 import PageStub from '@/components/shell/PageStub.svelte'
@@ -92,9 +94,9 @@ onMount(() => {
       {:else if router.path === '/debts'}
         <DebtPage />
       {:else if router.path === '/dashboard'}
-        <PageStub title="Dashboard" />
+        <DashboardPage />
       {:else if router.path === '/yearly'}
-        <PageStub title="Trends" />
+        <TrendsPage />
       {:else if router.path === '/history'}
         <PageStub title="Actions" />
       {:else}
