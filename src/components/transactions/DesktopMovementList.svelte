@@ -83,7 +83,7 @@ function measureRow(node: Element) {
 }
 </script>
 
-<div class="border border-border">
+<div class="list-panel">
   <Table class="table-fixed">
     <TableHeader>
       <TableRow>

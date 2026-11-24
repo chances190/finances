@@ -185,7 +185,7 @@ const yearBudgetChart = $derived(buildBudgetChart(yearlyBudgetVsActual, palette)
       />
     </div>
 
-    <div class="space-y-3 border bg-card p-4">
+    <div class="panel space-y-3 p-4">
       <h3 class="text-sm font-semibold">Monthly Income vs Spending</h3>
       <LazyChart class="h-64">
         <ChartView type="bar" data={monthlyChart.data} options={monthlyChart.options} />
@@ -193,7 +193,7 @@ const yearBudgetChart = $derived(buildBudgetChart(yearlyBudgetVsActual, palette)
     </div>
 
     <div class="grid grid-cols-1 gap-4 {isCurrentYear ? 'lg:grid-cols-2' : ''}">
-      <div class="space-y-3 border bg-card p-4">
+      <div class="panel space-y-3 p-4">
         <h3 class="text-sm font-semibold">Category Trends · {selectedYear}</h3>
         {#if timeSeriesData.length === 0 || topCategories.length === 0}
           <div class="flex h-48 items-center justify-center text-xs text-muted-foreground">
@@ -207,7 +207,7 @@ const yearBudgetChart = $derived(buildBudgetChart(yearlyBudgetVsActual, palette)
       </div>
 
       {#if isCurrentYear}
-        <div class="space-y-3 border bg-card p-4">
+        <div class="panel space-y-3 p-4">
           <h3 class="text-sm font-semibold">Upcoming Spending</h3>
           {#if commitmentsData.length === 0}
             <div class="flex h-48 items-center justify-center text-xs text-muted-foreground">
@@ -226,7 +226,7 @@ const yearBudgetChart = $derived(buildBudgetChart(yearlyBudgetVsActual, palette)
       {/if}
     </div>
 
-    <div class="space-y-3 border bg-card p-4">
+    <div class="panel space-y-3 p-4">
       <h3 class="text-sm font-semibold">Year Budget vs Actual</h3>
       {#if yearlyBudgetVsActual.length === 0}
         <div class="flex h-48 items-center justify-center text-xs text-muted-foreground">

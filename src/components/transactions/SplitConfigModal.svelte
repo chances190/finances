@@ -102,7 +102,7 @@ function handleCancel() {
       {#if splits.length === 0}
         <p class="text-xs text-muted-foreground">Add the people who owe you for this purchase.</p>
       {:else}
-        <ul class="divide-y divide-border">
+        <ul class="panel-inset divide-y divide-border">
           {#each splits as split, index (split.id)}
             <li class="flex items-center gap-2 py-2">
               <Input
@@ -147,7 +147,11 @@ function handleCancel() {
         {/if}
       </div>
 
-      <div class="border p-2 text-xs {isOver ? 'border-red-200 text-red-700' : ''}">
+      <div
+        class="rounded-lg border p-2 text-xs {isOver
+          ? 'border-red-200 text-red-700 dark:border-red-900 dark:text-red-400'
+          : ''}"
+      >
         <div class="flex items-baseline justify-between gap-3 py-0.5">
           <span>Others owe</span>
           <span class="font-mono font-medium">{formatCurrency(assignedTotal)}</span>

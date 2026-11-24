@@ -1,6 +1,7 @@
 import { ACCOUNT_BADGE_COLORS } from '@/domain/constants'
 import {
   ACCOUNT_LABELS,
+  type Account,
   CASH_ACCOUNTS,
   type DisplayPaymentMethod,
   expenseAmount,
@@ -53,8 +54,10 @@ export function amountOf(movement: Movement): number {
 }
 
 export function amountClass(movement: Movement): string {
-  if (movement.kind === 'income' || movement.kind === 'refund') return 'text-green-600'
-  if (movement.kind === 'purchase') return 'text-red-600'
+  if (movement.kind === 'income' || movement.kind === 'refund') {
+    return 'text-green-600 dark:text-green-400'
+  }
+  if (movement.kind === 'purchase') return 'text-red-600 dark:text-red-400'
   return 'text-muted-foreground'
 }
 
@@ -110,14 +113,34 @@ export function detailOf(movement: Movement, debtRows: OutstandingMovement[]): s
 }
 
 export const PAYMENT_BADGE_COLORS: Record<DisplayPaymentMethod, string> = {
-  'Debit/PIX': 'bg-teal-100 text-teal-800',
-  Credit: 'bg-purple-100 text-purple-800',
-  'Voucher Debit': 'bg-pink-100 text-pink-800',
-  Cash: 'bg-emerald-100 text-emerald-800',
-  Salary: 'bg-yellow-100 text-yellow-800',
-  Transfer: 'bg-sky-100 text-sky-800',
-  'Voucher Income': 'bg-orange-100 text-orange-800',
-  'Someone else': 'bg-amber-100 text-amber-800',
+  'Debit/PIX':
+    'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/15 dark:text-teal-200 dark:border-teal-400/30',
+  Credit:
+    'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-200 dark:border-purple-400/30',
+  'Voucher Debit':
+    'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-500/15 dark:text-pink-200 dark:border-pink-400/30',
+  Cash: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:border-emerald-400/30',
+  Salary:
+    'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-500/15 dark:text-yellow-200 dark:border-yellow-400/30',
+  Transfer:
+    'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-200 dark:border-sky-400/30',
+  'Voucher Income':
+    'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-500/15 dark:text-orange-200 dark:border-orange-400/30',
+  'Someone else':
+    'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-400/30',
 }
 
 export { ACCOUNT_BADGE_COLORS }
+
+export const ACCOUNT_BADGE_DARK: Record<Account, string> = {
+  checking: 'dark:bg-teal-500/15 dark:text-teal-200 dark:border-teal-400/30',
+  card: 'dark:bg-purple-500/15 dark:text-purple-200 dark:border-purple-400/30',
+  voucher: 'dark:bg-pink-500/15 dark:text-pink-200 dark:border-pink-400/30',
+  cash: 'dark:bg-sky-500/15 dark:text-sky-200 dark:border-sky-400/30',
+  receivable: 'dark:bg-green-500/15 dark:text-green-200 dark:border-green-400/30',
+  payable: 'dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-400/30',
+  income: 'dark:bg-green-500/15 dark:text-green-200 dark:border-green-400/30',
+  expense: 'dark:bg-red-500/15 dark:text-red-200 dark:border-red-400/30',
+  forgiveness: 'dark:bg-violet-500/15 dark:text-violet-200 dark:border-violet-400/30',
+  adjustment: 'dark:bg-slate-500/15 dark:text-slate-200 dark:border-slate-400/30',
+}

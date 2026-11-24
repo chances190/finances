@@ -6,7 +6,9 @@ import TrashIcon from 'phosphor-svelte/lib/TrashIcon'
 import ConfirmDialog from '@/components/common/ConfirmDialog.svelte'
 import ExportImport from '@/components/common/ExportImport.svelte'
 import { Button } from '@/components/ui/button'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { finance } from '@/lib/stores/finance.svelte'
+import { type ThemePreference, theme } from '@/lib/stores/theme.svelte'
 
 const financeState = $derived(finance.state)
 let showImport = $state(false)
@@ -53,7 +55,9 @@ let showClearConfirm = $state(false)
   {:else}
     <div class="max-h-48 space-y-1 overflow-y-auto">
       {#each financeState.auditLog as entry (entry.id)}
-        <div class="flex items-center justify-between px-2 py-1.5 text-xs hover:bg-muted">
+        <div
+          class="flex items-center justify-between rounded-md px-2 py-1.5 text-xs hover:bg-muted"
+        >
           <div class="min-w-0 flex-1">
             <span class="block truncate">{entry.description}</span>
             <span class="text-[10px] text-muted-foreground">
@@ -72,6 +76,23 @@ let showClearConfirm = $state(false)
       {/each}
     </div>
   {/if}
+
+  <div class="mt-6 space-y-3 border-t pt-4">
+    <h3 class="text-sm font-semibold text-foreground">Appearance</h3>
+    <div class="flex flex-wrap items-center gap-3">
+      <SegmentedControl
+        aria-label="Theme"
+        value={theme.preference}
+        onValueChange={(value) => theme.setPreference(value as ThemePreference)}
+        options={[
+          { value: 'system', label: 'System' },
+          { value: 'light', label: 'Light' },
+          { value: 'dark', label: 'Dark' },
+        ]}
+      />
+      <p class="text-xs text-muted-foreground">System follows your device’s appearance.</p>
+    </div>
+  </div>
 
   <div class="mt-6 space-y-3 border-t pt-4">
     <h3 class="text-sm font-semibold text-foreground">Data</h3>

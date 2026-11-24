@@ -21,22 +21,24 @@ import {
   paceByMonth,
   spendingPace,
 } from '@/domain/calculations'
-import {
-  type DisplayPaymentMethod,
-  expensesByPaymentMethod,
-  PAYMENT_METHOD_COLORS,
-} from '@/domain/ledger'
+import { type DisplayPaymentMethod, expensesByPaymentMethod } from '@/domain/ledger'
 import { formatCurrency } from '@/lib/currency'
 import { navigate, router } from '@/lib/router.svelte'
 import { finance } from '@/lib/stores/finance.svelte'
 import ChartView from './ChartView.svelte'
-import { buildBudgetChart, buildPaceChart, buildPaymentPie, chartPalette } from './chart-config'
+import {
+  buildBudgetChart,
+  buildPaceChart,
+  buildPaymentPie,
+  chartPalette,
+  paymentMethodChartColor,
+} from './chart-config'
 
 const PACE_STATUS: Record<PaceStatus, { label: string; color: string }> = {
-  'on-track': { label: 'On track', color: 'text-green-600' },
-  caution: { label: 'Caution', color: 'text-amber-600' },
-  ahead: { label: 'Ahead of pace', color: 'text-amber-600' },
-  over: { label: 'Over budget', color: 'text-red-600' },
+  'on-track': { label: 'On track', color: 'text-green-600 dark:text-green-400' },
+  caution: { label: 'Caution', color: 'text-amber-600 dark:text-amber-400' },
+  ahead: { label: 'Ahead of pace', color: 'text-amber-600 dark:text-amber-400' },
+  over: { label: 'Over budget', color: 'text-red-600 dark:text-red-400' },
 }
 
 const financeState = $derived(finance.state)
@@ -84,7 +86,7 @@ const paymentMethodData = $derived.by(() => {
     .map(([method, value]) => ({
       name: method as DisplayPaymentMethod,
       value: value as number,
-      color: PAYMENT_METHOD_COLORS[method as DisplayPaymentMethod],
+      color: paymentMethodChartColor(method as DisplayPaymentMethod, palette),
     }))
     .sort((a, b) => b.value - a.value)
 })
@@ -193,7 +195,7 @@ const paymentPie = $derived(buildPaymentPie(paymentMethodData, palette))
     </div>
 
     {#if currentDay > 0 && dailyQuota === 0}
-      <div class="border bg-card p-4">
+      <div class="panel p-4">
         <div class="flex items-center gap-2 text-sm text-muted-foreground">
           <TrendDownIcon class="size-4" />
           <span>
@@ -206,7 +208,7 @@ const paymentPie = $derived(buildPaymentPie(paymentMethodData, palette))
     {/if}
 
     {#if currentDay > 0 && dailyQuota > 0}
-      <div class="space-y-4 border bg-card p-4">
+      <div class="panel space-y-4 p-4">
         <div class="flex items-center justify-between">
           <h3 class="flex items-center gap-2 text-sm font-semibold">
             <TrendDownIcon class="size-4" />
@@ -218,7 +220,7 @@ const paymentPie = $derived(buildPaymentPie(paymentMethodData, palette))
         <div>
           <p
             class="font-mono text-2xl font-bold {pace.remainingBudget < 0
-              ? 'text-red-600'
+              ? 'text-red-600 dark:text-red-400'
               : 'text-foreground'}"
           >
             {formatCurrency(pace.remainingBudget)}
@@ -277,7 +279,7 @@ const paymentPie = $derived(buildPaymentPie(paymentMethodData, palette))
     {/if}
 
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <div class="space-y-3 border bg-card p-4 lg:col-span-2">
+      <div class="panel space-y-3 p-4 lg:col-span-2">
         <h3 class="text-sm font-semibold">Budget vs Actual</h3>
         {#if budgetVsActualData.length === 0}
           <div class="flex h-48 items-center justify-center text-xs text-muted-foreground">
@@ -290,7 +292,7 @@ const paymentPie = $derived(buildPaymentPie(paymentMethodData, palette))
         {/if}
       </div>
 
-      <div class="space-y-3 border bg-card p-4">
+      <div class="panel space-y-3 p-4">
         <h3 class="text-sm font-semibold">Spending by payment method</h3>
         {#if paymentMethodData.length === 0}
           <div class="flex h-48 items-center justify-center text-xs text-muted-foreground">

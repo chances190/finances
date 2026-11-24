@@ -13,7 +13,7 @@ interface Props {
 let { label, value, icon, valueClass, class: className }: Props = $props()
 </script>
 
-<div class={cn('space-y-1 border bg-card p-3 sm:p-4', className)}>
+<div class={cn('panel space-y-1 p-3 sm:p-4', className)}>
   <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
     {@render icon?.()}
     {label}

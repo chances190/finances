@@ -324,7 +324,7 @@ const matched = $derived(
             event.preventDefault()
             handleFiles(Array.from(event.dataTransfer?.files ?? []))
           }}
-          class="w-full cursor-pointer space-y-3 border-2 border-dashed border-border p-6 text-center transition-colors hover:bg-muted/50 sm:p-8"
+          class="w-full cursor-pointer space-y-3 rounded-xl border-2 border-dashed border-border p-6 text-center transition-colors hover:bg-muted/50 sm:p-8"
           onclick={() => fileInput?.click()}
         >
           <div class="flex justify-center gap-2 text-muted-foreground">
@@ -400,7 +400,7 @@ const matched = $derived(
           <div class="max-h-[60svh] space-y-2 overflow-y-auto sm:hidden">
             {#if preview.fullBackup}
               {#each preview.movements.slice(0, 50) as movement (movement.id)}
-                <div class="border border-border p-2">
+                <div class="panel-inset p-2">
                   <div class="flex justify-between gap-2">
                     <span class="min-w-0 truncate text-sm font-medium">{movement.description}</span>
                     <span class="shrink-0 font-mono text-sm">
@@ -419,7 +419,7 @@ const matched = $derived(
               {#each preview.plans as plan (plan.movement.id)}
                 {@const movement = plan.movement}
                 <div
-                  class="space-y-2 border p-2 {isBlocked(plan)
+                  class="space-y-2 rounded-lg border p-2 {isBlocked(plan)
                     ? 'border-destructive/50 bg-destructive/5'
                     : 'border-border'}"
                 >
@@ -447,7 +447,9 @@ const matched = $derived(
               </p>
             {/if}
           </div>
-          <div class="hidden max-h-64 overflow-y-auto border border-border sm:block">
+          <div
+            class="hidden max-h-64 overflow-y-auto rounded-lg border border-border bg-card sm:block"
+          >
             <Table>
               <TableHeader>
                 <TableRow>

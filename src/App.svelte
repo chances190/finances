@@ -12,6 +12,7 @@ import Toasts from '@/components/shell/Toasts.svelte'
 import TransactionTable from '@/components/transactions/TransactionTable.svelte'
 import { initRouter, navigate, router } from '@/lib/router.svelte'
 import { finance, flushFinance, loadFinance } from '@/lib/stores/finance.svelte'
+import { initTheme, theme } from '@/lib/stores/theme.svelte'
 import { toast } from '@/lib/stores/toast.svelte'
 
 const tabs = [
@@ -24,6 +25,7 @@ const tabs = [
 ]
 
 const activeTab = $derived(tabs.find((tab) => tab.key === router.path)?.key ?? '/')
+const stopTheme = initTheme()
 
 function handleKeydown(event: KeyboardEvent) {
   if (!(event.ctrlKey || event.metaKey)) return
@@ -64,6 +66,7 @@ onMount(() => {
   window.addEventListener('pagehide', flushFinance)
   return () => {
     disposeRouter()
+    stopTheme()
     window.removeEventListener('pagehide', flushFinance)
   }
 })
@@ -75,7 +78,7 @@ onMount(() => {
   <header class="sticky top-0 z-40 border-b border-border bg-card pt-[env(safe-area-inset-top)]">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
       <h1 class="flex items-center gap-2 text-base font-heading font-bold">
-        <img src="/icon.svg" alt="" class="size-5">
+        <img src={theme.resolved === 'dark' ? '/icon-dark.svg' : '/icon.svg'} alt="" class="size-5">
         Finances
       </h1>
       <div class="flex items-center gap-1">

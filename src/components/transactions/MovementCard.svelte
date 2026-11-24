@@ -37,7 +37,7 @@ const category = $derived(
   <button
     type="button"
     onclick={() => onOpen(movement)}
-    class="block w-full rounded-none py-1 text-left hover:bg-muted/30 focus-visible:outline focus-visible:outline-ring"
+    class="block w-full rounded-lg py-1 text-left hover:bg-muted/30 focus-visible:outline focus-visible:outline-ring"
   >
     <span class="flex items-start gap-2 pr-16">
       <span class="min-w-0 flex-1 break-words text-sm font-medium">{movement.description}</span>

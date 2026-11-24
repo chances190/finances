@@ -215,7 +215,10 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
     <Badge variant="outline" class={BADGE_GREEN}>Paid</Badge>
   {:else if showSettled && person.anySettled}
     <span title="Partially paid">
-      <PercentIcon class="size-3.5 text-amber-600" aria-label="Partially paid" />
+      <PercentIcon
+        class="size-3.5 text-amber-600 dark:text-amber-400"
+        aria-label="Partially paid"
+      />
     </span>
   {/if}
 {/snippet}
@@ -230,7 +233,7 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
       aria-label={`Undo settlement for ${row.counterparty}`}
       onclick={() => revokeSettlement(row)}
     >
-      <CheckCircleIcon class="size-4 text-green-600" />
+      <CheckCircleIcon class="size-4 text-green-600 dark:text-green-400" />
     </Button>
   {:else}
     <Button
@@ -292,7 +295,7 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
 {/snippet}
 
 {#snippet purchaseCards(groups: PurchaseGroup[])}
-  <div class="divide-y divide-border border border-border">
+  <div class="list-panel">
     {#each groups as group (group.movementId)}
       {@const openRows = group.rows.filter((row) => row.outstanding > 0.004)}
       {@const allSettled = openRows.length === 0}
@@ -345,7 +348,7 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
 {/snippet}
 
 {#snippet purchaseTable(groups: PurchaseGroup[])}
-  <div class="border border-border">
+  <div class="panel overflow-hidden">
     <Table class="table-fixed">
       <TableHeader>
         <TableRow>
@@ -405,7 +408,7 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
   relation: 'receivable' | 'payable',
 )}
   {#if !isDesktop.current}
-    <div class="divide-y divide-border border border-border">
+    <div class="list-panel">
       {#each people as person (person.counterparty)}
         <div class="flex items-center gap-2 px-3 py-2">
           <button
@@ -452,7 +455,7 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
       {/each}
     </div>
   {:else}
-    <div class="border border-border">
+    <div class="panel overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow>

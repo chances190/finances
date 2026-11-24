@@ -17,7 +17,9 @@ import {
 import annotationPlugin from 'chartjs-plugin-annotation'
 import type { FutureCommitment, SpendingPaceResult } from '@/domain/calculations'
 import { CATEGORY_COLORS, CHART_COLORS } from '@/domain/constants'
+import { type DisplayPaymentMethod, PAYMENT_METHOD_COLORS } from '@/domain/ledger'
 import { formatAxisCurrency, formatCurrency } from '@/lib/currency'
+import { theme } from '@/lib/stores/theme.svelte'
 
 ChartJS.register(
   CategoryScale,
@@ -35,20 +37,74 @@ ChartJS.register(
 )
 
 export interface ChartPalette {
+  dark: boolean
   border: string
   muted: string
   foreground: string
   popover: string
+  series: typeof CHART_COLORS
+  categories: string[]
+  actualBar: string
+}
+
+const SERIES_DARK: typeof CHART_COLORS = {
+  income: '#4ade80',
+  expense: '#f87171',
+  primary: '#60a5fa',
+  warning: '#fbbf24',
+  suggestion: '#a78bfa',
+  projection: '#fb923c',
+  balance: '#60a5fa',
+  budgeted: '#60a5fa',
+  actual: '#fbbf24',
+}
+
+const CATEGORY_COLORS_DARK = [
+  '#60a5fa',
+  '#4ade80',
+  '#fbbf24',
+  '#c084fc',
+  '#f87171',
+  '#22d3ee',
+  '#f472b6',
+  '#2dd4bf',
+  '#fb923c',
+  '#818cf8',
+  '#a3e635',
+  '#e879f9',
+]
+
+const PAYMENT_METHOD_COLORS_DARK: Record<DisplayPaymentMethod, string> = {
+  'Debit/PIX': '#2dd4bf',
+  Credit: '#c084fc',
+  'Voucher Debit': '#f472b6',
+  Cash: '#34d399',
+  Salary: '#facc15',
+  Transfer: '#38bdf8',
+  'Voucher Income': '#fb923c',
+  'Someone else': '#fbbf24',
+}
+
+export function paymentMethodChartColor(
+  method: DisplayPaymentMethod,
+  palette: ChartPalette,
+): string {
+  return palette.dark ? PAYMENT_METHOD_COLORS_DARK[method] : PAYMENT_METHOD_COLORS[method]
 }
 
 export function chartPalette(): ChartPalette {
+  const dark = theme.resolved === 'dark'
   const style = getComputedStyle(document.documentElement)
   const read = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback
   return {
-    border: read('--border', '#e5e7eb'),
-    muted: read('--muted-foreground', '#6b7280'),
-    foreground: read('--foreground', '#111827'),
-    popover: read('--popover', '#ffffff'),
+    dark,
+    border: read('--border', dark ? 'rgba(255, 255, 255, 0.14)' : '#e5e7eb'),
+    muted: read('--muted-foreground', dark ? '#b6bdc9' : '#6b7280'),
+    foreground: read('--foreground', dark ? '#eceef2' : '#111827'),
+    popover: read('--popover', dark ? '#343943' : '#ffffff'),
+    series: dark ? SERIES_DARK : CHART_COLORS,
+    categories: dark ? CATEGORY_COLORS_DARK : CATEGORY_COLORS,
+    actualBar: dark ? 'rgba(96, 165, 250, 0.38)' : 'rgba(59, 130, 246, 0.45)',
   }
 }
 
@@ -146,14 +202,14 @@ export function buildPaceChart(
           type: 'bar',
           label: 'Actual',
           data: data.map((entry) => entry.actual),
-          backgroundColor: 'rgba(59, 130, 246, 0.45)',
+          backgroundColor: palette.actualBar,
           borderWidth: 0,
         },
         {
           type: 'line',
           label: 'Daily quota',
           data: data.map((entry) => entry.reference),
-          borderColor: CHART_COLORS.primary,
+          borderColor: palette.series.primary,
           borderWidth: 1.5,
           borderDash: [4, 4],
           pointRadius: 0,
@@ -162,7 +218,7 @@ export function buildPaceChart(
           type: 'line',
           label: 'Trend',
           data: data.map((entry) => entry.trend),
-          borderColor: CHART_COLORS.projection,
+          borderColor: palette.series.projection,
           borderWidth: 1.5,
           borderDash: [5, 3],
           pointRadius: 0,
@@ -172,7 +228,7 @@ export function buildPaceChart(
           type: 'line',
           label: 'Suggestion',
           data: data.map((entry) => entry.suggestion),
-          borderColor: CHART_COLORS.suggestion,
+          borderColor: palette.series.suggestion,
           borderWidth: 1.5,
           borderDash: [2, 3],
           pointRadius: 0,
@@ -196,14 +252,14 @@ export function buildBudgetChart(
           type: 'bar',
           label: 'Budgeted',
           data: data.map((entry) => entry.budgeted),
-          backgroundColor: CHART_COLORS.budgeted,
+          backgroundColor: palette.series.budgeted,
           borderRadius: [2, 2, 0, 0],
         },
         {
           type: 'bar',
           label: 'Actual',
           data: data.map((entry) => entry.actual),
-          backgroundColor: CHART_COLORS.actual,
+          backgroundColor: palette.series.actual,
           borderRadius: [2, 2, 0, 0],
         },
       ],
@@ -256,14 +312,14 @@ export function buildMonthlyChart(
           type: 'bar',
           label: 'Income',
           data: data.map((entry) => entry.income),
-          backgroundColor: CHART_COLORS.income,
+          backgroundColor: palette.series.income,
           borderRadius: [2, 2, 0, 0],
         },
         {
           type: 'bar',
           label: 'Spending',
           data: data.map((entry) => entry.expenses),
-          backgroundColor: CHART_COLORS.expense,
+          backgroundColor: palette.series.expense,
           borderRadius: [2, 2, 0, 0],
         },
       ],
@@ -284,7 +340,7 @@ export function buildCategoryTrends(
         type: 'line',
         label: category,
         data: data.map((entry) => Number(entry[category] ?? 0)),
-        borderColor: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+        borderColor: palette.categories[index % palette.categories.length],
         borderWidth: 2,
         pointRadius: 0,
       })),
@@ -307,7 +363,7 @@ export function buildCommitmentsChart(
           type: 'bar',
           label: 'Total',
           data: data.map((entry) => entry.total),
-          backgroundColor: CHART_COLORS.expense,
+          backgroundColor: palette.series.expense,
           borderRadius: [2, 2, 0, 0],
         },
       ],

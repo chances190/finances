@@ -156,7 +156,7 @@ function handleKeydown(event: KeyboardEvent) {
       {#if showSuggestions}
         <div
           bind:this={suggestionEl}
-          class="absolute z-50 top-full left-0 right-0 mt-0.5 bg-popover border border-border shadow-md text-xs max-h-40 overflow-y-auto"
+          class="absolute z-50 top-full left-0 right-0 mt-1 max-h-40 overflow-y-auto rounded-lg border border-border bg-popover text-xs shadow-md"
         >
           {#each suggestions as suggestion, index (suggestion)}
             <button

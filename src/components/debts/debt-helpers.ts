@@ -27,9 +27,12 @@ export interface PersonData {
   anySettled: boolean
 }
 
-export const BADGE_GREEN = 'text-green-600 bg-green-50'
-export const BADGE_RED = 'text-red-600 bg-red-50'
-export const BADGE_AMBER = 'text-amber-600 bg-amber-50'
+export const BADGE_GREEN =
+  'text-green-700 bg-green-50 border-green-200 dark:text-green-200 dark:bg-green-500/15 dark:border-green-400/30'
+export const BADGE_RED =
+  'text-red-700 bg-red-50 border-red-200 dark:text-red-200 dark:bg-red-500/15 dark:border-red-400/30'
+export const BADGE_AMBER =
+  'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-200 dark:bg-amber-500/15 dark:border-amber-400/30'
 
 export const SORT_LABELS: Record<DebtSort, string> = {
   due: 'Due',

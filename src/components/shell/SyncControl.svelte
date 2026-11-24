@@ -73,7 +73,7 @@ function formatLastSynced(timestamp: number | null): string {
       <DialogDescription>Backup and sync your transactions through Google Drive.</DialogDescription>
     </DialogHeader>
 
-    <div class="grid gap-2 border border-border p-3">
+    <div class="panel grid gap-2 p-3">
       <div class="flex items-center justify-between gap-2">
         <span class="text-muted-foreground">Status</span>
         <span class="flex items-center gap-1 font-medium">

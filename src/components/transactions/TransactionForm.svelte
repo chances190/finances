@@ -494,7 +494,7 @@ function commit(movements: Movement[]) {
               Add people
             </Button>
           {:else}
-            <div class="border border-border p-2 text-xs">
+            <div class="panel-inset p-2 text-xs">
               {#each shares as share (share.counterparty)}
                 <div class="flex items-baseline justify-between gap-3 py-0.5">
                   <span class="min-w-0 break-words">{share.counterparty}</span>

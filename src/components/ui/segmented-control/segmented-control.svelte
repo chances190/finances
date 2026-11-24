@@ -22,7 +22,7 @@ let { options, value, onValueChange, class: className, 'aria-label': ariaLabel }
 <div
   role="radiogroup"
   aria-label={ariaLabel}
-  class={cn('inline-flex items-center gap-1 rounded-none bg-muted p-1', className)}
+  class={cn('inline-flex items-center gap-1 rounded-lg bg-muted p-1', className)}
 >
   {#each options as option (option.value)}
     {@const selected = option.value === value}
@@ -32,7 +32,7 @@ let { options, value, onValueChange, class: className, 'aria-label': ariaLabel }
       aria-checked={selected}
       onclick={() => onValueChange(option.value)}
       class={cn(
-        'flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-none px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors sm:min-h-6',
+        'flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors sm:min-h-6',
         selected
           ? 'bg-background text-foreground shadow-sm'
           : 'text-muted-foreground hover:text-foreground',

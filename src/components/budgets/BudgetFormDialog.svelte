@@ -306,7 +306,7 @@ function handleSave() {
         <div class="space-y-1">
           <Label class="text-xs">Invested</Label>
           <div
-            class="flex h-10 items-center border border-border bg-muted/30 px-2.5 font-mono text-xs sm:h-8"
+            class="flex h-10 items-center rounded-lg border border-border bg-muted/30 px-2.5 font-mono text-xs sm:h-8"
           >
             {formatCurrency(investedAmount)}
           </div>
@@ -350,7 +350,10 @@ function handleSave() {
         </div>
 
         {#if budgetOverage > 0}
-          <p class="mt-2 border border-red-200 p-2 text-xs text-red-700" role="alert">
+          <p
+            class="mt-2 rounded-lg border border-red-200 p-2 text-xs text-red-700 dark:border-red-900 dark:text-red-400"
+            role="alert"
+          >
             Monthly category limits exceed the amount available to spend (planned income after
             investments + meal voucher) by {formatCurrency(budgetOverage)}.
           </p>

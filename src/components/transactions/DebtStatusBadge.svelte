@@ -11,7 +11,9 @@ const status = $derived(debtStatusOf(rows))
 {#if status}
   <Badge
     variant="outline"
-    class={status === 'Paid' ? 'text-green-600 bg-green-50' : 'text-amber-600 bg-amber-50'}
+    class={status === 'Paid'
+      ? 'text-green-700 bg-green-50 border-green-200 dark:text-green-200 dark:bg-green-500/15 dark:border-green-400/30'
+      : 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-200 dark:bg-amber-500/15 dark:border-amber-400/30'}
   >
     {status}
   </Badge>

@@ -37,7 +37,7 @@ let open = $state(false)
 
   <DialogContent
     showCloseButton={false}
-    class="left-auto right-0 top-0 h-full w-72 max-w-none translate-x-0 translate-y-0 gap-0 rounded-none p-0 sm:max-w-none"
+    class="left-auto right-0 top-0 h-full w-72 max-w-none translate-x-0 translate-y-0 gap-0 rounded-l-2xl p-0 sm:max-w-none"
   >
     <DialogHeader class="border-b border-border p-4">
       <DialogTitle>Navigate</DialogTitle>

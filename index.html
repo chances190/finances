@@ -11,6 +11,19 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Finances" />
     <title>Finances</title>
+    <script>
+      try {
+        const stored = localStorage.getItem('finances-theme')
+        const dark =
+          stored === 'dark' ||
+          ((!stored || stored === 'system') &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.classList.toggle('dark', dark)
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+        document.querySelector('link[rel="icon"]')?.setAttribute('href', dark ? '/icon-dark.svg' : '/icon.svg')
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#262a32' : '#ffffff')
+      } catch {}
+    </script>
   </head>
   <body class="antialiased">
     <div id="app"></div>

@@ -61,7 +61,7 @@ function measureRow(node: Element) {
 
 <div
   bind:this={listEl}
-  class={movements.length > 0 ? 'border-t border-border' : undefined}
+  class={movements.length > 0 ? 'overflow-hidden rounded-xl border border-border' : undefined}
   style={movements.length > 0
     ? `height: ${$virtualizer.getTotalSize()}px; position: relative;`
     : undefined}
@@ -74,7 +74,7 @@ function measureRow(node: Element) {
       <div
         data-index={virtualRow.index}
         {@attach measureRow}
-        class="border-r border-b border-l border-border"
+        class="border-b border-border last:border-0"
         style="position: absolute; top: 0; left: 0; width: 100%; transform: translateY({virtualRow.start -
           scrollMargin}px);"
       >

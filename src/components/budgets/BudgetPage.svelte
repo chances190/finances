@@ -134,7 +134,7 @@ function closeForm() {
   </div>
 
   {#if isDesktop.current}
-    <div class="border border-border">
+    <div class="panel overflow-hidden">
       <Table class="table-fixed">
         <TableHeader>
           <TableRow>
@@ -210,7 +210,7 @@ function closeForm() {
       </Table>
     </div>
   {:else}
-    <div class="divide-y divide-border border border-border">
+    <div class="list-panel">
       {#if ranges.length === 0}
         <EmptyState message="No budgets yet. Create one to start planning." />
       {:else}
