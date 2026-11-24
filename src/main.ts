@@ -1,0 +1,8 @@
+import './index.css'
+import { mount } from 'svelte'
+import App from './App.svelte'
+
+const target = document.getElementById('app')
+if (!target) throw new Error('App element not found')
+
+export default mount(App, { target })
