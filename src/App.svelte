@@ -1,5 +1,6 @@
 <script lang="ts">
 import { onMount } from 'svelte'
+import BudgetPage from '@/components/budgets/BudgetPage.svelte'
 import DebtPage from '@/components/debts/DebtPage.svelte'
 import MobileNav from '@/components/shell/MobileNav.svelte'
 import PageStub from '@/components/shell/PageStub.svelte'
@@ -87,7 +88,7 @@ onMount(() => {
 
     <svelte:boundary onerror={(error) => console.error(error)}>
       {#if router.path === '/budgets'}
-        <PageStub title="Budgets" />
+        <BudgetPage />
       {:else if router.path === '/debts'}
         <DebtPage />
       {:else if router.path === '/dashboard'}
