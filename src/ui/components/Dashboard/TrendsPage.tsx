@@ -125,7 +125,7 @@ export default function TrendsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-foreground">Trends</h2>
         <Select value={selectedYear} onValueChange={(v) => v && setSelectedYear(v)}>
-          <SelectTrigger className="w-28">
+          <SelectTrigger className="h-10 w-28 text-xs data-[size=default]:h-10 sm:h-7 sm:data-[size=default]:h-7">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -159,13 +159,13 @@ export default function TrendsPage() {
           valueClassName="font-mono"
         />
         <StatCard
-          label="Total Expenses"
+          label="Total Spending"
           icon={<ArrowDown className="size-3 text-red-500" />}
           value={formatCurrency(yearData.totalExpenses)}
           valueClassName="font-mono"
         />
         <StatCard
-          label="Net Balance"
+          label="Income − spending"
           icon={<PiggyBank className="size-3 text-muted-foreground" />}
           value={formatCurrency(yearData.totalBalance)}
           valueClassName={`font-mono ${yearData.totalBalance >= 0 ? 'text-green-500' : 'text-red-500'}`}
@@ -182,7 +182,7 @@ export default function TrendsPage() {
       </div>
 
       <div className="border bg-card p-4 space-y-3">
-        <h3 className="text-sm font-semibold">Monthly Income vs Expenses</h3>
+        <h3 className="text-sm font-semibold">Monthly Income vs Spending</h3>
         <LazyChart className="h-64">
           <MonthlyIncomeExpenseChart data={yearData.months} />
         </LazyChart>
@@ -204,10 +204,10 @@ export default function TrendsPage() {
 
         {isCurrentYear && (
           <div className="border bg-card p-4 space-y-3">
-            <h3 className="text-sm font-semibold">Future Credit Commitments</h3>
+            <h3 className="text-sm font-semibold">Upcoming Spending</h3>
             {commitmentsData.length === 0 ? (
               <div className="flex items-center justify-center h-48 text-xs text-muted-foreground">
-                No upcoming credit commitments.
+                No upcoming spending.
               </div>
             ) : (
               <LazyChart className="h-64">

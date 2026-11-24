@@ -38,6 +38,7 @@ export type FinanceAction =
   | { type: 'ADD_MOVEMENTS'; payload: Movement[] }
   | { type: 'UPDATE_MOVEMENT'; payload: Movement }
   | { type: 'DELETE_MOVEMENT'; payload: string }
+  | { type: 'DELETE_MOVEMENTS'; payload: string[] }
   | { type: 'UPSERT_BUDGET'; payload: Budget }
   | { type: 'DELETE_BUDGET'; payload: string }
   | { type: 'IMPORT'; payload: FinanceData }
@@ -55,17 +56,19 @@ function snapshot(state: FinanceState): { movements: Movement[]; budgets: Budget
 function describeAction(action: FinanceAction): string {
   switch (action.type) {
     case 'ADD_MOVEMENTS':
-      return `Added ${action.payload.length} movement(s)`
+      return `Added ${action.payload.length} transaction${action.payload.length !== 1 ? 's' : ''}`
     case 'UPDATE_MOVEMENT':
-      return `Updated movement "${action.payload.description}"`
+      return `Updated transaction "${action.payload.description}"`
     case 'DELETE_MOVEMENT':
-      return 'Deleted movement'
+      return 'Deleted transaction'
+    case 'DELETE_MOVEMENTS':
+      return `Deleted ${action.payload.length} transaction${action.payload.length !== 1 ? 's' : ''}`
     case 'UPSERT_BUDGET':
       return `Saved budget for ${action.payload.referenceMonth}`
     case 'DELETE_BUDGET':
       return `Deleted budget for ${action.payload}`
     case 'IMPORT':
-      return `Imported ${action.payload.movements.length} movement(s)`
+      return `Imported ${action.payload.movements.length} transaction${action.payload.movements.length !== 1 ? 's' : ''}`
     case 'UNDO':
       return 'Undo'
     case 'REDO':
@@ -98,6 +101,14 @@ function mutate(state: FinanceState, action: FinanceAction): FinanceState {
         ...state,
         movements: state.movements.filter((movement) => movement.id !== action.payload),
       }
+
+    case 'DELETE_MOVEMENTS': {
+      const deleted = new Set(action.payload)
+      return {
+        ...state,
+        movements: state.movements.filter((movement) => !deleted.has(movement.id)),
+      }
+    }
 
     case 'UPSERT_BUDGET': {
       const budget = action.payload
@@ -134,6 +145,7 @@ const MUTATION_TYPES = new Set<FinanceAction['type']>([
   'ADD_MOVEMENTS',
   'UPDATE_MOVEMENT',
   'DELETE_MOVEMENT',
+  'DELETE_MOVEMENTS',
   'UPSERT_BUDGET',
   'DELETE_BUDGET',
   'IMPORT',

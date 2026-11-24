@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { buildPurchase } from '../domain/ledger'
+import { buildPurchase, expenseAmount } from '../domain/ledger'
 import { validateLedgerData, validateMovement } from './ledgerValidation'
 
 function purchase(overrides: Partial<Parameters<typeof buildPurchase>[0]> = {}) {
@@ -71,6 +71,28 @@ describe('validateLedgerData', () => {
 
     expect(result.data.movements).toHaveLength(1)
     expect(result.skippedMovements).toEqual([{ index: 1, reason: 'already imported' }])
+  })
+
+  test('accepts an unlinked card credit as a refund', () => {
+    const result = validateLedgerData({
+      movements: [
+        {
+          id: 'r1',
+          date: '2026-11-02',
+          kind: 'refund',
+          description: 'Card credit',
+          postings: [
+            { account: 'expense', amount: -25, category: 'Other' },
+            { account: 'card', amount: 25 },
+          ],
+        },
+      ],
+      budgets: [],
+    })
+
+    expect(result.data.movements).toHaveLength(1)
+    expect(result.skippedMovements).toEqual([])
+    expect(expenseAmount(result.data.movements[0])).toBe(-25)
   })
 
   test('skips a refund above the linked purchase', () => {

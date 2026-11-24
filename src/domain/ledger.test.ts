@@ -16,12 +16,14 @@ import {
   expensesByAccount,
   futureCommitments,
   incomeByMonth,
+  installmentInfo,
   isBalanced,
   type Movement,
   movementTotal,
   outstanding,
   outstandingMovements,
   paceByMonth,
+  paymentMethodOf,
   spendingPace,
   voucherBalance,
   yearSummary,
@@ -98,6 +100,17 @@ describe('buildPurchase', () => {
     expect(movements[1].links).toEqual(['p1'])
     expect(movements.every(isBalanced)).toBe(true)
     expect(paceByMonth(movements, '2026-02')).toBe(33.33)
+    expect(movements.map((movement) => movement.description)).toEqual(['TV', 'TV', 'TV'])
+    expect(installmentInfo(movements[0], movements)).toEqual({
+      index: 0,
+      total: 3,
+      rootId: 'p1',
+    })
+    expect(installmentInfo(movements[2], movements)).toEqual({
+      index: 2,
+      total: 3,
+      rootId: 'p1',
+    })
   })
 
   test('rejects invalid purchase states', () => {
@@ -143,8 +156,8 @@ describe('buildSettlement', () => {
           description: 'Ana paid',
           direction: 'receivable',
           counterparty: 'Ana',
-          received: 40,
-          forgiven: 10,
+          cash: 40,
+          cleared: 50,
           account: 'checking',
         },
         [dinner],
@@ -167,8 +180,8 @@ describe('buildSettlement', () => {
           description: 'Paid Bruno',
           direction: 'payable',
           counterparty: 'Bruno',
-          paid: 80,
-          forgiven: 20,
+          cash: 80,
+          cleared: 100,
           account: 'checking',
         },
         [dinner],
@@ -181,6 +194,113 @@ describe('buildSettlement', () => {
     expect(accountBalance([dinner, settlement], 'checking')).toBe(-80)
   })
 
+  test('derives how the money moved from the cash account', () => {
+    const dinner = purchase({ shares: [{ counterparty: 'Ana', amount: 50 }] })
+    const cash = must(
+      buildSettlement(
+        {
+          id: 's1',
+          date: '2026-11-10',
+          description: 'Ana paid',
+          direction: 'receivable',
+          counterparty: 'Ana',
+          cash: 50,
+          cleared: 50,
+          account: 'cash',
+        },
+        [dinner],
+      ),
+    )
+
+    expect(paymentMethodOf(cash)).toBe('Cash')
+    expect(
+      paymentMethodOf({
+        ...cash,
+        postings: cash.postings.map((posting) =>
+          posting.account === 'cash' ? { ...posting, account: 'checking' as const } : posting,
+        ),
+      }),
+    ).toBe('Transfer')
+  })
+
+  test('settles with less, with more, or with nothing', () => {
+    const dinner = purchase({ shares: [{ counterparty: 'Ana', amount: 50 }] })
+
+    const less = must(
+      buildSettlement(
+        {
+          id: 's1',
+          date: '2026-11-10',
+          description: 'Ana paid less',
+          direction: 'receivable',
+          counterparty: 'Ana',
+          cash: 40,
+          cleared: 50,
+          account: 'checking',
+        },
+        [dinner],
+      ),
+    )
+    expect(isBalanced(less)).toBe(true)
+    expect(outstanding([dinner, less], 'receivable')).toEqual([])
+
+    const more = must(
+      buildSettlement(
+        {
+          id: 's2',
+          date: '2026-11-10',
+          description: 'Ana paid more',
+          direction: 'receivable',
+          counterparty: 'Ana',
+          cash: 60,
+          cleared: 50,
+          account: 'checking',
+        },
+        [dinner],
+      ),
+    )
+    expect(isBalanced(more)).toBe(true)
+    expect(accountBalance([dinner, more], 'checking')).toBe(60)
+    expect(outstanding([dinner, more], 'receivable')).toEqual([])
+
+    const nothing = must(
+      buildSettlement(
+        {
+          id: 's3',
+          date: '2026-11-10',
+          description: 'Forgiven',
+          direction: 'receivable',
+          counterparty: 'Ana',
+          cash: 0,
+          cleared: 50,
+          account: 'checking',
+        },
+        [dinner],
+      ),
+    )
+    expect(isBalanced(nothing)).toBe(true)
+    expect(outstanding([dinner, nothing], 'receivable')).toEqual([])
+  })
+
+  test('rejects forgiveness that leaves a balance', () => {
+    const dinner = purchase({ shares: [{ counterparty: 'Ana', amount: 50 }] })
+    const result = buildSettlement(
+      {
+        id: 's1',
+        date: '2026-11-10',
+        description: 'Ana paid',
+        direction: 'receivable',
+        counterparty: 'Ana',
+        cash: 0,
+        cleared: 10,
+        account: 'checking',
+      },
+      [dinner],
+    )
+
+    expect(result.ok).toBe(false)
+  })
+
   test('rejects settling more than is outstanding', () => {
     const dinner = purchase({ shares: [{ counterparty: 'Ana', amount: 50 }] })
     const result = buildSettlement(
@@ -190,8 +310,27 @@ describe('buildSettlement', () => {
         description: 'Too much',
         direction: 'receivable',
         counterparty: 'Ana',
-        received: 60,
-        forgiven: 0,
+        cash: 60,
+        cleared: 60,
+        account: 'checking',
+      },
+      [dinner],
+    )
+
+    expect(result.ok).toBe(false)
+  })
+
+  test('rejects overpayment that leaves a balance', () => {
+    const dinner = purchase({ shares: [{ counterparty: 'Ana', amount: 50 }] })
+    const result = buildSettlement(
+      {
+        id: 's1',
+        date: '2026-11-10',
+        description: 'Overpaid a partial',
+        direction: 'receivable',
+        counterparty: 'Ana',
+        cash: 60,
+        cleared: 40,
         account: 'checking',
       },
       [dinner],
@@ -425,8 +564,8 @@ describe('selectors', () => {
           description: 'Ana paid',
           direction: 'receivable',
           counterparty: 'Ana',
-          received: 40,
-          forgiven: 0,
+          cash: 40,
+          cleared: 40,
           account: 'checking',
         },
         [dinner],
@@ -444,6 +583,7 @@ describe('selectors', () => {
         total: 50,
         settled: 40,
         outstanding: 10,
+        settlements: [{ date: '2026-11-10', paid: 40, forgiven: 0, overpaid: 0 }],
       },
       {
         movementId: 'p1',
@@ -454,6 +594,7 @@ describe('selectors', () => {
         total: 30,
         settled: 0,
         outstanding: 30,
+        settlements: [],
       },
     ])
   })
@@ -479,8 +620,8 @@ describe('selectors', () => {
           description: 'Ana paid second',
           direction: 'receivable',
           counterparty: 'Ana',
-          received: 50,
-          forgiven: 0,
+          cash: 50,
+          cleared: 50,
           account: 'checking',
           links: ['p2'],
         },
@@ -507,8 +648,8 @@ describe('selectors', () => {
           description: 'Paid Bruno',
           direction: 'payable',
           counterparty: 'Bruno',
-          paid: 80,
-          forgiven: 20,
+          cash: 80,
+          cleared: 100,
           account: 'checking',
         },
         [dinner],
@@ -525,7 +666,60 @@ describe('selectors', () => {
         total: 100,
         settled: 100,
         outstanding: 0,
+        settlements: [{ date: '2026-11-10', paid: 80, forgiven: 20, overpaid: 0 }],
       },
+    ])
+  })
+
+  test('separates cash received from the forgiven amount in settlement history', () => {
+    const dinner = purchase({
+      id: 'p1',
+      shares: [{ counterparty: 'Ana', amount: 50 }],
+    })
+    const settlement = must(
+      buildSettlement(
+        {
+          id: 's1',
+          date: '2026-11-10',
+          description: 'Ana paid part',
+          direction: 'receivable',
+          counterparty: 'Ana',
+          cash: 40,
+          cleared: 50,
+          account: 'checking',
+        },
+        [dinner],
+      ),
+    )
+
+    expect(outstandingMovements([dinner, settlement], 'receivable')[0].settlements).toEqual([
+      { date: '2026-11-10', paid: 40, forgiven: 10, overpaid: 0 },
+    ])
+  })
+
+  test('attributes cash above the debt to overpaid', () => {
+    const dinner = purchase({
+      id: 'p1',
+      shares: [{ counterparty: 'Ana', amount: 50 }],
+    })
+    const settlement = must(
+      buildSettlement(
+        {
+          id: 's1',
+          date: '2026-11-10',
+          description: 'Ana paid extra',
+          direction: 'receivable',
+          counterparty: 'Ana',
+          cash: 60,
+          cleared: 50,
+          account: 'checking',
+        },
+        [dinner],
+      ),
+    )
+
+    expect(outstandingMovements([dinner, settlement], 'receivable')[0].settlements).toEqual([
+      { date: '2026-11-10', paid: 50, forgiven: 0, overpaid: 10 },
     ])
   })
 })

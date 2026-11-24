@@ -88,6 +88,7 @@ describe('normalizeFinanceData', () => {
     const result = normalizeFinanceData({ transactions: [voucherIncome], budgets: [] })
 
     expect(voucherBalance(result.data.movements)).toBe(800)
+    expect(result.data.movements[0].method).toBe('Voucher Income')
   })
 
   test('skips invalid legacy transactions and keeps valid ones', () => {

@@ -3,7 +3,7 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { localYMD } from '@/domain/calculations'
-import type { FundingAccount } from '@/domain/ledger'
+import type { PaymentMethod } from '@/domain/ledger'
 import { formatPlainCurrency } from '@/lib/currency'
 import {
   acceptSuggestion,
@@ -16,7 +16,7 @@ type ParsedRow = {
   description: string
   amount: number
   category: string | null
-  paymentMethod: FundingAccount | null
+  paymentMethod: PaymentMethod | null
   kind: 'income' | 'expense' | null
   date: string
 }
@@ -197,7 +197,7 @@ export default function SmartTransactionInput({
           <Button
             type="button"
             size="icon-xs"
-            className="size-10 sm:size-6"
+            className="size-10 sm:size-7"
             onClick={attemptSubmit}
             aria-label="Add transaction from input"
           >

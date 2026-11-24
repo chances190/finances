@@ -1,6 +1,6 @@
 import { grossPurchaseAmount, type Movement } from '../../domain/ledger'
 
-export type MatchAction = 'link' | 'keep'
+export type MatchAction = 'link' | 'overwrite' | 'keep'
 
 export interface ImportPlan {
   movement: Movement
@@ -95,6 +95,14 @@ export function buildImportCommit(plans: ImportPlan[], existing: Movement[]): Im
     }
 
     const target = existingTarget ?? additionTarget
+    if (plan.action === 'overwrite') {
+      // Links are preserved so an installment plan keeps its root/sibling wiring.
+      const next = { ...plan.movement, id: plan.targetId, links: target?.links }
+      if (existingTarget) updates.push(next)
+      else upsertAddition(next)
+      continue
+    }
+
     if (target && plan.movement.importId && target.importId !== plan.movement.importId) {
       const next = { ...target, importId: plan.movement.importId }
       if (existingTarget) updates.push(next)

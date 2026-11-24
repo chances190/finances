@@ -1,13 +1,15 @@
 import {
-  ArrowUUpLeftIcon,
+  ArrowDownLeftIcon,
+  DotsThreeIcon,
   FunnelIcon,
+  HandCoinsIcon,
   SortAscendingIcon,
   SortDescendingIcon,
   TrashIcon,
 } from '@phosphor-icons/react'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
 import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'wouter'
+import { Link, useSearchParams } from 'wouter'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -23,6 +25,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { MoneyInput } from '@/components/ui/money-input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import {
   Select,
   SelectContent,
@@ -30,14 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   availableMonths,
   compareMovements,
@@ -49,28 +45,38 @@ import { allCategoryNames, categoryOptionsForMonth } from '@/domain/categories'
 import { ACCOUNT_BADGE_COLORS } from '@/domain/constants'
 import {
   ACCOUNT_LABELS,
+  accountForPaymentMethod,
   buildIncome,
   buildPurchase,
   buildRefund,
+  CASH_ACCOUNTS,
   categoryOf,
-  counterpartyOf,
+  type DisplayPaymentMethod,
+  EXPENSE_PAYMENT_METHODS,
   expenseAmount,
-  FUNDING_ACCOUNTS,
   type FundingAccount,
   fundingAccountOf,
   grossPurchaseAmount,
+  type IncomePaymentMethod,
+  type InstallmentInfo,
   incomeAmount,
+  installmentInfo,
   localYMD,
   MOVEMENT_KIND_LABELS,
   type Movement,
   movementMonth,
   movementTotal,
+  type OutstandingMovement,
+  outstandingMovements,
+  PAYMENT_METHODS,
+  type PaymentMethod,
+  paymentMethodOf,
   refundAmount,
   refundableAmount,
   settlementTotal,
   transferAccounts,
 } from '@/domain/ledger'
-import { addCurrency, formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
+import { formatCurrency, parseCurrency } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import { useFinance } from '@/ui/context'
@@ -88,13 +94,19 @@ const SORT_OPTIONS: { value: string; label: string; compact: string }[] = [
   { value: 'description:asc', label: 'Description: A to Z', compact: 'Description ↑' },
   { value: 'description:desc', label: 'Description: Z to A', compact: 'Description ↓' },
   { value: 'category:asc', label: 'Category: A to Z', compact: 'Category ↑' },
-  { value: 'account:asc', label: 'Account: A to Z', compact: 'Account ↑' },
+  { value: 'payment:asc', label: 'Payment: A to Z', compact: 'Payment ↑' },
 ]
 
 function accountOf(movement: Movement): FundingAccount | null {
   if (movement.kind === 'transfer') {
     const accounts = transferAccounts(movement)
     return (accounts?.[0] as FundingAccount | undefined) ?? null
+  }
+  if (movement.kind === 'settlement') {
+    const cash = movement.postings.find((posting) =>
+      CASH_ACCOUNTS.includes(posting.account as (typeof CASH_ACCOUNTS)[number]),
+    )
+    return cash ? (cash.account as FundingAccount) : null
   }
   if (movement.kind === 'adjustment') {
     const posting = movement.postings.find((candidate) => candidate.account !== 'adjustment')
@@ -124,135 +136,228 @@ function amountClass(movement: Movement): string {
   return 'text-muted-foreground'
 }
 
-function detailOf(movement: Movement): string {
+function paymentLabelOf(movement: Movement): string {
+  const method = paymentMethodOf(movement)
+  if (method) return method
+  const account = accountOf(movement)
+  return account ? ACCOUNT_LABELS[account] : '—'
+}
+
+function kindLabelOf(movement: Movement): string | null {
+  if (movement.kind === 'purchase' || movement.kind === 'income') return null
+  if (movement.kind === 'settlement') {
+    const relation = movement.postings.find(
+      (posting) => posting.account === 'receivable' || posting.account === 'payable',
+    )
+    return relation?.account === 'receivable' ? 'Received' : 'Paid'
+  }
+  return MOVEMENT_KIND_LABELS[movement.kind]
+}
+
+function debtStatusOf(rows: OutstandingMovement[]): 'Paid' | 'Partial' | null {
+  if (rows.length === 0) return null
+  if (rows.every((row) => row.outstanding <= 0.004)) return 'Paid'
+  if (rows.some((row) => row.settled > 0.004)) return 'Partial'
+  return null
+}
+
+function detailOf(movement: Movement, debtRows: OutstandingMovement[]): string {
   if (movement.kind === 'transfer') {
     const accounts = transferAccounts(movement)
     if (accounts) return `${ACCOUNT_LABELS[accounts[0]]} → ${ACCOUNT_LABELS[accounts[1]]}`
   }
   if (movement.kind === 'purchase') {
-    const payer = movement.postings.find((posting) => posting.account === 'payable')?.counterparty
-    if (payer) return `Paid by ${payer}`
-    const owed = movement.postings
-      .filter((posting) => posting.account === 'receivable' && posting.counterparty)
-      .map((posting) => posting.counterparty)
-    if (owed.length > 0) return `Owed by ${owed.join(', ')}`
+    const shares = debtRows.filter((row) => row.direction === 'receivable')
+    if (shares.length > 0) {
+      const people = shares
+        .map((row) => {
+          // Non-breaking spaces keep "R$ 50,00 (paid)" from wrapping mid-figure.
+          const amount = formatCurrency(
+            row.outstanding > 0.004 ? row.outstanding : row.total,
+          ).replace(/ /g, '\u00A0')
+          return `${row.counterparty} ${amount}${row.outstanding <= 0.004 ? '\u00A0(paid)' : ''}`
+        })
+        .join(' · ')
+      return `You ${formatCurrency(expenseAmount(movement))} · ${people}`
+    }
+    const payable = debtRows.find((row) => row.direction === 'payable')
+    if (payable) {
+      return `Paid by ${payable.counterparty}${payable.outstanding <= 0.004 ? '\u00A0(paid)' : ''}`
+    }
   }
-  if (movement.kind === 'settlement') {
-    const counterparty = counterpartyOf(movement)
-    if (counterparty) return `Settled with ${counterparty}`
-  }
-  return '—'
+  return ''
 }
 
-function ownedShare(movement: Movement): number {
-  return expenseAmount(movement)
+const PAYMENT_BADGE_COLORS: Record<DisplayPaymentMethod, string> = {
+  'Debit/PIX': 'bg-teal-100 text-teal-800',
+  Credit: 'bg-purple-100 text-purple-800',
+  'Voucher Debit': 'bg-pink-100 text-pink-800',
+  Cash: 'bg-emerald-100 text-emerald-800',
+  Salary: 'bg-yellow-100 text-yellow-800',
+  Transfer: 'bg-sky-100 text-sky-800',
+  'Voucher Income': 'bg-orange-100 text-orange-800',
+  'Someone else': 'bg-amber-100 text-amber-800',
 }
 
-function AccountBadge({ account }: { account: FundingAccount | null }) {
-  if (!account) return <span className="text-xs text-muted-foreground">—</span>
+function PaymentBadge({ movement }: { movement: Movement }) {
+  const method = paymentMethodOf(movement)
+  if (method) {
+    return (
+      <Badge variant="outline" className={PAYMENT_BADGE_COLORS[method]}>
+        {method}
+      </Badge>
+    )
+  }
+  const account = accountOf(movement)
+  if (!account) return null
   return (
     <Badge variant="outline" className={ACCOUNT_BADGE_COLORS[account]}>
-      {account === 'payable' ? 'Someone else' : ACCOUNT_LABELS[account]}
+      {ACCOUNT_LABELS[account]}
     </Badge>
+  )
+}
+
+function DebtStatusBadge({ rows }: { rows: OutstandingMovement[] }) {
+  const status = debtStatusOf(rows)
+  if (!status) return null
+  return (
+    <Badge
+      variant="outline"
+      className={status === 'Paid' ? 'text-green-600 bg-green-50' : 'text-amber-600 bg-amber-50'}
+    >
+      {status}
+    </Badge>
+  )
+}
+
+function MovementActions({
+  movement,
+  onRefund,
+  onDelete,
+}: {
+  movement: Movement
+  onRefund: (movement: Movement) => void
+  onDelete: (id: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const act = (action: () => void) => {
+    setOpen(false)
+    action()
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-10 shrink-0"
+            aria-label="Transaction actions"
+          />
+        }
+      >
+        <DotsThreeIcon className="size-4" />
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-44 p-1">
+        {movement.kind === 'purchase' &&
+          movement.postings.some(
+            (posting) => posting.account === 'receivable' || posting.account === 'payable',
+          ) && (
+            <Link
+              href={`/debts?movement=${movement.id}&settled=1`}
+              className="flex w-full items-center gap-2 px-2 py-2 text-left text-xs hover:bg-muted"
+              onClick={() => setOpen(false)}
+            >
+              <HandCoinsIcon className="size-4" /> Go to debt
+            </Link>
+          )}
+        {movement.kind === 'purchase' && (
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-2 py-2 text-left text-xs hover:bg-muted"
+            onClick={() => act(() => onRefund(movement))}
+          >
+            <ArrowDownLeftIcon className="size-4" /> Reimbursed
+          </button>
+        )}
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 px-2 py-2 text-left text-xs text-destructive hover:bg-destructive/10"
+          onClick={() => act(() => onDelete(movement.id))}
+        >
+          <TrashIcon className="size-4" /> Delete
+        </button>
+      </PopoverContent>
+    </Popover>
   )
 }
 
 const MovementCard = memo(function MovementCard({
   movement,
+  debtRows,
   onOpen,
   onRefund,
   onDelete,
+  installment,
 }: {
   movement: Movement
+  debtRows: OutstandingMovement[]
   onOpen: (movement: Movement) => void
   onRefund: (movement: Movement) => void
   onDelete: (id: string) => void
+  installment: InstallmentInfo | null
 }) {
   const isFuture = monthRelation(movementMonth(movement)) === 'future'
-  const account = accountOf(movement)
+  const kindLabel = kindLabelOf(movement)
+  const detail = detailOf(movement, debtRows)
+  const category =
+    movement.kind === 'purchase' || movement.kind === 'refund' ? categoryOf(movement) : undefined
 
   return (
-    <div className={`px-3 py-1.5 ${isFuture ? 'opacity-45' : ''}`}>
-      <div className="flex items-start gap-2">
-        <button
-          type="button"
-          onClick={() => onOpen(movement)}
-          className="min-w-0 flex-1 rounded-none py-1 text-left hover:bg-muted/30 focus-visible:outline focus-visible:outline-ring"
-          title={
-            movement.kind === 'purchase' || movement.kind === 'income'
-              ? 'Edit movement'
-              : 'View movement'
-          }
-        >
-          <span className="flex items-start justify-between gap-2">
-            <span className="min-w-0 flex-1 break-words text-sm font-medium">
-              {movement.description}
-            </span>
-            <span className={`shrink-0 font-mono text-sm font-semibold ${amountClass(movement)}`}>
-              {formatCurrency(amountOf(movement))}
-            </span>
+    <div className={`relative px-3 py-2 ${isFuture ? 'opacity-45' : ''}`}>
+      <button
+        type="button"
+        onClick={() => onOpen(movement)}
+        className="block w-full rounded-none py-1 text-left hover:bg-muted/30 focus-visible:outline focus-visible:outline-ring"
+      >
+        <span className="flex items-start gap-2 pr-16">
+          <span className="min-w-0 flex-1 break-words text-sm font-medium">
+            {movement.description}
           </span>
-          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+        </span>
+        <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 pr-10 text-xs">
+          {kindLabel && (
             <Badge variant="outline" className="text-[10px]">
-              {MOVEMENT_KIND_LABELS[movement.kind]}
+              {kindLabel}
             </Badge>
-            <AccountBadge account={account} />
-            {categoryOf(movement) && (
-              <Badge variant="outline" className="text-[10px]">
-                {categoryOf(movement)}
-              </Badge>
-            )}
-            <span>{movement.date}</span>
-          </span>
-          {detailOf(movement) !== '—' && (
-            <span className="mt-1 block text-[10px] text-muted-foreground">
-              {detailOf(movement)}
-            </span>
           )}
-        </button>
-        {movement.kind === 'purchase' && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="mt-1 size-10"
-            onClick={(event) => {
-              event.stopPropagation()
-              onRefund(movement)
-            }}
-            aria-label="Received back"
-          >
-            <ArrowUUpLeftIcon />
-          </Button>
+          <PaymentBadge movement={movement} />
+          {category && (
+            <Badge variant="outline" className="text-[10px]">
+              {category}
+            </Badge>
+          )}
+          {installment && (
+            <Badge variant="outline" className="text-[10px]">
+              {installment.index + 1}/{installment.total}
+            </Badge>
+          )}
+          <span>{movement.date}</span>
+          <DebtStatusBadge rows={debtRows} />
+        </span>
+        {detail && (
+          <span className="mt-1 block pr-10 text-[10px] text-muted-foreground">{detail}</span>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="mt-1 size-10"
-          onClick={(event) => {
-            event.stopPropagation()
-            onDelete(movement.id)
-          }}
-          aria-label="Delete movement"
-        >
-          <TrashIcon />
-        </Button>
+      </button>
+      <span
+        className={`pointer-events-none absolute top-1.5 right-3 font-mono text-sm font-semibold ${amountClass(movement)}`}
+      >
+        {formatCurrency(amountOf(movement))}
+      </span>
+      <div className="absolute right-0 bottom-0">
+        <MovementActions movement={movement} onRefund={onRefund} onDelete={onDelete} />
       </div>
-
-      {movement.kind === 'purchase' &&
-        (movement.links?.length || ownedShare(movement) !== amountOf(movement)) && (
-          <div className="ml-2 mt-1 bg-muted/30 p-2 text-xs">
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-muted-foreground">Others</span>
-              <span className="font-mono">
-                {formatCurrency(addCurrency(amountOf(movement), -ownedShare(movement)))}
-              </span>
-            </div>
-            <div className="flex items-baseline justify-between gap-2 font-medium">
-              <span>You</span>
-              <span className="font-mono">{formatCurrency(ownedShare(movement))}</span>
-            </div>
-          </div>
-        )}
     </div>
   )
 })
@@ -273,7 +378,7 @@ function FilterGroup({
 }: {
   idPrefix: string
   label: string
-  options: string[]
+  options: { value: string; label: string }[]
   selected: string[]
   count: number
   onToggle: (option: string, on: boolean) => void
@@ -283,16 +388,16 @@ function FilterGroup({
     <div className="space-y-1">
       {options.map((option) => (
         <label
-          key={option}
-          htmlFor={`${idPrefix}-${option}`}
+          key={option.value}
+          htmlFor={`${idPrefix}-${option.value}`}
           className="flex min-h-10 cursor-pointer items-center gap-2 py-1"
         >
           <Checkbox
-            id={`${idPrefix}-${option}`}
-            checked={selected.includes(option)}
-            onCheckedChange={(checked) => onToggle(option, checked === true)}
+            id={`${idPrefix}-${option.value}`}
+            checked={selected.includes(option.value)}
+            onCheckedChange={(checked) => onToggle(option.value, checked === true)}
           />
-          <span className="text-xs">{option}</span>
+          <span className="text-xs">{option.label}</span>
         </label>
       ))}
     </div>
@@ -328,22 +433,26 @@ const TransactionFilters = memo(function TransactionFilters({
   filterType,
   filterMonth,
   filterCategories,
-  filterAccounts,
+  filterPayments,
   filterCounterparties,
   months,
   allCategories,
+  allPaymentMethods,
   allCounterparties,
+  showOtherType,
   updateParam,
   wide = false,
 }: {
   filterType: string
   filterMonth: string
   filterCategories: string[]
-  filterAccounts: string[]
+  filterPayments: string[]
   filterCounterparties: string[]
   months: string[]
   allCategories: string[]
+  allPaymentMethods: string[]
   allCounterparties: string[]
+  showOtherType: boolean
   updateParam: (key: string, value: string | string[] | null) => void
   wide?: boolean
 }) {
@@ -363,6 +472,7 @@ const TransactionFilters = memo(function TransactionFilters({
           <SelectItem value="all">All types</SelectItem>
           <SelectItem value="Expense">Expense</SelectItem>
           <SelectItem value="Income">Income</SelectItem>
+          {showOtherType && <SelectItem value="Other">Transfers & payments</SelectItem>}
         </SelectContent>
       </Select>
 
@@ -400,17 +510,15 @@ const TransactionFilters = memo(function TransactionFilters({
       </Select>
 
       <FilterGroup
-        idPrefix="account-filter"
-        label="Account"
-        options={FUNDING_ACCOUNTS.map((account) =>
-          account === 'payable' ? 'Someone else' : ACCOUNT_LABELS[account],
-        )}
-        selected={filterAccounts}
-        count={filterAccounts.length}
-        onToggle={(account, on) =>
+        idPrefix="payment-filter"
+        label="Payment"
+        options={allPaymentMethods.map((method) => ({ value: method, label: method }))}
+        selected={filterPayments}
+        count={filterPayments.length}
+        onToggle={(method, on) =>
           updateParam(
-            'account',
-            on ? [...filterAccounts, account] : filterAccounts.filter((item) => item !== account),
+            'payment',
+            on ? [...filterPayments, method] : filterPayments.filter((item) => item !== method),
           )
         }
         wide={wide}
@@ -419,7 +527,7 @@ const TransactionFilters = memo(function TransactionFilters({
       <FilterGroup
         idPrefix="cat-filter"
         label="Category"
-        options={allCategories}
+        options={allCategories.map((category) => ({ value: category, label: category }))}
         selected={filterCategories}
         count={filterCategories.length}
         onToggle={(category, on) =>
@@ -437,7 +545,7 @@ const TransactionFilters = memo(function TransactionFilters({
         <FilterGroup
           idPrefix="person-filter"
           label="Person"
-          options={allCounterparties}
+          options={allCounterparties.map((person) => ({ value: person, label: person }))}
           selected={filterCounterparties}
           count={filterCounterparties.length}
           onToggle={(person, on) =>
@@ -457,68 +565,48 @@ const TransactionFilters = memo(function TransactionFilters({
 
 const MovementRowCells = memo(function MovementRowCells({
   movement,
-  onOpen,
+  debtRows,
   onRefund,
   onDelete,
+  installment,
 }: {
   movement: Movement
-  onOpen: (movement: Movement) => void
+  debtRows: OutstandingMovement[]
   onRefund: (movement: Movement) => void
   onDelete: (id: string) => void
+  installment: InstallmentInfo | null
 }) {
-  const account = accountOf(movement)
+  const kindLabel = kindLabelOf(movement)
+  const detail = detailOf(movement, debtRows)
+  const category =
+    movement.kind === 'purchase' || movement.kind === 'refund' ? categoryOf(movement) : undefined
   return (
     <>
       <TableCell>
-        <AccountBadge account={account} />
+        <PaymentBadge movement={movement} />
       </TableCell>
       <TableCell className={cn('text-right font-mono text-xs', amountClass(movement))}>
         {formatCurrency(amountOf(movement))}
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-1.5">
-          <div className="min-w-0 flex-1 truncate">{movement.description}</div>
-          <Badge variant="outline" className="shrink-0 text-[10px]">
-            {MOVEMENT_KIND_LABELS[movement.kind]}
-          </Badge>
+          <div className="min-w-0 shrink truncate">{movement.description}</div>
+          {kindLabel && (
+            <Badge variant="outline" className="shrink-0 text-[10px]">
+              {kindLabel}
+            </Badge>
+          )}
+          <DebtStatusBadge rows={debtRows} />
         </div>
+        {detail && <div className="truncate text-[10px] text-muted-foreground">{detail}</div>}
       </TableCell>
-      <TableCell className="text-xs">{categoryOf(movement) ?? '—'}</TableCell>
+      <TableCell className="text-xs">{category ?? '—'}</TableCell>
       <TableCell className="text-xs">{movement.date}</TableCell>
-      <TableCell className="max-w-36 truncate text-xs text-muted-foreground">
-        {detailOf(movement)}
+      <TableCell className="text-center text-xs">
+        {installment ? `${installment.index + 1}/${installment.total}` : '—'}
       </TableCell>
       <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
-        <span className="flex justify-end gap-1">
-          {(movement.kind === 'purchase' || movement.kind === 'income') && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={() => onOpen(movement)}
-              aria-label="Edit movement"
-            >
-              <span className="text-xs">Edit</span>
-            </Button>
-          )}
-          {movement.kind === 'purchase' && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={() => onRefund(movement)}
-              aria-label="Received back"
-            >
-              <ArrowUUpLeftIcon />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={() => onDelete(movement.id)}
-            aria-label="Delete movement"
-          >
-            <TrashIcon />
-          </Button>
-        </span>
+        <MovementActions movement={movement} onRefund={onRefund} onDelete={onDelete} />
       </TableCell>
     </>
   )
@@ -526,6 +614,9 @@ const MovementRowCells = memo(function MovementRowCells({
 
 const DesktopMovementList = memo(function DesktopMovementList({
   movements,
+  debtRowsById,
+  emptyMessage,
+  installmentsById,
   onOpen,
   onRefund,
   onDelete,
@@ -534,6 +625,9 @@ const DesktopMovementList = memo(function DesktopMovementList({
   sortDir,
 }: {
   movements: Movement[]
+  debtRowsById: Map<string, OutstandingMovement[]>
+  emptyMessage: string
+  installmentsById: Map<string, InstallmentInfo>
   onOpen: (movement: Movement) => void
   onRefund: (movement: Movement) => void
   onDelete: (id: string) => void
@@ -548,6 +642,7 @@ const DesktopMovementList = memo(function DesktopMovementList({
     estimateSize: () => 41,
     overscan: 8,
     scrollMargin,
+    getItemKey: (index) => movements[index]?.id ?? index,
   })
   const virtualRows = rowVirtualizer.getVirtualItems()
   const paddingTop = virtualRows.length > 0 ? virtualRows[0].start - scrollMargin : 0
@@ -570,16 +665,16 @@ const DesktopMovementList = memo(function DesktopMovementList({
       <Table className="table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-24">
+            <TableHead className="w-28">
               <button
                 type="button"
-                onClick={() => onSort('account')}
+                onClick={() => onSort('payment')}
                 className="flex w-full cursor-pointer select-none items-center gap-0.5 text-left font-medium"
               >
-                Account{indicator('account')}
+                Payment{indicator('payment')}
               </button>
             </TableHead>
-            <TableHead className="w-24 text-right">
+            <TableHead className="w-28 text-right">
               <button
                 type="button"
                 onClick={() => onSort('amount')}
@@ -606,7 +701,7 @@ const DesktopMovementList = memo(function DesktopMovementList({
                 Category{indicator('category')}
               </button>
             </TableHead>
-            <TableHead className="w-24">
+            <TableHead className="w-20">
               <button
                 type="button"
                 onClick={() => onSort('date')}
@@ -615,15 +710,15 @@ const DesktopMovementList = memo(function DesktopMovementList({
                 Date{indicator('date')}
               </button>
             </TableHead>
-            <TableHead className="w-36">Detail</TableHead>
-            <TableHead className="w-24 text-right">Actions</TableHead>
+            <TableHead className="w-28 text-center">Installments</TableHead>
+            <TableHead className="w-16 text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <tbody ref={bodyRef} className="[&_tr:last-child]:border-0">
           {movements.length === 0 && (
             <TableRow>
               <TableCell colSpan={7}>
-                <EmptyState variant="cell" message="No movements yet." />
+                <EmptyState variant="cell" message={emptyMessage} />
               </TableCell>
             </TableRow>
           )}
@@ -661,7 +756,8 @@ const DesktopMovementList = memo(function DesktopMovementList({
               >
                 <MovementRowCells
                   movement={movement}
-                  onOpen={onOpen}
+                  debtRows={debtRowsById.get(movement.id) ?? []}
+                  installment={installmentsById.get(movement.id) ?? null}
                   onRefund={onRefund}
                   onDelete={onDelete}
                 />
@@ -682,11 +778,17 @@ const DesktopMovementList = memo(function DesktopMovementList({
 
 const MobileMovementList = memo(function MobileMovementList({
   movements,
+  debtRowsById,
+  emptyMessage,
+  installmentsById,
   onOpen,
   onRefund,
   onDelete,
 }: {
   movements: Movement[]
+  debtRowsById: Map<string, OutstandingMovement[]>
+  emptyMessage: string
+  installmentsById: Map<string, InstallmentInfo>
   onOpen: (movement: Movement) => void
   onRefund: (movement: Movement) => void
   onDelete: (id: string) => void
@@ -695,16 +797,17 @@ const MobileMovementList = memo(function MobileMovementList({
   const scrollMargin = useScrollMargin(listRef)
   const rowVirtualizer = useWindowVirtualizer({
     count: movements.length,
-    estimateSize: () => 104,
+    estimateSize: () => 120,
     overscan: 8,
-    gap: 8,
     scrollMargin,
+    getItemKey: (index) => movements[index]?.id ?? index,
   })
   const virtualRows = rowVirtualizer.getVirtualItems()
 
   return (
     <div
       ref={listRef}
+      className={movements.length > 0 ? 'border-t border-border' : undefined}
       style={
         movements.length > 0
           ? { height: rowVirtualizer.getTotalSize(), position: 'relative' }
@@ -712,7 +815,7 @@ const MobileMovementList = memo(function MobileMovementList({
       }
     >
       {movements.length === 0 ? (
-        <EmptyState message="No movements yet." />
+        <EmptyState message={emptyMessage} />
       ) : (
         virtualRows.map((virtualRow) => {
           const movement = movements[virtualRow.index]
@@ -721,6 +824,7 @@ const MobileMovementList = memo(function MobileMovementList({
               key={movement.id}
               data-index={virtualRow.index}
               ref={rowVirtualizer.measureElement}
+              className="border-r border-b border-l border-border"
               style={{
                 position: 'absolute',
                 top: 0,
@@ -729,14 +833,14 @@ const MobileMovementList = memo(function MobileMovementList({
                 transform: `translateY(${virtualRow.start - scrollMargin}px)`,
               }}
             >
-              <div className="border border-border">
-                <MovementCard
-                  movement={movement}
-                  onOpen={onOpen}
-                  onRefund={onRefund}
-                  onDelete={onDelete}
-                />
-              </div>
+              <MovementCard
+                movement={movement}
+                debtRows={debtRowsById.get(movement.id) ?? []}
+                installment={installmentsById.get(movement.id) ?? null}
+                onOpen={onOpen}
+                onRefund={onRefund}
+                onDelete={onDelete}
+              />
             </div>
           )
         })
@@ -757,9 +861,9 @@ function RefundDialog({
   const { state, dispatch } = useFinance()
   const { toast } = useToast()
   const [amount, setAmount] = useState('')
-  const [account, setAccount] = useState<FundingAccount>('card')
+  const [method, setMethod] = useState<PaymentMethod>('Credit')
   const [date, setDate] = useState(localYMD())
-  const [description, setDescription] = useState('Received back')
+  const [description, setDescription] = useState('')
 
   const available = purchase ? refundableAmount(purchase, state.movements) : 0
 
@@ -767,8 +871,9 @@ function RefundDialog({
   useEffect(() => {
     setAmount('')
     setDate(localYMD())
-    setDescription('Received back')
-    setAccount(purchase ? (fundingAccountOf(purchase) ?? 'card') : 'card')
+    setDescription(purchase?.description ?? '')
+    const original = purchase ? paymentMethodOf(purchase) : null
+    setMethod(original && original !== 'Someone else' ? original : 'Debit/PIX')
   }, [purchase, open])
 
   function handleSave() {
@@ -779,7 +884,7 @@ function RefundDialog({
       date,
       description,
       amount: parsed,
-      account,
+      account: accountForPaymentMethod(method),
       purchase,
       existing: state.movements,
     })
@@ -788,7 +893,7 @@ function RefundDialog({
       return
     }
     startTransition(() => dispatch({ type: 'ADD_MOVEMENTS', payload: [result.value] }))
-    toast('Refund recorded', 'success')
+    toast('Reimbursement recorded', 'success')
     onOpenChange(false)
   }
 
@@ -796,7 +901,7 @@ function RefundDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Received back</DialogTitle>
+          <DialogTitle>Reimbursed</DialogTitle>
           <DialogDescription>
             Net this amount against “{purchase?.description ?? 'the purchase'}”. Up to{' '}
             {formatCurrency(available)} remains.
@@ -823,20 +928,20 @@ function RefundDialog({
             </div>
             <div className="space-y-1">
               <Label htmlFor="refund-account" className="text-xs">
-                Received in
+                Received via
               </Label>
               <Select
                 modal={false}
-                value={account}
-                onValueChange={(value) => setAccount((value ?? 'card') as FundingAccount)}
+                value={method}
+                onValueChange={(value) => setMethod((value ?? 'Credit') as PaymentMethod)}
               >
                 <SelectTrigger id="refund-account" className="w-full">
-                  <SelectValue>{ACCOUNT_LABELS[account]}</SelectValue>
+                  <SelectValue>{method}</SelectValue>
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  {FUNDING_ACCOUNTS.map((option) => (
+                  {EXPENSE_PAYMENT_METHODS.map((option) => (
                     <SelectItem key={option} value={option}>
-                      {ACCOUNT_LABELS[option]}
+                      {option}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -867,56 +972,6 @@ function RefundDialog({
   )
 }
 
-function MovementDetailsDialog({
-  movement,
-  open,
-  onOpenChange,
-}: {
-  movement: Movement | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{movement?.description ?? 'Movement'}</DialogTitle>
-          <DialogDescription>
-            {movement ? `${MOVEMENT_KIND_LABELS[movement.kind]} · ${movement.date}` : ''}
-          </DialogDescription>
-        </DialogHeader>
-        {movement && (
-          <div className="border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Account</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Person</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {movement.postings.map((posting, index) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: posting rows are positional
-                  <TableRow key={index}>
-                    <TableCell className="text-xs">{ACCOUNT_LABELS[posting.account]}</TableCell>
-                    <TableCell className="text-xs">{posting.category ?? '—'}</TableCell>
-                    <TableCell className="text-xs">{posting.counterparty ?? '—'}</TableCell>
-                    <TableCell className="text-right font-mono text-xs">
-                      {formatPlainCurrency(posting.amount)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 export default function TransactionTable() {
   const { state, dispatch } = useFinance()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -926,17 +981,25 @@ export default function TransactionTable() {
   const [showEditForm, setShowEditForm] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [refundPurchase, setRefundPurchase] = useState<Movement | null>(null)
-  const [detailsMovement, setDetailsMovement] = useState<Movement | null>(null)
   const { toast } = useToast()
   const isDesktop = useIsDesktop()
 
   const filterSearch = searchParams.get('search') ?? ''
   const filterMonth = searchParams.get('month') ?? 'all'
   const filterType = searchParams.get('type') ?? 'all'
+  const viewParam = searchParams.get('view')
+  const view: 'spending' | 'activity' =
+    viewParam === 'activity' || (!viewParam && searchParams.has('movement'))
+      ? 'activity'
+      : 'spending'
   const filterCategories = useMemo(() => getParamList(searchParams, 'category'), [searchParams])
-  const filterAccounts = useMemo(() => getParamList(searchParams, 'account'), [searchParams])
+  const filterPayments = useMemo(() => getParamList(searchParams, 'payment'), [searchParams])
   const filterCounterparties = useMemo(() => getParamList(searchParams, 'person'), [searchParams])
-  const filterMovementId = searchParams.get('movement')
+  const movementParam = searchParams.get('movement')
+  const filterMovementId =
+    movementParam && state.movements.some((movement) => movement.id === movementParam)
+      ? movementParam
+      : null
 
   const [localSearch, setLocalSearch] = useState(filterSearch)
 
@@ -958,26 +1021,6 @@ export default function TransactionTable() {
     }, 150)
     return () => clearTimeout(timer)
   }, [localSearch, filterSearch, setSearchParams])
-
-  useEffect(() => {
-    if (!filterMovementId) return
-    const movement = state.movements.find((candidate) => candidate.id === filterMovementId)
-    if (movement) {
-      if (movement.kind === 'purchase' || movement.kind === 'income') {
-        setEditingMovement(movement)
-        setShowEditForm(true)
-      } else {
-        setDetailsMovement(movement)
-      }
-    }
-    setSearchParams(
-      (previous) => {
-        previous.delete('movement')
-        return previous
-      },
-      { replace: true },
-    )
-  }, [filterMovementId, setSearchParams, state.movements])
 
   const updateParam = useCallback(
     (key: string, value: string | string[] | null) => {
@@ -1026,14 +1069,71 @@ export default function TransactionTable() {
     return Array.from(names).sort()
   }, [state.movements])
 
+  const installmentsById = useMemo(() => {
+    const map = new Map<string, InstallmentInfo>()
+    for (const movement of state.movements) {
+      const info = installmentInfo(movement, state.movements)
+      if (info) map.set(movement.id, info)
+    }
+    return map
+  }, [state.movements])
+
+  const debtRowsById = useMemo(() => {
+    const map = new Map<string, OutstandingMovement[]>()
+    for (const direction of ['receivable', 'payable'] as const) {
+      for (const row of outstandingMovements(state.movements, direction)) {
+        const rows = map.get(row.movementId)
+        if (rows) rows.push(row)
+        else map.set(row.movementId, [row])
+      }
+    }
+    return map
+  }, [state.movements])
+
+  const allPaymentMethods = useMemo(() => {
+    const labels = new Set<string>([...PAYMENT_METHODS, 'Someone else'])
+    for (const movement of state.movements) {
+      const method = paymentMethodOf(movement)
+      if (method) labels.add(method)
+    }
+    return Array.from(labels).sort()
+  }, [state.movements])
+
+  function setView(next: 'spending' | 'activity') {
+    setSearchParams(
+      (previous) => {
+        previous.set('view', next)
+        if (next === 'spending' && previous.get('type') === 'Other') previous.delete('type')
+        return previous
+      },
+      { replace: true },
+    )
+  }
+
   const filtered = useMemo(() => {
     let movements = state.movements
+    if (filterMovementId) {
+      movements = movements.filter((movement) => movement.id === filterMovementId)
+    }
+    if (view === 'spending') {
+      movements = movements.filter(
+        (movement) =>
+          movement.kind === 'purchase' || movement.kind === 'income' || movement.kind === 'refund',
+      )
+    }
     if (filterType === 'Expense') {
       movements = movements.filter(
         (movement) => movement.kind === 'purchase' || movement.kind === 'refund',
       )
     } else if (filterType === 'Income') {
       movements = movements.filter((movement) => movement.kind === 'income')
+    } else if (filterType === 'Other') {
+      movements = movements.filter(
+        (movement) =>
+          movement.kind === 'transfer' ||
+          movement.kind === 'settlement' ||
+          movement.kind === 'adjustment',
+      )
     }
     if (filterMonth !== 'all') {
       movements = movements.filter((movement) => movementMonth(movement) === filterMonth)
@@ -1050,13 +1150,8 @@ export default function TransactionTable() {
           categoryOf(movement) && filterCategories.includes(categoryOf(movement) as string),
       )
     }
-    if (filterAccounts.length > 0) {
-      movements = movements.filter((movement) => {
-        const account = accountOf(movement)
-        if (!account) return false
-        const label = account === 'payable' ? 'Someone else' : ACCOUNT_LABELS[account]
-        return filterAccounts.includes(label)
-      })
+    if (filterPayments.length > 0) {
+      movements = movements.filter((movement) => filterPayments.includes(paymentLabelOf(movement)))
     }
     if (filterCounterparties.length > 0) {
       movements = movements.filter((movement) =>
@@ -1065,7 +1160,11 @@ export default function TransactionTable() {
         ),
       )
     }
-    if (sortKey) {
+    if (sortKey === 'payment') {
+      movements = [...movements].sort(
+        (a, b) => paymentLabelOf(a).localeCompare(paymentLabelOf(b)) * (sortDir === 'asc' ? 1 : -1),
+      )
+    } else if (sortKey) {
       movements = [...movements].sort((a, b) =>
         compareMovements(a, b, sortKey as MovementSortKey, sortDir),
       )
@@ -1075,21 +1174,24 @@ export default function TransactionTable() {
     return movements
   }, [
     state.movements,
+    filterMovementId,
+    view,
     filterType,
     filterMonth,
     filterSearch,
     filterCategories,
-    filterAccounts,
+    filterPayments,
     filterCounterparties,
     sortKey,
     sortDir,
   ])
 
   const activeFilterCount =
+    (filterMovementId ? 1 : 0) +
     (filterType !== 'all' ? 1 : 0) +
     (filterMonth !== 'all' ? 1 : 0) +
     filterCategories.length +
-    filterAccounts.length +
+    filterPayments.length +
     filterCounterparties.length
 
   const handleSort = useCallback(
@@ -1113,23 +1215,26 @@ export default function TransactionTable() {
     description: string
     amount: number
     category: string | null
-    paymentMethod: FundingAccount | null
+    paymentMethod: PaymentMethod | null
     kind: 'income' | 'expense' | null
     date: string
   }) {
     if (row.amount <= 0) return
-    const account =
-      row.paymentMethod && FUNDING_ACCOUNTS.includes(row.paymentMethod)
-        ? row.paymentMethod
-        : 'checking'
+    const method: PaymentMethod =
+      row.paymentMethod ?? (row.kind === 'income' ? 'Transfer' : 'Debit/PIX')
+    const account = accountForPaymentMethod(method)
 
     if (row.kind === 'income') {
+      const incomeMethod: IncomePaymentMethod =
+        method === 'Salary' || method === 'Voucher Income' ? method : 'Transfer'
+      const account = accountForPaymentMethod(incomeMethod)
       const result = buildIncome({
         id: crypto.randomUUID(),
         date: row.date,
         description: row.description,
         amount: row.amount,
         account: account === 'voucher' || account === 'cash' ? account : 'checking',
+        method: incomeMethod,
         category: 'Income',
       })
       if (!result.ok) {
@@ -1159,27 +1264,46 @@ export default function TransactionTable() {
 
   const handleDelete = useCallback(
     (id: string) => {
-      const refunds = state.movements
-        .filter((movement) => movement.kind === 'refund' && movement.links?.includes(id))
-        .map((movement) => movement.id)
-      startTransition(() => {
-        dispatch({ type: 'DELETE_MOVEMENT', payload: id })
-        for (const refundId of refunds) {
-          dispatch({ type: 'DELETE_MOVEMENT', payload: refundId })
+      const selected = state.movements.find((movement) => movement.id === id)
+      if (!selected) return
+
+      const ids = new Set([selected.id])
+      if (selected.kind === 'purchase') {
+        const rootId =
+          selected.links?.find((linkedId) =>
+            state.movements.some(
+              (movement) => movement.id === linkedId && movement.kind === 'purchase',
+            ),
+          ) ?? selected.id
+        for (const movement of state.movements) {
+          if (
+            movement.kind === 'purchase' &&
+            (movement.id === rootId || movement.links?.includes(rootId))
+          ) {
+            ids.add(movement.id)
+          }
         }
+        for (const movement of state.movements) {
+          if (movement.links?.some((linkedId) => ids.has(linkedId))) ids.add(movement.id)
+        }
+      }
+      startTransition(() => {
+        dispatch({ type: 'DELETE_MOVEMENTS', payload: [...ids] })
       })
-      toast('Transaction deleted', 'info')
+      toast(
+        ids.size > 1
+          ? 'Purchase and linked activity deleted — Ctrl+Z to undo'
+          : 'Transaction deleted — Ctrl+Z to undo',
+        'info',
+      )
     },
     [dispatch, state.movements, toast],
   )
 
-  const handleOpen = useCallback((movement: Movement) => {
-    if (movement.kind === 'purchase' || movement.kind === 'income') {
-      setEditingMovement(movement)
-      setShowEditForm(true)
-    } else {
-      setDetailsMovement(movement)
-    }
+  const handleRowOpen = useCallback((movement: Movement) => {
+    if (movement.kind !== 'purchase' && movement.kind !== 'income') return
+    setEditingMovement(movement)
+    setShowEditForm(true)
   }, [])
 
   const handleFormClose = useCallback((open: boolean) => {
@@ -1192,16 +1316,29 @@ export default function TransactionTable() {
       <Button
         variant="ghost"
         size="sm"
-        className="h-10 text-xs text-muted-foreground sm:h-7"
+        className="h-7 px-2 text-xs text-muted-foreground"
         onClick={() => setSearchParams({}, { replace: true })}
       >
         Clear all
       </Button>
     ) : null
 
+  const emptyMessage = view === 'spending' ? 'No spending transactions yet.' : 'No activity yet.'
+
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-foreground">Transactions</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold text-foreground">Transactions</h2>
+        <SegmentedControl
+          aria-label="Transaction view"
+          value={view}
+          onValueChange={(value) => setView(value as 'spending' | 'activity')}
+          options={[
+            { value: 'spending', label: 'Spending' },
+            { value: 'activity', label: 'All activity' },
+          ]}
+        />
+      </div>
       <SmartTransactionInput
         onAdd={handleSmartAdd}
         onOpenModal={() => setShowAddForm(true)}
@@ -1251,11 +1388,13 @@ export default function TransactionTable() {
             filterType={filterType}
             filterMonth={filterMonth}
             filterCategories={filterCategories}
-            filterAccounts={filterAccounts}
+            filterPayments={filterPayments}
             filterCounterparties={filterCounterparties}
             months={months}
             allCategories={allCategories}
+            allPaymentMethods={allPaymentMethods}
             allCounterparties={allCounterparties}
+            showOtherType={view === 'activity'}
             updateParam={updateParam}
           />
         ) : (
@@ -1276,19 +1415,21 @@ export default function TransactionTable() {
             </PopoverTrigger>
             <PopoverContent className="max-h-[70dvh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto p-3">
               <div className="flex flex-col gap-3">
+                {clearAll}
                 <TransactionFilters
                   filterType={filterType}
                   filterMonth={filterMonth}
                   filterCategories={filterCategories}
-                  filterAccounts={filterAccounts}
+                  filterPayments={filterPayments}
                   filterCounterparties={filterCounterparties}
                   months={months}
                   allCategories={allCategories}
+                  allPaymentMethods={allPaymentMethods}
                   allCounterparties={allCounterparties}
+                  showOtherType={view === 'activity'}
                   updateParam={updateParam}
                   wide
                 />
-                {clearAll}
               </div>
             </PopoverContent>
           </Popover>
@@ -1300,7 +1441,10 @@ export default function TransactionTable() {
       {isDesktop ? (
         <DesktopMovementList
           movements={filtered}
-          onOpen={handleOpen}
+          debtRowsById={debtRowsById}
+          emptyMessage={emptyMessage}
+          installmentsById={installmentsById}
+          onOpen={handleRowOpen}
           onRefund={setRefundPurchase}
           onDelete={handleDelete}
           onSort={handleSort}
@@ -1310,14 +1454,22 @@ export default function TransactionTable() {
       ) : (
         <MobileMovementList
           movements={filtered}
-          onOpen={handleOpen}
+          debtRowsById={debtRowsById}
+          emptyMessage={emptyMessage}
+          installmentsById={installmentsById}
+          onOpen={handleRowOpen}
           onRefund={setRefundPurchase}
           onDelete={handleDelete}
         />
       )}
 
       {showEditForm && (
-        <TransactionForm open onOpenChange={handleFormClose} editMovement={editingMovement} />
+        <TransactionForm
+          open
+          onOpenChange={handleFormClose}
+          editMovement={editingMovement}
+          onDelete={handleDelete}
+        />
       )}
 
       {showAddForm && <TransactionForm open onOpenChange={setShowAddForm} />}
@@ -1327,14 +1479,6 @@ export default function TransactionTable() {
         open={refundPurchase !== null}
         onOpenChange={(open) => {
           if (!open) setRefundPurchase(null)
-        }}
-      />
-
-      <MovementDetailsDialog
-        movement={detailsMovement}
-        open={detailsMovement !== null}
-        onOpenChange={(open) => {
-          if (!open) setDetailsMovement(null)
         }}
       />
     </div>

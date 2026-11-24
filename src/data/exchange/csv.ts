@@ -1,11 +1,17 @@
 import Papa from 'papaparse'
 import {
+  accountForPaymentMethod,
   buildIncome,
   buildPurchase,
+  EXPENSE_PAYMENT_METHODS,
+  type ExpensePaymentMethod,
   grossPurchaseAmount,
+  INCOME_PAYMENT_METHODS,
+  type IncomePaymentMethod,
   incomeAmount,
   type Movement,
   type PurchaseShare,
+  paymentMethodOf,
 } from '../../domain/ledger'
 import { parseCurrency, parseCurrencyStrict } from '../../lib/currency'
 import { downloadBlob } from '../download'
@@ -25,34 +31,20 @@ const HEADERS = [
   'debtAmount',
 ] as const
 
-function expenseAccount(method: string): 'checking' | 'card' | 'voucher' | null {
+function expenseMethod(method: string): ExpensePaymentMethod | null {
   const needle = method.trim().toLowerCase()
-  if (needle === 'credit') return 'card'
-  if (needle === 'voucher debit') return 'voucher'
-  if (needle === 'debit/pix') return 'checking'
-  return null
+  return EXPENSE_PAYMENT_METHODS.find((value) => value.toLowerCase() === needle) ?? null
 }
 
-function incomeAccount(method: string): 'checking' | 'voucher' | null {
+function incomeMethod(method: string): IncomePaymentMethod | null {
   const needle = method.trim().toLowerCase()
-  if (needle === 'voucher') return 'voucher'
-  if (needle === 'salary' || needle === 'transfer') return 'checking'
-  return null
+  if (needle === 'voucher') return 'Voucher Income'
+  return INCOME_PAYMENT_METHODS.find((value) => value.toLowerCase() === needle) ?? null
 }
 
 function exportMethod(movement: Movement): string | null {
-  if (movement.kind === 'income') {
-    const account = movement.postings.find((posting) => posting.amount > 0)?.account
-    return account === 'voucher' ? 'Voucher' : 'Transfer'
-  }
-  if (movement.kind !== 'purchase') return null
-  const account = movement.postings.find(
-    (posting) => posting.amount < 0 && posting.account !== 'expense',
-  )?.account
-  if (account === 'payable') return null
-  if (account === 'card') return 'Credit'
-  if (account === 'voucher') return 'Voucher Debit'
-  return 'Debit/PIX'
+  const method = paymentMethodOf(movement)
+  return method === 'Someone else' ? null : method
 }
 
 export function exportCSV(movements: Movement[]): void {
@@ -196,8 +188,8 @@ export function importCSV(csv: string): CSVImportResult {
     const importId = `csv:${ref}:${first.date}:${amount}:${first.description ?? ''}`
 
     if (type === 'income') {
-      const account = incomeAccount(first.paymentMethod)
-      if (!account) {
+      const method = incomeMethod(first.paymentMethod)
+      if (!method) {
         skippedRows.push({
           line,
           reason: `invalid payment method: "${first.paymentMethod}"`,
@@ -209,7 +201,8 @@ export function importCSV(csv: string): CSVImportResult {
         date: first.date,
         description: first.description || 'Imported income',
         amount,
-        account,
+        account: accountForPaymentMethod(method) as 'checking' | 'voucher',
+        method,
         category: first.category || 'Income',
         importId,
       })
@@ -226,14 +219,15 @@ export function importCSV(csv: string): CSVImportResult {
       continue
     }
 
-    const account = expenseAccount(first.paymentMethod)
-    if (!account) {
+    const method = expenseMethod(first.paymentMethod)
+    if (!method) {
       skippedRows.push({
         line,
         reason: `invalid payment method: "${first.paymentMethod}"`,
       })
       continue
     }
+    const account = accountForPaymentMethod(method)
 
     const shares: PurchaseShare[] = rows
       .filter((row) => row.debtName)

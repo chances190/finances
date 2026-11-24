@@ -1,4 +1,4 @@
-import { ForkKnifeIcon, PiggyBank, TrendDownIcon, TrendUp } from '@phosphor-icons/react'
+import { ForkKnifeIcon, PiggyBankIcon, TrendDownIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { useMemo } from 'react'
 import { useLocation, useSearchParams } from 'wouter'
 import { Badge } from '@/components/ui/badge'
@@ -22,7 +22,11 @@ import {
   paceByMonth,
   spendingPace,
 } from '@/domain/calculations'
-import { ACCOUNT_COLORS, ACCOUNT_LABELS, type FundingAccount } from '@/domain/ledger'
+import {
+  type DisplayPaymentMethod,
+  expensesByPaymentMethod,
+  PAYMENT_METHOD_COLORS,
+} from '@/domain/ledger'
 import { formatCurrency } from '@/lib/currency'
 import EmptyState from '@/ui/components/Common/EmptyState'
 import LazyChart from '@/ui/components/Common/LazyChart'
@@ -91,14 +95,15 @@ export default function DashboardPage() {
 
   const paymentMethodData = useMemo(() => {
     if (!selectedMonth) return []
-    const grouped = expensesByAccount(state.movements, selectedMonth)
+    const grouped = expensesByPaymentMethod(state.movements, selectedMonth)
     return Object.entries(grouped)
       .filter(([, value]) => value > 0)
-      .map(([account, amount]) => ({
-        name: ACCOUNT_LABELS[account as FundingAccount],
+      .map(([method, amount]) => ({
+        name: method as DisplayPaymentMethod,
         value: amount as number,
-        color: ACCOUNT_COLORS[account as FundingAccount],
+        color: PAYMENT_METHOD_COLORS[method as DisplayPaymentMethod],
       }))
+      .sort((a, b) => b.value - a.value)
   }, [state.movements, selectedMonth])
 
   const today = new Date()
@@ -144,7 +149,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-foreground">Monthly Dashboard</h2>
         <Select value={selectedMonth} onValueChange={(v) => v && setSelectedMonth(v)}>
-          <SelectTrigger className="w-36">
+          <SelectTrigger className="h-10 w-36 text-xs data-[size=default]:h-10 sm:h-7 sm:data-[size=default]:h-7">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -173,24 +178,24 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           label="Income"
-          icon={<TrendUp className="size-3 text-green-500" />}
+          icon={<TrendUpIcon className="size-3 text-green-500" />}
           value={formatCurrency(monthData.income)}
           valueClassName="font-mono"
         />
         <StatCard
-          label="Expenses"
+          label="Spending"
           icon={<TrendDownIcon className="size-3 text-red-500" />}
           value={formatCurrency(monthData.expenses)}
           valueClassName="font-mono"
         />
         <StatCard
-          label="Balance"
-          icon={<PiggyBank className="size-3 text-muted-foreground" />}
+          label="Net Spending"
+          icon={<PiggyBankIcon className="size-3 text-muted-foreground" />}
           value={formatCurrency(monthData.balance)}
           valueClassName={`font-mono ${monthData.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}
         />
         <StatCard
-          label="Voucher balance"
+          label="Net Voucher"
           icon={<ForkKnifeIcon className="size-3 text-pink-500" />}
           value={formatCurrency(monthData.mealVoucher)}
           valueClassName={`font-mono ${monthData.mealVoucher >= 0 ? 'text-green-500' : 'text-red-500'}`}
@@ -297,10 +302,10 @@ export default function DashboardPage() {
         </div>
 
         <div className="border bg-card p-4 space-y-3">
-          <h3 className="text-sm font-semibold">Expense payment methods</h3>
+          <h3 className="text-sm font-semibold">Spending by payment method</h3>
           {paymentMethodData.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-xs text-muted-foreground">
-              No expenses this month.
+              No spending this month.
             </div>
           ) : (
             <div className="flex flex-col items-center">

@@ -22,6 +22,23 @@ export type FundingAccount = (typeof FUNDING_ACCOUNTS)[number]
 export const CASH_ACCOUNTS = ['checking', 'voucher', 'cash'] as const
 export type CashAccount = (typeof CASH_ACCOUNTS)[number]
 
+export const EXPENSE_PAYMENT_METHODS = ['Debit/PIX', 'Credit', 'Voucher Debit', 'Cash'] as const
+export const INCOME_PAYMENT_METHODS = ['Salary', 'Transfer', 'Voucher Income'] as const
+export type ExpensePaymentMethod = (typeof EXPENSE_PAYMENT_METHODS)[number]
+export type IncomePaymentMethod = (typeof INCOME_PAYMENT_METHODS)[number]
+export type PaymentMethod = ExpensePaymentMethod | IncomePaymentMethod
+export type DisplayPaymentMethod = PaymentMethod | 'Someone else'
+export const PAYMENT_METHODS = [...EXPENSE_PAYMENT_METHODS, ...INCOME_PAYMENT_METHODS] as const
+
+export function accountForPaymentMethod(
+  method: PaymentMethod,
+): 'checking' | 'card' | 'voucher' | 'cash' {
+  if (method === 'Credit') return 'card'
+  if (method === 'Voucher Debit' || method === 'Voucher Income') return 'voucher'
+  if (method === 'Cash') return 'cash'
+  return 'checking'
+}
+
 export const ACCOUNT_LABELS: Record<Account, string> = {
   checking: 'Bank account',
   card: 'Credit card',
@@ -35,17 +52,15 @@ export const ACCOUNT_LABELS: Record<Account, string> = {
   adjustment: 'Adjustment',
 }
 
-export const ACCOUNT_COLORS: Record<Account, string> = {
-  checking: '#32BCAD',
-  card: '#820AD1',
-  voucher: '#FF2D6F',
-  cash: '#0ea5e9',
-  receivable: '#22c55e',
-  payable: '#f59e0b',
-  income: '#22c55e',
-  expense: '#ef4444',
-  forgiveness: '#8b5cf6',
-  adjustment: '#64748b',
+export const PAYMENT_METHOD_COLORS: Record<DisplayPaymentMethod, string> = {
+  'Debit/PIX': '#32BCAD',
+  Credit: '#820AD1',
+  'Voucher Debit': '#FF2D6F',
+  Cash: '#0ea5e9',
+  Salary: '#eab308',
+  Transfer: '#0284c7',
+  'Voucher Income': '#f97316',
+  'Someone else': '#8b5cf6',
 }
 
 export const MOVEMENT_KINDS = [
@@ -62,7 +77,7 @@ export const MOVEMENT_KIND_LABELS: Record<MovementKind, string> = {
   purchase: 'Purchase',
   income: 'Income',
   transfer: 'Transfer',
-  refund: 'Received back',
+  refund: 'Reimbursed',
   settlement: 'Settlement',
   adjustment: 'Adjustment',
 }
@@ -81,6 +96,8 @@ export interface Movement {
   kind: MovementKind
   description: string
   postings: Posting[]
+  /** Income only: the funding account cannot tell Salary from Transfer. */
+  method?: IncomePaymentMethod
   importId?: string
   links?: string[]
 }
@@ -233,10 +250,7 @@ export function buildPurchase(input: PurchaseInput): BuildResult<Movement[]> {
       id: index === 0 ? input.id : `${input.id}-${index + 1}`,
       date: addMonthsToDate(input.date, index),
       kind: 'purchase',
-      description:
-        installments > 1
-          ? `${input.description} (${index + 1}/${installments})`
-          : input.description,
+      description: input.description.trim(),
       postings,
       ...(input.importId
         ? { importId: index === 0 ? input.importId : `${input.importId}:${index + 1}` }
@@ -254,6 +268,7 @@ export interface IncomeInput {
   description: string
   amount: number
   account: CashAccount
+  method?: IncomePaymentMethod
   category?: string
   importId?: string
 }
@@ -271,6 +286,7 @@ export function buildIncome(input: IncomeInput): BuildResult<Movement> {
       date: input.date,
       kind: 'income',
       description: input.description.trim(),
+      ...(input.method ? { method: input.method } : {}),
       postings: [
         { account: input.account, amount: input.amount },
         {
@@ -312,6 +328,30 @@ export function buildTransfer(input: TransferInput): BuildResult<Movement> {
       ],
     },
   }
+}
+
+export interface InstallmentInfo {
+  index: number
+  total: number
+  rootId: string
+}
+
+export function installmentInfo(movement: Movement, movements: Movement[]): InstallmentInfo | null {
+  if (movement.kind !== 'purchase') return null
+  const linkedRoot = (movement.links ?? []).find((id) =>
+    movements.some((candidate) => candidate.id === id && candidate.kind === 'purchase'),
+  )
+  const rootId = linkedRoot ?? movement.id
+  const group = movements.filter(
+    (candidate) =>
+      candidate.kind === 'purchase' &&
+      (candidate.id === rootId || candidate.links?.includes(rootId)),
+  )
+  if (!group.some((candidate) => candidate.id === movement.id)) group.push(movement)
+  if (group.length <= 1) return null
+  group.sort((a, b) => a.date.localeCompare(b.date))
+  const index = group.findIndex((candidate) => candidate.id === movement.id)
+  return index >= 0 ? { index, total: group.length, rootId } : null
 }
 
 export function expenseAmount(movement: Movement): number {
@@ -391,6 +431,29 @@ export function movementTotal(movement: Movement): number {
         Math.max(...movement.postings.map((posting) => Math.abs(toCents(posting.amount))), 0),
       )
   }
+}
+
+export function paymentMethodOf(movement: Movement): DisplayPaymentMethod | null {
+  if (movement.kind === 'income') {
+    if (movement.method) return movement.method
+    return fundingAccountOf(movement) === 'voucher' ? 'Voucher Income' : 'Transfer'
+  }
+  if (movement.kind === 'purchase' || movement.kind === 'refund') {
+    const account = fundingAccountOf(movement)
+    if (account === 'card') return 'Credit'
+    if (account === 'voucher') return 'Voucher Debit'
+    if (account === 'cash') return 'Cash'
+    if (account === 'checking') return 'Debit/PIX'
+    if (account === 'payable') return 'Someone else'
+  }
+  if (movement.kind === 'settlement') {
+    const cash = movement.postings.find(
+      (posting) =>
+        CASH_ACCOUNTS.includes(posting.account as CashAccount) && Math.abs(posting.amount) > 0.004,
+    )
+    if (cash) return cash.account === 'cash' ? 'Cash' : 'Transfer'
+  }
+  return null
 }
 
 export function fundingAccountOf(movement: Movement): FundingAccount | null {
@@ -491,6 +554,13 @@ export interface Outstanding {
   amount: number
 }
 
+export interface DebtSettlement {
+  date: string
+  paid: number
+  forgiven: number
+  overpaid: number
+}
+
 export interface OutstandingMovement {
   movementId: string
   counterparty: string
@@ -500,6 +570,7 @@ export interface OutstandingMovement {
   total: number
   settled: number
   outstanding: number
+  settlements: DebtSettlement[]
 }
 
 export function outstandingMovements(
@@ -524,6 +595,7 @@ export function outstandingMovements(
         total: fromCents(toCents(amount)),
         settled: 0,
         outstanding: fromCents(toCents(amount)),
+        settlements: [],
         order,
       })
     }
@@ -544,6 +616,25 @@ export function outstandingMovements(
         counterparty,
         amount: fromCents(toCents(amount)),
         date: movement.date,
+        paid: fromCents(
+          toCents(
+            movement.postings
+              .filter((candidate) => CASH_ACCOUNTS.includes(candidate.account as CashAccount))
+              .reduce(
+                (sum, candidate) =>
+                  sum + (direction === 'receivable' ? candidate.amount : -candidate.amount),
+                0,
+              ),
+          ),
+        ),
+        forgiven: fromCents(
+          toCents(
+            (direction === 'receivable' ? 1 : -1) *
+              movement.postings
+                .filter((candidate) => candidate.account === 'forgiveness')
+                .reduce((sum, candidate) => sum + candidate.amount, 0),
+          ),
+        ),
         links: new Set(movement.links ?? []),
         order,
       }
@@ -553,6 +644,7 @@ export function outstandingMovements(
 
   for (const settlement of settlements) {
     let remaining = settlement.amount
+    const overpaid = addCurrency(settlement.paid, -settlement.amount)
     const candidates = sources.filter(
       (source) => source.counterparty === settlement.counterparty && source.outstanding > 0.004,
     )
@@ -560,13 +652,22 @@ export function outstandingMovements(
       ...candidates.filter((source) => settlement.links.has(source.movementId)),
       ...candidates.filter((source) => !settlement.links.has(source.movementId)),
     ]
+    let last: DebtSettlement | null = null
     for (const source of ordered) {
       if (remaining <= 0.004) break
       const applied = Math.min(source.outstanding, remaining)
+      const paid = Math.min(settlement.paid, applied)
+      const forgiven = applied - paid
       source.settled = addCurrency(source.settled, applied)
       source.outstanding = addCurrency(source.outstanding, -applied)
+      last = { date: settlement.date, paid, forgiven, overpaid: 0 }
+      source.settlements.push(last)
+      settlement.paid = addCurrency(settlement.paid, -paid)
+      settlement.forgiven = addCurrency(settlement.forgiven, -forgiven)
       remaining = addCurrency(remaining, -applied)
     }
+    // Cash above the settled total has no debt to land on; attribute it to the last debt touched.
+    if (last && overpaid > 0.004) last.overpaid = overpaid
   }
 
   return sources.map(({ order: _order, ...row }) => row)
@@ -587,29 +688,19 @@ export function outstanding(
     .sort((a, b) => a.counterparty.localeCompare(b.counterparty))
 }
 
-export type SettlementInput =
-  | {
-      id: string
-      date: string
-      description: string
-      direction: 'receivable'
-      counterparty: string
-      received: number
-      forgiven: number
-      account: CashAccount
-      links?: string[]
-    }
-  | {
-      id: string
-      date: string
-      description: string
-      direction: 'payable'
-      counterparty: string
-      paid: number
-      forgiven: number
-      account: CashAccount
-      links?: string[]
-    }
+export interface SettlementInput {
+  id: string
+  date: string
+  description: string
+  direction: 'receivable' | 'payable'
+  counterparty: string
+  /** Cash actually moved: received when receivable, paid when payable. */
+  cash: number
+  /** Debt this settlement clears; cash may be lower (forgiven) or higher (overpaid). */
+  cleared: number
+  account: CashAccount
+  links?: string[]
+}
 
 export function buildSettlement(
   input: SettlementInput,
@@ -618,36 +709,52 @@ export function buildSettlement(
   const header = validateHeader(input)
   if (header) return fail(header)
   if (!input.counterparty.trim()) return fail('counterparty is required')
-
-  const cash = input.direction === 'receivable' ? input.received : input.paid
-  if (!(cash >= 0) || !(input.forgiven >= 0)) return fail('amounts cannot be negative')
-  const total = addCurrency(cash, input.forgiven)
-  if (!(total > 0)) return fail('settlement must move or forgive something')
+  if (!(input.cash >= 0)) return fail('cash cannot be negative')
+  if (!(input.cleared > 0)) return fail('cleared amount must be positive')
+  const forgiven = addCurrency(input.cleared, -input.cash)
 
   const owed = outstanding(movements, input.direction).find(
     (row) => row.counterparty === input.counterparty.trim(),
   )?.amount
-  if ((owed ?? 0) + 0.004 < total) {
+  if ((owed ?? 0) + 0.004 < input.cleared) {
     return fail(`settlement cannot exceed the outstanding ${input.direction} amount`)
+  }
+  if (Math.abs(forgiven) > 0.004) {
+    const applicable = input.links?.length
+      ? outstandingMovements(movements, input.direction)
+          .filter(
+            (row) =>
+              input.links?.includes(row.movementId) &&
+              row.counterparty === input.counterparty.trim(),
+          )
+          .reduce((sum, row) => addCurrency(sum, row.outstanding), 0)
+      : (owed ?? 0)
+    if (Math.abs(applicable - input.cleared) > 0.004) {
+      return fail('forgiveness and overpayment must settle the whole debt')
+    }
   }
 
   const postings: Posting[] = []
   if (input.direction === 'receivable') {
     postings.push({
       account: 'receivable',
-      amount: -total,
+      amount: -input.cleared,
       counterparty: input.counterparty.trim(),
     })
-    if (cash > 0) postings.push({ account: input.account, amount: cash })
-    if (input.forgiven > 0) postings.push({ account: 'forgiveness', amount: input.forgiven })
+    if (input.cash > 0) postings.push({ account: input.account, amount: input.cash })
+    if (Math.abs(forgiven) > 0.004) {
+      postings.push({ account: 'forgiveness', amount: forgiven })
+    }
   } else {
     postings.push({
       account: 'payable',
-      amount: total,
+      amount: input.cleared,
       counterparty: input.counterparty.trim(),
     })
-    if (cash > 0) postings.push({ account: input.account, amount: -cash })
-    if (input.forgiven > 0) postings.push({ account: 'forgiveness', amount: -input.forgiven })
+    if (input.cash > 0) postings.push({ account: input.account, amount: -input.cash })
+    if (Math.abs(forgiven) > 0.004) {
+      postings.push({ account: 'forgiveness', amount: -forgiven })
+    }
   }
 
   return {
@@ -756,6 +863,22 @@ export function expensesByAccount(
     const account = fundingAccountOf(movement)
     if (!account) continue
     totals[account] = addCurrency(totals[account] ?? 0, amount)
+  }
+  return totals
+}
+
+export function expensesByPaymentMethod(
+  movements: Movement[],
+  referenceMonth: string,
+): Partial<Record<DisplayPaymentMethod, number>> {
+  const totals: Partial<Record<DisplayPaymentMethod, number>> = {}
+  for (const movement of movements) {
+    if (movementMonth(movement) !== referenceMonth) continue
+    const amount = expenseAmount(movement)
+    if (amount === 0) continue
+    const method = paymentMethodOf(movement)
+    if (!method) continue
+    totals[method] = addCurrency(totals[method] ?? 0, amount)
   }
   return totals
 }

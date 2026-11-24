@@ -100,6 +100,18 @@ describe('buildImportCommit', () => {
     expect(commit.updates).toHaveLength(0)
   })
 
+  test('overwrite replaces the existing movement and keeps its links', () => {
+    const existing = { ...purchase({ id: 'e1', importId: 'old' }), links: ['root'] }
+    const incoming = purchase({ id: 'i1', description: 'Statement', importId: 'new' })
+
+    const plans = planImport([incoming], [existing])
+    plans[0].action = 'overwrite'
+    const commit = buildImportCommit(plans, [existing])
+
+    expect(commit.additions).toHaveLength(0)
+    expect(commit.updates).toEqual([{ ...incoming, id: 'e1', links: ['root'] }])
+  })
+
   test('keep adds the imported movement', () => {
     const incoming = purchase({ id: 'i1' })
 

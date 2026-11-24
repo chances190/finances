@@ -28,14 +28,11 @@ import {
 } from '@/data/exchange/reconcile'
 import type { Budget } from '@/domain/entities'
 import {
-  ACCOUNT_LABELS,
   categoryOf,
-  type FundingAccount,
-  fundingAccountOf,
   MOVEMENT_KIND_LABELS,
   type Movement,
   movementTotal,
-  transferAccounts,
+  paymentMethodOf,
 } from '@/domain/ledger'
 import { formatCurrency } from '@/lib/currency'
 import ConfirmDialog from '@/ui/components/Common/ConfirmDialog'
@@ -63,18 +60,12 @@ function decodeOFX(buffer: ArrayBuffer): string {
   return new TextDecoder(utf8 ? 'utf-8' : 'windows-1252').decode(buffer)
 }
 
-function previewAccount(movement: Movement): FundingAccount | null {
-  const direct = fundingAccountOf(movement)
-  if (direct) return direct
-  if (movement.kind === 'transfer') {
-    const accounts = transferAccounts(movement)
-    return (accounts?.[0] as FundingAccount | undefined) ?? null
-  }
-  if (movement.kind === 'adjustment') {
-    const posting = movement.postings.find((candidate) => candidate.account !== 'adjustment')
-    return posting ? (posting.account as FundingAccount) : null
-  }
-  return null
+function previewPayment(movement: Movement): string {
+  return paymentMethodOf(movement) ?? '—'
+}
+
+function previewKind(movement: Movement): string {
+  return MOVEMENT_KIND_LABELS[movement.kind]
 }
 
 export default function ImportDialog({
@@ -175,7 +166,7 @@ export default function ImportDialog({
           budgets.push(...result.data.budgets)
           skipped.push(
             ...result.skippedMovements.map((entry) => ({
-              label: prefix(file, `movement #${entry.index + 1}`),
+              label: prefix(file, `transaction #${entry.index + 1}`),
               reason: entry.reason,
             })),
             ...Array.from({ length: result.skippedBudgets }, (_, index) => ({
@@ -285,43 +276,44 @@ export default function ImportDialog({
     }
 
     return (
-      <div className="min-w-40 space-y-1">
-        {plan.candidates.length > 1 && (
+      <div className="w-40 max-w-full space-y-1">
+        {plan.candidates.length > 1 ? (
           <select
-            aria-label="Match target"
+            aria-label="Choose the purchase to match"
             value={plan.targetId ?? ''}
             onChange={(event) =>
               updatePlan(plan.movement.id, { targetId: event.target.value || null })
             }
-            className="h-8 w-full border border-input bg-transparent px-1 text-xs"
+            className="h-7 w-full min-w-0 border border-input bg-transparent px-1 text-xs"
           >
-            <option value="">Choose match…</option>
+            <option value="">Choose purchase…</option>
             {plan.candidates.map((candidate) => (
               <option key={candidate.id} value={candidate.id}>
-                {candidate.description}
+                {candidate.description} · {candidate.date} ·{' '}
+                {formatCurrency(movementTotal(candidate))}
               </option>
             ))}
           </select>
+        ) : (
+          <p className="truncate text-[11px] text-muted-foreground">
+            Matches {plan.candidates[0].description} · {plan.candidates[0].date}
+          </p>
         )}
         <select
-          aria-label="Import action"
+          aria-label="What to do with this match"
           value={plan.action ?? ''}
           onChange={(event) =>
             updatePlan(plan.movement.id, {
               action: (event.target.value || null) as MatchAction | null,
             })
           }
-          className="h-8 w-full border border-input bg-transparent px-1 text-xs"
+          className="h-7 w-full min-w-0 border border-input bg-transparent px-1 text-xs"
         >
-          {plan.candidates.length > 1 && <option value="">Choose action…</option>}
-          <option value="link">Link</option>
-          <option value="keep">Keep separate</option>
+          {plan.candidates.length > 1 && <option value="">Choose…</option>}
+          <option value="link">Use existing</option>
+          <option value="overwrite">Replace existing</option>
+          <option value="keep">Add separately</option>
         </select>
-        {plan.candidates.length === 1 && (
-          <p className="max-w-40 truncate text-[10px] text-muted-foreground">
-            {plan.candidates[0].description}
-          </p>
-        )}
       </div>
     )
   }
@@ -342,7 +334,7 @@ export default function ImportDialog({
             <DialogDescription>
               {mode === 'transactions'
                 ? 'Drop .csv exchange files or bank .ofx statements here.'
-                : 'Drop a .json backup (movements + budgets). This replaces the current data.'}
+                : 'Drop a .json backup (transactions + budgets). This replaces the current data.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -403,7 +395,7 @@ export default function ImportDialog({
             {preview && (
               <div className="space-y-3">
                 <p className="text-xs text-muted-foreground">
-                  {preview.label} — {preview.movements.length} movement
+                  {preview.label} — {preview.movements.length} transaction
                   {preview.movements.length !== 1 ? 's' : ''} found
                   {preview.fullBackup &&
                     ` and ${preview.budgets.length} budget${preview.budgets.length !== 1 ? 's' : ''}`}
@@ -423,17 +415,64 @@ export default function ImportDialog({
                     ))}
                   </div>
                 )}
-                <div className="max-h-64 overflow-y-auto border border-border">
+                <div className="max-h-[60dvh] space-y-2 overflow-y-auto sm:hidden">
+                  {preview.fullBackup
+                    ? preview.movements.slice(0, 50).map((movement) => (
+                        <div key={movement.id} className="border border-border p-2">
+                          <div className="flex justify-between gap-2">
+                            <span className="min-w-0 truncate text-sm font-medium">
+                              {movement.description}
+                            </span>
+                            <span className="shrink-0 font-mono text-sm">
+                              {formatCurrency(movementTotal(movement))}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {movement.date} · {previewKind(movement)} · {previewPayment(movement)}
+                            {categoryOf(movement) ? ` · ${categoryOf(movement)}` : ''}
+                          </p>
+                        </div>
+                      ))
+                    : preview.plans.map((plan) => {
+                        const movement = plan.movement
+                        return (
+                          <div
+                            key={movement.id}
+                            className={`space-y-2 border p-2 ${isBlocked(plan) ? 'border-destructive/50 bg-destructive/5' : 'border-border'}`}
+                          >
+                            <div className="flex justify-between gap-2">
+                              <span className="min-w-0 break-words text-sm font-medium">
+                                {movement.description}
+                              </span>
+                              <span className="shrink-0 font-mono text-sm">
+                                {formatCurrency(movementTotal(movement))}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {movement.date} · {MOVEMENT_KIND_LABELS[movement.kind]} ·{' '}
+                              {previewPayment(movement)}
+                              {categoryOf(movement) ? ` · ${categoryOf(movement)}` : ''}
+                            </p>
+                            {renderAction(plan)}
+                          </div>
+                        )
+                      })}
+                  {preview.fullBackup && preview.movements.length > 50 && (
+                    <p className="p-2 text-center text-xs text-muted-foreground">
+                      ...and {preview.movements.length - 50} more
+                    </p>
+                  )}
+                </div>
+                <div className="hidden max-h-64 overflow-y-auto border border-border sm:block">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Kind</TableHead>
+                        <TableHead className="w-24">Date</TableHead>
                         <TableHead>Description</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Account</TableHead>
-                        {!preview.fullBackup && <TableHead>Action</TableHead>}
+                        <TableHead className="w-20">Kind</TableHead>
+                        <TableHead className="w-28">Payment</TableHead>
+                        <TableHead className="w-24 text-right">Amount</TableHead>
+                        {!preview.fullBackup && <TableHead className="w-44">Action</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -443,16 +482,13 @@ export default function ImportDialog({
                               <TableCell className="text-muted-foreground">
                                 {movement.date}
                               </TableCell>
-                              <TableCell>{MOVEMENT_KIND_LABELS[movement.kind]}</TableCell>
-                              <TableCell className="max-w-32 truncate">
+                              <TableCell className="max-w-40 truncate">
                                 {movement.description}
                               </TableCell>
-                              <TableCell>{categoryOf(movement) ?? '—'}</TableCell>
+                              <TableCell>{previewKind(movement)}</TableCell>
+                              <TableCell>{previewPayment(movement)}</TableCell>
                               <TableCell className="text-right font-mono">
                                 {formatCurrency(movementTotal(movement))}
-                              </TableCell>
-                              <TableCell>
-                                {ACCOUNT_LABELS[previewAccount(movement) ?? 'checking']}
                               </TableCell>
                             </TableRow>
                           ))
@@ -466,16 +502,13 @@ export default function ImportDialog({
                                 <TableCell className="text-muted-foreground">
                                   {movement.date}
                                 </TableCell>
-                                <TableCell>{MOVEMENT_KIND_LABELS[movement.kind]}</TableCell>
-                                <TableCell className="max-w-32 truncate">
+                                <TableCell className="max-w-40 truncate">
                                   {movement.description}
                                 </TableCell>
-                                <TableCell>{categoryOf(movement) ?? '—'}</TableCell>
+                                <TableCell>{previewKind(movement)}</TableCell>
+                                <TableCell>{previewPayment(movement)}</TableCell>
                                 <TableCell className="text-right font-mono">
                                   {formatCurrency(movementTotal(movement))}
-                                </TableCell>
-                                <TableCell>
-                                  {ACCOUNT_LABELS[previewAccount(movement) ?? 'checking']}
                                 </TableCell>
                                 <TableCell>{renderAction(plan)}</TableCell>
                               </TableRow>
@@ -483,7 +516,7 @@ export default function ImportDialog({
                           })}
                       {preview.fullBackup && preview.movements.length > 50 && (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          <TableCell colSpan={5} className="text-center text-muted-foreground">
                             ...and {preview.movements.length - 50} more
                           </TableCell>
                         </TableRow>

@@ -1,5 +1,5 @@
 import { parseSync } from 'ofx-js'
-import { buildAdjustment, buildIncome, buildPurchase, type Movement } from '../../domain/ledger'
+import { buildIncome, buildPurchase, type Movement } from '../../domain/ledger'
 
 interface RawTransaction {
   TRNTYPE?: string
@@ -97,18 +97,17 @@ export function importOFX(content: string, existing: Movement[]): OFXImportResul
     }
 
     if (value > 0 && source === 'card') {
-      const result = buildAdjustment({
+      movements.push({
         id: crypto.randomUUID(),
         date,
-        description: `Received back: ${cleanPixMemo(memo) || 'card credit'}`,
-        account: 'expense',
-        amount: -amount,
+        kind: 'refund',
+        description: cleanPixMemo(memo) || 'Card credit',
+        postings: [
+          { account: 'card', amount },
+          { account: 'expense', amount: -amount, category: 'Other' },
+        ],
+        importId,
       })
-      if (!result.ok) {
-        skipped.push({ label, reason: result.reason })
-        continue
-      }
-      movements.push({ ...result.value, importId })
       seen.add(importId)
       continue
     }
@@ -120,6 +119,7 @@ export function importOFX(content: string, existing: Movement[]): OFXImportResul
         description: cleanPixMemo(memo) || 'Imported income',
         amount,
         account: 'checking',
+        method: 'Transfer',
         category: 'Income',
         importId,
       })

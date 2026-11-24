@@ -7,22 +7,22 @@ export default function ExportImport() {
   const { state } = useFinance()
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Button
         variant="outline"
         size="xs"
-        title="Backup all data (transactions + budgets)"
+        title="Complete backup of transactions, settlements, and budgets"
         onClick={() => exportJSON({ movements: state.movements, budgets: state.budgets })}
       >
-        Export Backup (.json)
+        Export full backup (.json)
       </Button>
       <Button
         variant="outline"
         size="xs"
-        title="Export transactions only (exchange format)"
+        title="Exchange purchases and income with other tools"
         onClick={() => exportCSV(state.movements)}
       >
-        Export Transactions (.csv)
+        Export CSV (purchases & income)
       </Button>
     </div>
   )

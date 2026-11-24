@@ -1,4 +1,4 @@
-import type { FundingAccount } from '@/domain/ledger'
+import type { PaymentMethod } from '@/domain/ledger'
 import { parseCurrency } from './currency'
 import { dateCompletions, matchDateAt, parsePortugueseDate } from './dates'
 
@@ -6,7 +6,7 @@ export interface SmartParseResult {
   amount: number | null
   description: string
   category: string | null
-  paymentMethod: FundingAccount | null
+  paymentMethod: PaymentMethod | null
   kind: 'income' | 'expense' | null
   date: string | null
   error: string | null
@@ -29,24 +29,29 @@ const MAX_REGISTRY_WORDS = 3
 
 interface PaymentAlias {
   label: string
-  account: FundingAccount
+  method: PaymentMethod
   kind: 'income' | 'expense'
+  suggest?: boolean
 }
 
 const PAYMENT_ALIASES: PaymentAlias[] = [
-  { label: 'Checking', account: 'checking', kind: 'expense' },
-  { label: 'Debit/PIX', account: 'checking', kind: 'expense' },
-  { label: 'Pix', account: 'checking', kind: 'expense' },
-  { label: 'Credit', account: 'card', kind: 'expense' },
-  { label: 'Card', account: 'card', kind: 'expense' },
-  { label: 'Voucher Debit', account: 'voucher', kind: 'expense' },
-  { label: 'Cash', account: 'cash', kind: 'expense' },
-  { label: 'Someone else', account: 'payable', kind: 'expense' },
-  { label: 'Salary', account: 'checking', kind: 'income' },
-  { label: 'Transfer', account: 'checking', kind: 'income' },
-  { label: 'Voucher', account: 'voucher', kind: 'income' },
+  { label: 'Debit/PIX', method: 'Debit/PIX', kind: 'expense' },
+  { label: 'Credit', method: 'Credit', kind: 'expense' },
+  { label: 'Voucher Debit', method: 'Voucher Debit', kind: 'expense' },
+  { label: 'Cash', method: 'Cash', kind: 'expense' },
+  { label: 'Salary', method: 'Salary', kind: 'income' },
+  { label: 'Transfer', method: 'Transfer', kind: 'income' },
+  { label: 'Voucher Income', method: 'Voucher Income', kind: 'income' },
+  { label: 'Voucher', method: 'Voucher Income', kind: 'income', suggest: false },
+  { label: 'Checking', method: 'Debit/PIX', kind: 'expense', suggest: false },
+  { label: 'Bank account', method: 'Debit/PIX', kind: 'expense', suggest: false },
+  { label: 'Pix', method: 'Debit/PIX', kind: 'expense', suggest: false },
+  { label: 'Credit card', method: 'Credit', kind: 'expense', suggest: false },
+  { label: 'Card', method: 'Credit', kind: 'expense', suggest: false },
 ]
-const PAYMENT_VALUES = PAYMENT_ALIASES.map((alias) => alias.label)
+const PAYMENT_VALUES = PAYMENT_ALIASES.filter((alias) => alias.suggest !== false).map(
+  (alias) => alias.label,
+)
 const PAYMENT_LOOKUP = new Map(PAYMENT_ALIASES.map((alias) => [alias.label.toLowerCase(), alias]))
 
 export function detectDateMonth(text: string): string | null {
@@ -140,7 +145,7 @@ function analyze(text: string, categories: readonly string[]): Analysis {
 
   let amount: number | null = null
   let category: string | null = null
-  let paymentMethod: FundingAccount | null = null
+  let paymentMethod: PaymentMethod | null = null
   let kind: 'income' | 'expense' | null = null
   let error: string | null = null
 
@@ -161,7 +166,7 @@ function analyze(text: string, categories: readonly string[]): Analysis {
           break
         }
         const alias = PAYMENT_LOOKUP.get(span.raw.slice(1).toLowerCase())
-        paymentMethod = alias?.account ?? null
+        paymentMethod = alias?.method ?? null
         kind = alias?.kind ?? null
         break
       }

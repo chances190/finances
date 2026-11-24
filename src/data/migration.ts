@@ -14,12 +14,16 @@ function migrateTransaction(
   skipped: { index: number; reason: string }[],
 ): void {
   if (transaction.type === 'Income') {
+    // Legacy snapshots used plain "Voucher" for voucher income.
+    const method =
+      transaction.paymentMethod === 'Voucher' ? 'Voucher Income' : transaction.paymentMethod
     const result = buildIncome({
       id: transaction.id,
       date: transaction.date,
       description: transaction.description,
       amount: transaction.amount,
-      account: transaction.paymentMethod === 'Voucher' ? 'voucher' : 'checking',
+      account: method === 'Voucher Income' ? 'voucher' : 'checking',
+      method,
       category: transaction.category,
       ...(transaction.importId ? { importId: transaction.importId } : {}),
     })
@@ -69,8 +73,8 @@ function migrateTransaction(
         description: `Received from ${debt.name}`,
         direction: 'receivable',
         counterparty: debt.name,
-        received: debt.amount,
-        forgiven: 0,
+        cash: debt.amount,
+        cleared: debt.amount,
         account: 'checking',
         links: [transaction.id],
       },

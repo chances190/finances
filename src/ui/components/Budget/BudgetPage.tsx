@@ -1,4 +1,4 @@
-import { PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react'
+import { PlusIcon } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -41,14 +41,17 @@ function BudgetCard({
     <button
       type="button"
       onClick={onEdit}
-      className="block w-full p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+      className="block w-full px-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
     >
-      <div className="flex items-center gap-2">
-        <span
-          className={`min-w-0 flex-1 truncate text-sm font-medium ${rel === 'current' ? 'text-primary' : ''}`}
-        >
-          {label}
-        </span>
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <p className={`truncate text-sm font-medium ${rel === 'current' ? 'text-primary' : ''}`}>
+            {label}
+          </p>
+          {range.months.length > 1 && (
+            <p className="text-[10px] text-muted-foreground">{range.months.length} months</p>
+          )}
+        </div>
         {rel === 'current' && (
           <Badge variant="outline" className="shrink-0 text-[10px]">
             Current
@@ -59,41 +62,31 @@ function BudgetCard({
             Future
           </Badge>
         )}
-        <PencilSimpleIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
       </div>
 
-      {range.months.length > 1 && (
-        <p className="mt-1 text-[10px] text-muted-foreground">· {range.months.length} months</p>
+      <div className="mt-2 space-y-0.5 border-t border-border/60 pt-2">
+        <div className="flex items-baseline justify-between gap-2 text-xs">
+          <span className="text-muted-foreground">Planned Income</span>
+          <span className="font-mono">{formatCurrency(range.budget.plannedIncome)}</span>
+        </div>
+        <div className="flex items-baseline justify-between gap-2 text-xs">
+          <span className="text-muted-foreground">Meal Voucher</span>
+          <span className="font-mono">{formatCurrency(range.budget.plannedMealVoucher)}</span>
+        </div>
+      </div>
+
+      {Object.entries(range.budget.categoryLimits).some(([, val]) => val > 0) && (
+        <div className="mt-2 space-y-0.5 border-t border-border/60 pt-2">
+          {Object.entries(range.budget.categoryLimits)
+            .filter(([, val]) => val > 0)
+            .map(([cat, val]) => (
+              <div key={cat} className="flex items-baseline justify-between gap-2 text-xs">
+                <span className="truncate text-muted-foreground">{cat}</span>
+                <span className="font-mono">{formatCurrency(val)}</span>
+              </div>
+            ))}
+        </div>
       )}
-
-      <div className="grid grid-cols-2 gap-2">
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">Planned Income</p>
-          <p className="text-right font-mono text-sm">
-            {formatCurrency(range.budget.plannedIncome)}
-          </p>
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">Meal Voucher</p>
-          <p className="text-right font-mono text-sm">
-            {formatCurrency(range.budget.plannedMealVoucher)}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-2 grid grid-cols-2 gap-1">
-        {Object.entries(range.budget.categoryLimits)
-          .filter(([, val]) => val > 0)
-          .map(([cat, val]) => (
-            <span
-              key={cat}
-              className="flex items-baseline justify-between gap-1 bg-muted px-1.5 py-0.5 text-xs"
-            >
-              <span className="truncate">{cat}</span>
-              <span className="font-mono">{formatCurrency(val)}</span>
-            </span>
-          ))}
-      </div>
     </button>
   )
 }
@@ -141,6 +134,7 @@ export default function BudgetPage() {
         <h2 className="text-lg font-semibold text-foreground">Budgets</h2>
         <Button
           size="sm"
+          className="h-10 text-xs sm:h-7"
           onClick={() => {
             setEditingMonth(null)
             setEditingRange(null)
@@ -153,13 +147,13 @@ export default function BudgetPage() {
 
       {isDesktop && (
         <div className="border border-border">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>Period</TableHead>
-                <TableHead className="text-right">Planned Income</TableHead>
-                <TableHead className="text-right">Meal Voucher</TableHead>
-                <TableHead>Categories</TableHead>
+                <TableHead className="w-72">Period</TableHead>
+                <TableHead className="w-48 text-right">Planned Income</TableHead>
+                <TableHead className="w-48 text-right">Meal Voucher</TableHead>
+                <TableHead className="pl-6">Categories</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -218,7 +212,7 @@ export default function BudgetPage() {
                     <TableCell className="text-right font-mono">
                       {formatCurrency(range.budget.plannedMealVoucher)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="pl-6">
                       <div className="flex flex-wrap gap-1">
                         {Object.entries(range.budget.categoryLimits)
                           .filter(([, val]) => val > 0)
@@ -238,18 +232,17 @@ export default function BudgetPage() {
       )}
 
       {!isDesktop && (
-        <div className="space-y-2">
+        <div className="divide-y divide-border border border-border">
           {ranges.length === 0 ? (
             <EmptyState message="No budgets yet. Create one to start planning." />
           ) : (
             ranges.map((range) => (
-              <div key={range.startMonth} className="border border-border">
-                <BudgetCard
-                  range={range}
-                  currentMonth={currentMonth}
-                  onEdit={() => openEdit(range)}
-                />
-              </div>
+              <BudgetCard
+                key={range.startMonth}
+                range={range}
+                currentMonth={currentMonth}
+                onEdit={() => openEdit(range)}
+              />
             ))
           )}
         </div>

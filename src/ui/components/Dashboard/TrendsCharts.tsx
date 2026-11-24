@@ -49,7 +49,7 @@ export const MonthlyIncomeExpenseChart = memo(function MonthlyIncomeExpenseChart
         <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={formatChartCurrency} />
         <Legend wrapperStyle={CHART_LEGEND_STYLE} />
         <Bar dataKey="income" name="Income" fill={CHART_COLORS.income} radius={[2, 2, 0, 0]} />
-        <Bar dataKey="expenses" name="Expenses" fill={CHART_COLORS.expense} radius={[2, 2, 0, 0]} />
+        <Bar dataKey="expenses" name="Spending" fill={CHART_COLORS.expense} radius={[2, 2, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   )

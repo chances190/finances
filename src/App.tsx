@@ -70,7 +70,10 @@ function AppShell() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-card pt-[env(safe-area-inset-top)]">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-base font-heading font-bold">Finances</h1>
+          <h1 className="flex items-center gap-2 text-base font-heading font-bold">
+            <img src="/icon.svg" alt="" className="size-5" />
+            Finances
+          </h1>
           <div className="flex items-center gap-1">
             <Suspense fallback={null}>
               <SyncControl />

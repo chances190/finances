@@ -5,6 +5,8 @@ import {
   CASH_ACCOUNTS,
   type CashAccount,
   expenseAmount,
+  INCOME_PAYMENT_METHODS,
+  type IncomePaymentMethod,
   isBalanced,
   isIsoDate,
   type LedgerData,
@@ -147,6 +149,14 @@ export function validateMovement(value: unknown): LoadedMovement {
   if (value.importId != null && typeof value.importId !== 'string') {
     return { ok: false, reason: 'importId must be a string' }
   }
+  if (
+    value.kind === 'income' &&
+    value.method != null &&
+    (typeof value.method !== 'string' ||
+      !INCOME_PAYMENT_METHODS.includes(value.method as IncomePaymentMethod))
+  ) {
+    return { ok: false, reason: `invalid payment method: "${String(value.method)}"` }
+  }
   if (value.links != null) {
     if (!Array.isArray(value.links) || value.links.some((link) => typeof link !== 'string')) {
       return { ok: false, reason: 'links must be an array of movement ids' }
@@ -188,6 +198,9 @@ export function validateMovement(value: unknown): LoadedMovement {
     kind: value.kind as MovementKind,
     description: value.description.trim(),
     postings,
+    ...(value.kind === 'income' && value.method
+      ? { method: value.method as IncomePaymentMethod }
+      : {}),
     ...(value.importId ? { importId: value.importId } : {}),
     ...(Array.isArray(value.links) && value.links.length > 0 ? { links: value.links } : {}),
   }
@@ -206,9 +219,10 @@ function validateRelations(movements: Movement[]): Set<string> {
 
   for (const movement of movements) {
     if (movement.kind !== 'refund') continue
-    const link = (movement.links ?? [])
-      .map((id) => byId.get(id))
-      .find((linked) => linked?.kind === 'purchase')
+    const links = movement.links ?? []
+    // OFX card credits cannot identify the original purchase; standalone refunds are valid.
+    if (links.length === 0) continue
+    const link = links.map((id) => byId.get(id)).find((linked) => linked?.kind === 'purchase')
     if (!link) {
       skipped.add(movement.id)
       continue

@@ -56,8 +56,10 @@ describe('importOFX', () => {
     expect(movementTotal(movements[0])).toBe(6.64)
 
     const credit = movements[2]
-    expect(credit.kind).toBe('adjustment')
+    expect(credit.kind).toBe('refund')
+    expect(fundingAccountOf(credit)).toBe('card')
     expect(expenseAmount(credit)).toBe(-25)
+    expect(movementTotal(credit)).toBe(25)
 
     expect(skipped).toHaveLength(1)
     expect(skipped[0].reason).toBe('card bill payment')

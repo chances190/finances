@@ -148,23 +148,23 @@ describe('§2.3 category', () => {
 describe('§2.4 payment method', () => {
   test('resolves against the registry', () => {
     const result = parse('23,50 Almoço @Debit/PIX')
-    expect(result.paymentMethod).toBe('checking')
+    expect(result.paymentMethod).toBe('Debit/PIX')
     expect(result.kind).toBe('expense')
   })
 
   test('voucher resolves by direction', () => {
     const income = parse('23,50 Almoço @Voucher')
-    expect(income.paymentMethod).toBe('voucher')
+    expect(income.paymentMethod).toBe('Voucher Income')
     expect(income.kind).toBe('income')
 
     const expense = parse('23,50 Almoço @Voucher Debit')
-    expect(expense.paymentMethod).toBe('voucher')
+    expect(expense.paymentMethod).toBe('Voucher Debit')
     expect(expense.kind).toBe('expense')
   })
 
   test('multi-word payment method is a single span', () => {
     const result = parse('23,50 Almoço @Voucher Debit')
-    expect(result.paymentMethod).toBe('voucher')
+    expect(result.paymentMethod).toBe('Voucher Debit')
     expect(result.description).toBe('Almoço')
   })
 
@@ -306,7 +306,7 @@ describe('§4 autocomplete', () => {
   })
 
   test('payment prefix', () => {
-    expect(suggestions('Almoço @d')).toEqual(['@Debit/PIX'])
+    expect(suggestions('Almoço @D')).toEqual(['@Debit/PIX'])
   })
 
   test('filled payment slot yields nothing', () => {
@@ -314,7 +314,7 @@ describe('§4 autocomplete', () => {
   })
 
   test('ambiguous voucher offers both kinds', () => {
-    expect(suggestions('Almoço @Vou')).toEqual(['@Voucher Debit', '@Voucher'])
+    expect(suggestions('Almoço @Vou')).toEqual(['@Voucher Debit', '@Voucher Income'])
   })
 
   test('open description suggests historical descriptions', () => {
