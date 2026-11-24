@@ -9,6 +9,12 @@
         "mcp"
       ],
       "enabled": true
+    },
+    "servers": {
+      "svelte": {
+        "type": "remote",
+        "url": "https://mcp.svelte.dev/mcp"
+      }
     }
   },
   // OpenCode Quota: tuiCommandDisplay chooses whether native TUI command output appears in the session transcript or a local popup dialog.
