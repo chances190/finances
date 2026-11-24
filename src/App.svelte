@@ -1,11 +1,12 @@
 <script lang="ts">
 import { onMount } from 'svelte'
 import BudgetPage from '@/components/budgets/BudgetPage.svelte'
+import AuditLogPanel from '@/components/common/AuditLogPanel.svelte'
 import DashboardPage from '@/components/dashboard/DashboardPage.svelte'
 import TrendsPage from '@/components/dashboard/TrendsPage.svelte'
 import DebtPage from '@/components/debts/DebtPage.svelte'
 import MobileNav from '@/components/shell/MobileNav.svelte'
-import PageStub from '@/components/shell/PageStub.svelte'
+import SyncControl from '@/components/shell/SyncControl.svelte'
 import Tabs from '@/components/shell/Tabs.svelte'
 import Toasts from '@/components/shell/Toasts.svelte'
 import TransactionTable from '@/components/transactions/TransactionTable.svelte'
@@ -78,6 +79,7 @@ onMount(() => {
         Finances
       </h1>
       <div class="flex items-center gap-1">
+        <SyncControl />
         <MobileNav {tabs} active={activeTab} onChange={navigate} />
       </div>
     </div>
@@ -98,7 +100,7 @@ onMount(() => {
       {:else if router.path === '/yearly'}
         <TrendsPage />
       {:else if router.path === '/history'}
-        <PageStub title="Actions" />
+        <AuditLogPanel />
       {:else}
         <TransactionTable />
       {/if}
