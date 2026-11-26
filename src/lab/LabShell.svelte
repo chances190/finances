@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { Snippet } from 'svelte'
 import LabIcon from './LabIcon.svelte'
+import LabLogo from './LabLogo.svelte'
 import type { IconName, LabScreen, LabSettings } from './types'
 
 interface Props {
@@ -10,17 +11,14 @@ interface Props {
 
 let { settings = $bindable(), children }: Props = $props()
 
-const items: {
-  key: LabScreen | 'budgets' | 'debts' | 'trends' | 'actions'
-  label: string
-  icon: IconName
-}[] = [
+const items: { key: LabScreen; label: string; icon: IconName }[] = [
   { key: 'transactions', label: 'Transactions', icon: 'transactions' },
   { key: 'budgets', label: 'Budgets', icon: 'budgets' },
   { key: 'debts', label: 'Debts', icon: 'debts' },
   { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { key: 'trends', label: 'Trends', icon: 'trends' },
-  { key: 'actions', label: 'Actions', icon: 'actions' },
+  { key: 'actions', label: 'History', icon: 'actions' },
+  { key: 'settings', label: 'Settings', icon: 'settings' },
 ]
 
 let sheetOpen = $state(false)
@@ -49,7 +47,7 @@ function select(key: (typeof items)[number]['key']) {
 <div class="lab-app">
   <header class="lab-header">
     <div class="flex min-w-0 items-center gap-2.5">
-      <img src={settings.theme === 'dark' ? '/icon-dark.svg' : '/icon.svg'} alt="" class="size-8">
+      <LabLogo class="size-8" />
       <div class="min-w-0">
         <div class="flex items-center gap-2">
           <span class="lab-brand-name">Finances</span>
@@ -73,15 +71,6 @@ function select(key: (typeof items)[number]['key']) {
         }}
       >
         <LabIcon name="menu" className="size-4" />
-      </button>
-      <button
-        type="button"
-        class="lab-icon-button {settings.screen === 'settings' ? 'is-active' : ''}"
-        aria-label="Settings"
-        aria-pressed={settings.screen === 'settings'}
-        onclick={() => (settings.screen = 'settings')}
-      >
-        <LabIcon name="settings" className="size-4" />
       </button>
     </div>
   </header>

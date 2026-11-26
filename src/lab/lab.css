@@ -427,14 +427,9 @@ body {
   color: var(--muted-foreground);
 }
 
-.lab-icon-button:hover,
-.lab-icon-button.is-active {
+.lab-icon-button:hover {
   background: var(--lab-hover);
   color: var(--foreground);
-}
-
-.lab-icon-button.is-active {
-  box-shadow: inset 0 0 0 1px var(--border);
 }
 
 .lab-nav {

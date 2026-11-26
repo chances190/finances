@@ -1,4 +1,5 @@
 <script lang="ts">
+import DataSettings from '@/components/common/DataSettings.svelte'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { cn } from '@/lib/utils'
 import type { Accent, InkAccent, LabSettings, LabTheme } from './types'
@@ -151,5 +152,13 @@ function setInk(value: InkAccent) {
         </div>
       </div>
     {/if}
+  </section>
+
+  <section class="panel space-y-3 p-4 sm:p-5">
+    <div>
+      <h3 class="text-sm font-semibold text-foreground">Data</h3>
+      <p class="text-xs text-muted-foreground">Back up or restore your ledger.</p>
+    </div>
+    <DataSettings />
   </section>
 </div>

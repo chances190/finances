@@ -117,7 +117,7 @@ onMount(() => {
     {:else if settings.screen === 'settings'}
       <LabSettingsScreen bind:settings />
     {:else}
-      <AuditLogPanel />
+      <AuditLogPanel heading="History" showAppearance={false} showData={false} />
     {/if}
   </LabShell>
 </div>

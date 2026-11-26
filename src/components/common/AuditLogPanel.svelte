@@ -3,20 +3,27 @@ import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon'
 import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon'
 import TrashIcon from 'phosphor-svelte/lib/TrashIcon'
 import ConfirmDialog from '@/components/common/ConfirmDialog.svelte'
-import ExportImport from '@/components/common/ExportImport.svelte'
+import DataSettings from '@/components/common/DataSettings.svelte'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { finance } from '@/lib/stores/finance.svelte'
 import { type ThemePreference, theme } from '@/lib/stores/theme.svelte'
 
+interface Props {
+  heading?: string
+  showAppearance?: boolean
+  showData?: boolean
+}
+
+let { heading = 'Actions', showAppearance = true, showData = true }: Props = $props()
+
 const financeState = $derived(finance.state)
-let showImport = $state(false)
 let showClearConfirm = $state(false)
 </script>
 
 <div>
   <div class="mb-2 flex items-center justify-between">
-    <h2 class="flex items-center gap-1 text-lg font-semibold text-foreground">Actions</h2>
+    <h2 class="flex items-center gap-1 text-lg font-semibold text-foreground">{heading}</h2>
     <div class="flex gap-2">
       <Button
         variant="ghost"
@@ -74,54 +81,31 @@ let showClearConfirm = $state(false)
     </div>
   {/if}
 
-  <div class="mt-6 space-y-3 border-t pt-4">
-    <h3 class="text-sm font-semibold text-foreground">Appearance</h3>
-    <div class="flex flex-wrap items-center gap-3">
-      <SegmentedControl
-        aria-label="Theme"
-        value={theme.preference}
-        onValueChange={(value) => theme.setPreference(value as ThemePreference)}
-        options={[
-          { value: 'system', label: 'System' },
-          { value: 'light', label: 'Light' },
-          { value: 'dark', label: 'Dark' },
-        ]}
-      />
-      <p class="text-xs text-muted-foreground">System follows your device’s appearance.</p>
-    </div>
-  </div>
-
-  <div class="mt-6 space-y-3 border-t pt-4">
-    <h3 class="text-sm font-semibold text-foreground">Data</h3>
-    <div>
-      <p class="mb-1 text-xs text-muted-foreground">Export</p>
-      <ExportImport />
-    </div>
-    <div>
-      <p class="mb-1 text-xs text-muted-foreground">Import</p>
-      <Button
-        variant="outline"
-        size="xs"
-        onclick={() => {
-          showImport = true
-        }}
-      >
-        Import Backup (.json)
-      </Button>
-    </div>
-    {#if showImport}
-      {#await import('@/components/common/ImportDialog.svelte') then module}
-        {@const ImportDialog = module.default}
-        <ImportDialog
-          open
-          onOpenChange={(value) => {
-            showImport = value
-          }}
-          mode="backup"
+  {#if showAppearance}
+    <div class="mt-6 space-y-3 border-t pt-4">
+      <h3 class="text-sm font-semibold text-foreground">Appearance</h3>
+      <div class="flex flex-wrap items-center gap-3">
+        <SegmentedControl
+          aria-label="Theme"
+          value={theme.preference}
+          onValueChange={(value) => theme.setPreference(value as ThemePreference)}
+          options={[
+            { value: 'system', label: 'System' },
+            { value: 'light', label: 'Light' },
+            { value: 'dark', label: 'Dark' },
+          ]}
         />
-      {/await}
-    {/if}
-  </div>
+        <p class="text-xs text-muted-foreground">System follows your device’s appearance.</p>
+      </div>
+    </div>
+  {/if}
+
+  {#if showData}
+    <div class="mt-6 space-y-3 border-t pt-4">
+      <h3 class="text-sm font-semibold text-foreground">Data</h3>
+      <DataSettings />
+    </div>
+  {/if}
 
   {#if showClearConfirm}
     <ConfirmDialog
