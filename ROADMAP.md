@@ -1,58 +1,52 @@
 # Repository Roadmap
 
-*Goal: a feature-complete single-user personal finance tracker — transactions, budgets, debts, dashboard, trends, CSV import/export, dark mode. Direction: full Svelte 5 UI port now (ADR-0015, React retired when parity lands), then Drive sync device verification, then skeleton loading, then advance-pay.*
+*Goal: a feature-complete single-user personal finance tracker — transactions, budgets, debts, dashboard, trends, CSV import/export and appearance settings. Direction: finish the accepted Glass + Clay design port and the Transactions ledger layout, then Drive sync device verification, skeleton loading and advance-pay.*
 
 ---
 
 ## Active Card
 > *There can only be ONE Active Card at a time. Finish or push to Next before opening another.*
 
-- **Svelte 5 port — foundation (opened 2026-11-24):** replace React 18 + wouter + Base UI with Svelte 5 runes on Vite 8, a tiny History-API router and shadcn-svelte (bits-ui) primitives, so every later port card is a page slice instead of infrastructure work (ADR-0015).
+- **Design system port — Glass + Clay foundation (opened 2026-11-26):** replace the Nova oklch palette and one-off accents with the accepted Glass + Clay system — Ink-first bases, ink accents, system theme, 4px radii and accent-tinted surfaces — then split History from Settings and delete the design lab (ADR-0016).
 
   **Intent:**
-  - Stand up the Svelte toolchain, app shell, finance/toast stores and the primitive layer behind the six existing routes.
-  - Framework swap only: `domain/`, `data/`, `lib/` and `functions/` stay byte-identical, and no test file changes.
+  - Make `src/index.css` the single token source for the production app: base colours, ink accents, Glass/Clay surfaces, chart tokens and shadows.
+  - Keep every existing flow and semantic colour; this is a visual and shell change, not a domain change.
 
   **Trade-offs / Risks:**
-  - A rewrite of ~9.4k lines of UI, not a codemod; the untouched domain/data suite is the only automated safety net. UI behavior is verified per page by checklist, not diff.
-  - Restyle is in scope (visual language only): shadcn-svelte component defaults replace the hand-tuned Nova class strings, so pixel parity is explicitly not a goal; layout and information architecture stay fixed.
-  - Biome's Svelte support is experimental. If `.svelte` formatting or linting proves unstable, fall back to Prettier + `prettier-plugin-svelte` for those files and record it in ADR-0015.
+  - Blur on surfaces is accepted, but it is a real mobile scroll cost: the 1,097-row ledger and Dashboard must be checked on the phone.
+  - Raw `AccentColor` is unsupported on Chrome Android/ChromeOS; a CSS `@supports` fallback to Ink mono keeps primary buttons valid. It also cannot read Plasma or Material palettes.
+  - Reusing `finances-theme` for an appearance blob resets the current theme preference by design; no migration shim.
 
   **Acceptance Criteria (DoD):**
-  - `package.json` drops `react`, `react-dom`, `wouter`, `@base-ui/react`, `recharts`, `@tanstack/react-virtual`, `@phosphor-icons/react`, `@types/react*`, `@vitejs/plugin-react`, `shadcn`; adds `svelte`, `@sveltejs/vite-plugin-svelte`, `bits-ui`, `phosphor-svelte`, `svelte-check` (Vite 8). `src/App.tsx` and `src/main.tsx` are gone; `index.html` mounts `src/main.ts`.
-  - `components.json` is rewritten for shadcn-svelte with `@/components/ui` aliases; `src/index.css` no longer imports `shadcn/tailwind.css`, and the oklch tokens, fonts and `@custom-variant dark` survive unchanged.
-  - `bun run typecheck` (svelte-check), `bunx biome check src/ functions/`, `bun test`, `bun run build` are green; `bun run dev` serves the shell.
-  - Shell renders header, desktop tabs and mobile nav; all six routes navigate, survive reload, and unknown paths fall back to Transactions; query params round-trip through the router.
-  - `FinanceStore` reproduces the reducer contract (movement add/update/delete/bulk-delete, budget upsert/delete, import, apply-remote, undo/redo with the 200-entry cap, idle save + `pagehide` flush); `git diff --stat main -- src/domain src/data src/lib functions` is empty and `bun test` count is unchanged.
-  - Toast store renders success/error/info with the existing 3s/6s lifetimes; Ctrl/Cmd+Z and Shift+Z still skip text inputs and interactive controls.
-  - Primitives live in `src/components/ui/*` (shadcn-svelte aliases configured): button, badge, input, textarea, label, checkbox, select, dialog, popover, table, segmented control, money input, input-group; pages import from there, never from bits-ui directly.
-  - `vite-plugin-pwa` still emits the manifest + service worker and `functions/api/google/token.ts` deploys unchanged.
-  - Lead Architect signs off the shell at 360×740 and desktop.
+  - `src/index.css` owns every token; no `--lab-*`, `data-lab-*` or `.lab-stage` lookups remain. `src/lab/`, `lab.html`, `lab-stage.html`, the `lab` script, `setResolvedThemeForLab` and `setFinancePersistence` are deleted.
+  - `<html>` carries `data-accent` and `data-ink-accent`; System is the default theme, reacts live to `prefers-color-scheme`, survives reload, and an old string value in `finances-theme` resets to system/ink/mono.
+  - Changing base or ink colour immediately repaints surfaces, chips, charts and the inline brand mark.
+  - Seven routes — Transactions, Budgets, Debts, Dashboard, Trends, History, Settings; `Tabs.svelte` is gone. Inline header nav at ≥1024px, drawer below; drawer focus trap and safe-area padding intact.
+  - `/settings` owns Theme, Base colour, Ink accent and Data; `/history` is the audit log only.
+  - Dialogs are bottom sheets below 640px with a `visualViewport` lift; the mobile nav stays a right drawer; selects/popovers stay undimmed and are not caught by the overlay.
+  - Income, expense, refund and debt status keep semantic red/green; badges stay neutral outlines.
+  - `bun run typecheck`, `bunx biome check src/ functions/`, `bun test` (225) and `bun run build` green; visual sign-off at 390/768/1280 × light/dark × four bases.
 
   **Out of Scope:**
-  - Any edit to `src/domain`, `src/data`, `src/lib`, `functions/`, storage keys, snapshot shape or test files.
-  - Page ports (Transactions, Debts, Budgets, Dashboard/Trends, sync, import/export) and their dependencies (`chart.js`, `svelte-chartjs`, `@tanstack/svelte-virtual`) — each lands with its page card.
-  - SvelteKit/SSR, dark mode, new features, layout redesign.
+  - The Transactions ledger layout rebuild (next card), sorting changes, new features, domain/data edits, icon migration beyond the nav, PWA manifest redesign.
 
 ---
 
 ## Next Cards
 > *Direction-only one-liners for future work in this milestone.*
 
-- **Svelte port — Transactions slice:** port `TransactionTable` (window virtualizer, month nav, filters, sort, search, bulk delete), `SmartTransactionInput`, `TransactionForm`, `SplitConfigModal` and the refund/settle dialogs; install `@tanstack/svelte-virtual`, then re-baseline the 4x-throttled 1,097-row trace on the Svelte build and sign off 360×740.
-- **Svelte port — Debts:** port `DebtPage` — receivables/payables lists, settle with received/forgiven, provenance and the single-split control.
-- **Svelte port — Budgets:** port `BudgetPage` + `BudgetFormDialog` — range CRUD with shrink/overlap confirm.
-- **Svelte port — Dashboard & Trends:** port stat cards, pace and the seven charts onto `chart.js` + `svelte-chartjs`; delete the recharts wrappers and the React-typed `chartTheme`.
-- **Svelte port — Sync, import/export & Actions:** port `SyncContext` to a rune store plus `SyncControl`, `ImportDialog` (CSV/OFX/JSON), backup/export and `AuditLogPanel`.
-- **Svelte port — parity close-out:** delete the remaining React sources and shims, re-check PWA + `wrangler pages deploy`, phone sign-off on every flow, flip ADR-0015 to Accepted and move ADR-0003/0005 to `superseded/`.
-- **Google Drive sync — device verification (parked 2026-11-23):** the code landed (`edbf643`, `f8241fa`, `513ef0e`; ADR-0012 Proposed) with the `appDataFolder` snapshot, refresh-token cookie, version guard and Pull/Push prompt. Only the phone + desktop round-trip sign-off remains; re-run after the port, before public release.
-- **Skeleton loading states for Dashboard:** Lightweight loading placeholders for `DashboardPage` (carried over from the old UI/UX plan, Commit 9 — never implemented). Re-target to the Svelte page when it lands.
-- **Advance-pay for credit installments:** Let the user pay the next N installments now and shift the remainder. Requires a `paidInstallments` marker in the model — a domain change, so it wants its own card and likely an ADR.
+- **Transactions ledger layout:** replace the table/cards with the accepted grouped ledger — date groups with daily totals, hybrid grid ≥900px, feed below, inspector rail ≥1100px and a detail panel/sheet. Restore every production affordance on top: row action menu and detail actions for edit, reimburse (with remaining amount), go-to-debt and delete (cascade + undo), smart-input suggestions, URL filters/search/month/type/category/payment/person/`movement`, `movementMonth()` and `paymentLabelOf()` semantics, and an empty state with a clear-filters action. Keep window virtualization over flattened header/row entries to protect the 1,097-row trace; drop sorting state and UI. The lab's hardcoded day/month in the rail must use real values.
+- **Google Drive sync — device verification (parked 2026-11-23):** the code landed (`edbf643`, `f8241fa`, `513ef0e`; ADR-0012 Proposed) with the `appDataFolder` snapshot, refresh-token cookie, version guard and Pull/Push prompt. Only the phone + desktop round-trip sign-off remains.
+- **Skeleton loading states for Dashboard:** lightweight placeholders for `DashboardPage`, carried over from the old UI/UX plan; re-target to the final page.
+- **Advance-pay for credit installments:** pay the next N installments now and shift the remainder; needs a `paidInstallments` marker in the model, so it wants its own card and probably an ADR.
 
 ---
 
 ## Done Cards
 > *Completed cards with objective outcomes.*
+
+- **Svelte 5 port — foundation (opened 2026-11-24, closed 2026-11-26):** React, wouter, Base UI and recharts were retired; the Svelte 5 runes shell, History-API router, finance/toast stores, shadcn-svelte primitives and every page slice (Transactions, Debts, Budgets, Dashboard/Trends, Sync/import/export/History) landed behind the existing domain/data core. `src/domain`, `src/data`, `src/lib` and `functions/` stayed contract-compatible; 225 tests green. Decisions live in ADR-0015.
 
 - **Pace-first ledger rewrite (Active Card, opened 2026-11-23, closed 2026-11-24):** replaced the stored `Transaction` model with `movements` + `postings`, the fixed account enum and an intent-first UI (ADR-0014). Landed as `c747a54` (domain core) → `0f83168` (snapshot validation + migration) → `b1df48e` (transactions replaced) → `50f49ab`, `b672b5c`, `42df4e5`, `6b837df` (task-first UI, debt provenance, credit-card fields, visual-viewport dialogs). Lead Architect verified add, refund, settle, payable and import on the phone and signed the card off. Decisions and non-goals live in ADR-0014.
 

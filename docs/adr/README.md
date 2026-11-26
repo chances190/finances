@@ -14,3 +14,4 @@
 | 0012 | [Google Drive Snapshot Sync](0012-google-drive-snapshot-sync.md) | Proposed | 2026-11-04 |
 | 0014 | [Pace-First Ledger Core](0014-pace-first-ledger-core.md) | Accepted | 2026-11-23 |
 | 0015 | [Svelte 5 UI Stack](0015-svelte-5-ui-stack.md) | Proposed | 2026-11-24 |
+| 0016 | [Glass + Clay Appearance Model](0016-glass-clay-appearance-model.md) | Proposed | 2026-11-26 |
