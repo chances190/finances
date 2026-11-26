@@ -1116,11 +1116,7 @@ body,
 }
 
 .lab-rail-net.is-positive {
-  color: #16815b;
-}
-
-.dark .lab-rail-net.is-positive {
-  color: #7ddbb4;
+  color: var(--lab-accent);
 }
 
 .lab-rail-net.is-negative {
@@ -1657,7 +1653,7 @@ body,
   border: 1px solid var(--border) !important;
   border-radius: 4px !important;
   background: color-mix(in srgb, var(--popover) 88%, transparent) !important;
-  box-shadow: 0 10px 26px rgb(0 0 0 / 24%) !important;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 16%) !important;
   backdrop-filter: blur(22px) saturate(1.12);
   -webkit-backdrop-filter: blur(22px) saturate(1.12);
 }
@@ -1665,7 +1661,7 @@ body,
 .lab-stage:not(.dark) [data-slot="select-content"],
 .lab-stage:not(.dark) [data-slot="popover-content"] {
   background: rgb(255 255 255 / 92%) !important;
-  box-shadow: 0 6px 18px rgb(35 65 80 / 9%) !important;
+  box-shadow: 0 2px 6px rgb(35 65 80 / 4%) !important;
 }
 
 @media (max-width: 639px) {
@@ -1837,4 +1833,35 @@ body,
   --chart-4: #a79bdc;
   --chart-5: #625768;
   --chart-6: #bcb1e8;
+}
+
+.lab-stage:not(.dark)[data-preset="glass"] {
+  --muted: color-mix(in oklab, var(--lab-accent) 12%, var(--card));
+  --secondary: color-mix(in oklab, var(--lab-accent) 9%, var(--card));
+  --accent: color-mix(in oklab, var(--lab-accent) 14%, var(--card));
+  --lab-hover: color-mix(in oklab, var(--lab-accent) 10%, var(--card));
+  --lab-selected: color-mix(in oklab, var(--lab-accent) 15%, var(--card));
+}
+
+.lab-stage:not(.dark)[data-preset="glass"] .panel,
+.lab-stage:not(.dark)[data-preset="glass"] .lab-quick-add,
+.lab-stage:not(.dark)[data-preset="glass"] .lab-rail-card,
+.lab-stage:not(.dark)[data-preset="glass"] .lab-search,
+.lab-stage:not(.dark)[data-preset="glass"] .lab-main .bg-card {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 88%),
+    0 5px 14px rgb(38 70 84 / 7%);
+}
+
+.lab-stage:not(.dark) [data-slot="dialog-content"],
+.lab-stage:not(.dark) .lab-sheet,
+.lab-stage:not(.dark) .lab-detail-panel {
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 95%) inset,
+    0 12px 30px rgb(35 65 80 / 12%) !important;
+}
+
+.lab-stage:not(.dark) [data-slot="select-content"],
+.lab-stage:not(.dark) [data-slot="popover-content"] {
+  box-shadow: 0 2px 6px rgb(35 65 80 / 4%) !important;
 }

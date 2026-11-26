@@ -113,7 +113,7 @@ function sign(value: number): string {
 }
 
 function totalClass(value: number): string {
-  return value > 0 ? 'text-green-600 dark:text-green-400' : ''
+  return value > 0 ? 'text-primary' : ''
 }
 </script>
 

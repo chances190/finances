@@ -22,7 +22,10 @@ let { options, value, onValueChange, class: className, 'aria-label': ariaLabel }
 <div
   role="radiogroup"
   aria-label={ariaLabel}
-  class={cn('inline-flex items-center gap-1 rounded-lg bg-muted p-1', className)}
+  class={cn(
+    'inline-flex items-center gap-1 rounded-lg border border-border/70 bg-muted p-1',
+    className,
+  )}
 >
   {#each options as option (option.value)}
     {@const selected = option.value === value}

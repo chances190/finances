@@ -2,6 +2,7 @@
 import { MediaQuery } from 'svelte/reactivity'
 import TransactionFilters from '@/components/transactions/TransactionFilters.svelte'
 import TransactionForm from '@/components/transactions/TransactionForm.svelte'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { localYMD } from '@/domain/calculations'
 import { allCategoryNames } from '@/domain/categories'
 import {
@@ -29,6 +30,7 @@ const categories = $derived(allCategoryNames(financeState.budgets, financeState.
 let localMovements = $state<Movement[]>([])
 let raw = $state('')
 let search = $state('')
+let view = $state<'spending' | 'activity'>('spending')
 let filterType = $state('all')
 let filterMonth = $state('all')
 let filterCategories = $state<string[]>([])
@@ -62,6 +64,9 @@ const combined = $derived([...localMovements, ...allMovements])
 
 const filtered = $derived.by(() => {
   let rows = combined
+  if (view === 'spending') {
+    rows = rows.filter((m) => m.kind === 'purchase' || m.kind === 'income' || m.kind === 'refund')
+  }
   if (filterType === 'Expense') {
     rows = rows.filter((m) => m.kind === 'purchase' || m.kind === 'refund')
   }
@@ -174,6 +179,11 @@ function updateFilterParam(key: string, value: string | string[] | null) {
   if (key === 'person') filterCounterparties = Array.isArray(value) ? value : []
 }
 
+function setView(next: 'spending' | 'activity') {
+  view = next
+  if (next === 'spending' && filterType === 'Other') filterType = 'all'
+}
+
 function clearFilters() {
   filterType = 'all'
   filterMonth = 'all'
@@ -184,98 +194,119 @@ function clearFilters() {
 }
 </script>
 
-<div class="lab-workspace">
-  <div class="lab-workspace-main space-y-4">
-    <div class="panel lab-quick-add p-3">
-      <form
-        class="flex min-w-0 items-center gap-2"
-        onsubmit={(event) => {
-          event.preventDefault()
-          addFromCommand()
-        }}
-      >
-        <button type="submit" class="lab-quick-add-icon" aria-label="Add from input">
-          <LabIcon name="plus" className="size-4" />
-        </button>
-        <input
-          bind:value={raw}
-          class="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-          placeholder="iFood 34,90 #Food @Debit hoje"
-          aria-label="Quick add"
-        >
-        <button
-          type="button"
-          class="lab-primary px-3 py-1.5 text-xs font-semibold"
-          onclick={openAdd}
-        >
-          Add
-        </button>
-      </form>
-      {#if raw.trim()}
-        <div class="lab-command-preview">
-          <span>{parsed.description || 'New transaction'}</span>
-          <span class="font-mono">{formatCurrency(parsed.amount ?? 0)}</span>
-          <span>{parsed.category ? `#${parsed.category}` : '#Other'}</span>
-          <span
-            >{parsed.paymentMethod ?? (parsed.kind === 'income' ? '@Transfer' : '@Debit/PIX')}</span
-          >
-          <span>{parsed.date ?? localYMD()}</span>
-          {#if parsed.error}
-            <span class="text-destructive">{parsed.error}</span>
-          {/if}
-        </div>
-      {/if}
-    </div>
-
-    <div class="lab-filter-bar">
-      <div class="lab-search">
-        <LabIcon name="search" className="size-4 text-muted-foreground" />
-        <input
-          bind:value={search}
-          placeholder="Search description..."
-          aria-label="Search lab ledger"
-        >
-      </div>
-      {#if filterWide.current}
-        <div class="lab-filter-inline">
-          <TransactionFilters
-            {filterType}
-            {filterMonth}
-            {filterCategories}
-            {filterPayments}
-            {filterCounterparties}
-            {months}
-            allCategories={categories}
-            allPaymentMethods={payments}
-            allCounterparties={people}
-            showOtherType
-            updateParam={updateFilterParam}
-          />
-        </div>
-        {#if activeFilters > 0}
-          <button type="button" class="lab-filter-clear" onclick={clearFilters}>Clear</button>
-        {/if}
-      {:else}
-        <button
-          type="button"
-          class="lab-secondary lab-filter-button"
-          onclick={() => (showFilterSheet = true)}
-        >
-          <LabIcon name="filter" className="size-3" />
-          Filters{activeFilters > 0 ? ` (${activeFilters})` : ''}
-        </button>
-      {/if}
-    </div>
-
-    <LabLedger
-      movements={filtered}
-      allMovements={combined}
-      selectedId={selected?.id ?? null}
-      onSelect={selectMovement}
+<div class="space-y-4">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <h2 class="text-lg font-semibold text-foreground">Transactions</h2>
+    <SegmentedControl
+      aria-label="Transaction view"
+      value={view}
+      onValueChange={(value) => setView(value as 'spending' | 'activity')}
+      options={[
+        { value: 'spending', label: 'Spending' },
+        { value: 'activity', label: 'All activity' },
+      ]}
     />
   </div>
 
-  <LabInspector {selected} movements={combined} budgets={financeState.budgets} onEdit={openEdit} />
+  <div class="lab-workspace">
+    <div class="lab-workspace-main space-y-4">
+      <div class="panel lab-quick-add p-3">
+        <form
+          class="flex min-w-0 items-center gap-2"
+          onsubmit={(event) => {
+            event.preventDefault()
+            addFromCommand()
+          }}
+        >
+          <button type="submit" class="lab-quick-add-icon" aria-label="Add from input">
+            <LabIcon name="plus" className="size-4" />
+          </button>
+          <input
+            bind:value={raw}
+            class="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            placeholder="iFood 34,90 #Food @Debit hoje"
+            aria-label="Quick add"
+          >
+          <button
+            type="button"
+            class="lab-primary px-3 py-1.5 text-xs font-semibold"
+            onclick={openAdd}
+          >
+            Add
+          </button>
+        </form>
+        {#if raw.trim()}
+          <div class="lab-command-preview">
+            <span>{parsed.description || 'New transaction'}</span>
+            <span class="font-mono">{formatCurrency(parsed.amount ?? 0)}</span>
+            <span>{parsed.category ? `#${parsed.category}` : '#Other'}</span>
+            <span
+              >{parsed.paymentMethod ??
+                (parsed.kind === 'income' ? '@Transfer' : '@Debit/PIX')}</span
+            >
+            <span>{parsed.date ?? localYMD()}</span>
+            {#if parsed.error}
+              <span class="text-destructive">{parsed.error}</span>
+            {/if}
+          </div>
+        {/if}
+      </div>
+
+      <div class="lab-filter-bar">
+        <div class="lab-search">
+          <LabIcon name="search" className="size-4 text-muted-foreground" />
+          <input
+            bind:value={search}
+            placeholder="Search description..."
+            aria-label="Search lab ledger"
+          >
+        </div>
+        {#if filterWide.current}
+          <div class="lab-filter-inline">
+            <TransactionFilters
+              {filterType}
+              {filterMonth}
+              {filterCategories}
+              {filterPayments}
+              {filterCounterparties}
+              {months}
+              allCategories={categories}
+              allPaymentMethods={payments}
+              allCounterparties={people}
+              showOtherType={view === 'activity'}
+              updateParam={updateFilterParam}
+            />
+          </div>
+          {#if activeFilters > 0}
+            <button type="button" class="lab-filter-clear" onclick={clearFilters}>Clear</button>
+          {/if}
+        {:else}
+          <button
+            type="button"
+            class="lab-secondary lab-filter-button"
+            onclick={() => (showFilterSheet = true)}
+          >
+            <LabIcon name="filter" className="size-3" />
+            Filters{activeFilters > 0 ? ` (${activeFilters})` : ''}
+          </button>
+        {/if}
+      </div>
+
+      <LabLedger
+        movements={filtered}
+        allMovements={combined}
+        selectedId={selected?.id ?? null}
+        onSelect={selectMovement}
+      />
+    </div>
+
+    <LabInspector
+      {selected}
+      movements={combined}
+      budgets={financeState.budgets}
+      onEdit={openEdit}
+    />
+  </div>
 </div>
 
 {#if showFilterSheet}
@@ -304,7 +335,7 @@ function clearFilters() {
           allCategories={categories}
           allPaymentMethods={payments}
           allCounterparties={people}
-          showOtherType
+          showOtherType={view === 'activity'}
           updateParam={updateFilterParam}
           wide
         />

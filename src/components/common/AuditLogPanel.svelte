@@ -1,7 +1,6 @@
 <script lang="ts">
 import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon'
 import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon'
-import ClockIcon from 'phosphor-svelte/lib/ClockIcon'
 import TrashIcon from 'phosphor-svelte/lib/TrashIcon'
 import ConfirmDialog from '@/components/common/ConfirmDialog.svelte'
 import ExportImport from '@/components/common/ExportImport.svelte'
@@ -17,9 +16,7 @@ let showClearConfirm = $state(false)
 
 <div>
   <div class="mb-2 flex items-center justify-between">
-    <h2 class="flex items-center gap-1 text-lg font-semibold text-foreground">
-      <ClockIcon /> Actions
-    </h2>
+    <h2 class="flex items-center gap-1 text-lg font-semibold text-foreground">Actions</h2>
     <div class="flex gap-2">
       <Button
         variant="ghost"
