@@ -1,7 +1,6 @@
 <script lang="ts">
 import PlusIcon from 'phosphor-svelte/lib/PlusIcon'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { localYMD } from '@/domain/calculations'
 import type { PaymentMethod } from '@/domain/ledger'
 import { formatPlainCurrency } from '@/lib/currency'
@@ -106,32 +105,26 @@ function handleKeydown(event: KeyboardEvent) {
 </script>
 
 <div class="relative">
-  {#if focused || raw.trim() !== ''}
-    <div
-      class="mb-0.5 flex flex-nowrap gap-x-3 overflow-x-auto bg-muted/50 px-2 py-1 text-[10px] whitespace-nowrap text-muted-foreground"
-    >
-      <span> Payment: <span class="font-medium">{parsed.paymentMethod ?? '—'}</span> </span>
-      <span>
-        Amount:{' '}
-        <span class="font-medium font-mono">
-          {parsed.amount !== null ? formatPlainCurrency(parsed.amount) : '—'}
-        </span>
-      </span>
-      <span> Description: <span class="font-medium">{parsed.description || '—'}</span> </span>
-      <span> Category: <span class="font-medium">{parsed.category || '—'}</span> </span>
-      <span> Date: <span class="font-medium">{parsed.date || '—'}</span> </span>
-    </div>
-  {/if}
-
   <form
-    class="flex items-stretch gap-2"
+    class="flex items-stretch gap-1.5"
     onsubmit={(event) => {
       event.preventDefault()
       submitOrAccept()
     }}
   >
-    <div class="relative flex-1">
-      <Input
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      class="size-10 shrink-0 sm:size-8"
+      onclick={attemptSubmit}
+      aria-label="Add transaction from input"
+    >
+      <PlusIcon class="size-4" />
+    </Button>
+
+    <div class="relative min-w-0 flex-1">
+      <input
         value={raw}
         oninput={(event) => {
           raw = event.currentTarget.value
@@ -149,19 +142,21 @@ function handleKeydown(event: KeyboardEvent) {
           dismissed = null
         }}
         enterkeyhint="go"
+        autocomplete="off"
+        spellcheck="false"
         placeholder="Description 25,90 #Food @Debit hoje"
-        class="h-10 text-xs font-mono sm:h-7"
+        class="h-10 min-w-0 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground sm:h-8"
         aria-label="Quick add transaction"
-      />
+      >
       {#if showSuggestions}
         <div
           bind:this={suggestionEl}
-          class="absolute z-50 top-full left-0 right-0 mt-1 max-h-40 overflow-y-auto rounded-lg border border-border bg-popover text-xs shadow-md"
+          class="floating-surface absolute top-full right-0 left-0 z-50 mt-1 max-h-40 overflow-y-auto text-xs"
         >
           {#each suggestions as suggestion, index (suggestion)}
             <button
               type="button"
-              class="flex min-h-10 w-full items-center px-2 py-2 text-left truncate hover:bg-muted sm:min-h-6 sm:py-1 {index ===
+              class="flex min-h-10 w-full items-center truncate px-2 py-1.5 text-left hover:bg-muted sm:min-h-7 {index ===
               activeIndex
                 ? 'bg-muted'
                 : ''}"
@@ -182,31 +177,48 @@ function handleKeydown(event: KeyboardEvent) {
       {/if}
     </div>
 
-    <div class="flex items-center gap-1">
-      <Button
-        type="button"
-        size="icon-xs"
-        class="size-10 sm:size-7"
-        onclick={attemptSubmit}
-        aria-label="Add transaction from input"
-      >
-        <PlusIcon />
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        size="xs"
-        class="h-10 text-xs sm:h-7"
-        onclick={onOpenModal}
-      >
-        Add
-      </Button>
-    </div>
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      class="h-10 shrink-0 text-xs sm:h-8"
+      onclick={onOpenModal}
+    >
+      Add
+    </Button>
     <button type="submit" class="sr-only" tabindex={-1} aria-label="Add transaction"></button>
   </form>
 
+  {#if focused || raw.trim() !== ''}
+    <div
+      class="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-border pt-2 text-[10px] text-muted-foreground"
+    >
+      <span
+        >Payment:
+        <span class="font-medium text-foreground">{parsed.paymentMethod ?? '—'}</span></span
+      >
+      <span>
+        Amount:
+        <span class="font-mono font-medium text-foreground">
+          {parsed.amount !== null ? formatPlainCurrency(parsed.amount) : '—'}
+        </span>
+      </span>
+      <span>
+        Description:
+        <span class="font-medium text-foreground">{parsed.description || '—'}</span>
+      </span>
+      <span
+        >Category: <span class="font-medium text-foreground">{parsed.category || '—'}</span></span
+      >
+      <span>Date: <span class="font-medium text-foreground">{parsed.date || '—'}</span></span>
+    </div>
+  {/if}
+
   {#if !showSuggestions && submitError}
-    <div class="mt-0.5 text-[10px] text-destructive bg-destructive/10 px-2 py-1">
+    <div
+      class="mt-1 rounded-[3px] bg-destructive/10 px-2 py-1 text-[10px] text-destructive"
+      role="alert"
+    >
       {submitError}
     </div>
   {/if}

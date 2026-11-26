@@ -478,6 +478,16 @@
     -webkit-backdrop-filter: none;
   }
 
+  .ledger-row:hover,
+  .ledger-row:focus-within {
+    background: var(--state-hover);
+  }
+
+  .ledger-row.is-selected {
+    background: var(--state-selected);
+    box-shadow: inset 3px 0 0 var(--brand);
+  }
+
   .app-header {
     background: var(--card);
     backdrop-filter: blur(18px);

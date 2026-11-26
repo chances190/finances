@@ -12,7 +12,7 @@ import NavIcon from '@/components/shell/NavIcon.svelte'
 import { navItems } from '@/components/shell/nav'
 import SyncControl from '@/components/shell/SyncControl.svelte'
 import Toasts from '@/components/shell/Toasts.svelte'
-import TransactionTable from '@/components/transactions/TransactionTable.svelte'
+import TransactionsPage from '@/components/transactions/TransactionsPage.svelte'
 import { initRouter, navigate, router } from '@/lib/router.svelte'
 import { initAppearance } from '@/lib/stores/appearance.svelte'
 import { finance, flushFinance, loadFinance } from '@/lib/stores/finance.svelte'
@@ -125,7 +125,7 @@ onMount(() => {
       {:else if router.path === '/settings'}
         <SettingsPage />
       {:else}
-        <TransactionTable />
+        <TransactionsPage />
       {/if}
 
       {#snippet failed(_error, reset)}

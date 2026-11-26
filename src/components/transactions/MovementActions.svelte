@@ -10,11 +10,12 @@ import { navigate } from '@/lib/router.svelte'
 
 interface Props {
   movement: Movement
+  label?: string
   onRefund: (movement: Movement) => void
   onDelete: (id: string) => void
 }
 
-let { movement, onRefund, onDelete }: Props = $props()
+let { movement, label = 'Transaction actions', onRefund, onDelete }: Props = $props()
 let open = $state(false)
 
 const hasDebt = $derived(
@@ -38,13 +39,7 @@ function goToDebt() {
 <Popover bind:open>
   <PopoverTrigger>
     {#snippet child({ props })}
-      <Button
-        variant="ghost"
-        size="icon"
-        class="size-10 shrink-0"
-        aria-label="Transaction actions"
-        {...props}
-      >
+      <Button variant="ghost" size="icon" class="size-10 shrink-0" aria-label={label} {...props}>
         <DotsThreeIcon class="size-4" />
       </Button>
     {/snippet}

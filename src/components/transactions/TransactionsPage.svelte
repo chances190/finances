@@ -1,17 +1,12 @@
 <script lang="ts">
 import FunnelIcon from 'phosphor-svelte/lib/FunnelIcon'
+import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon'
 import { MediaQuery } from 'svelte/reactivity'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
-import {
-  availableMonths,
-  compareMovements,
-  currentYM,
-  type MovementSortKey,
-} from '@/domain/calculations'
+import { currentYM } from '@/domain/calculations'
 import { allCategoryNames, categoryOptionsForMonth } from '@/domain/categories'
 import {
   accountForPaymentMethod,
@@ -27,30 +22,19 @@ import {
   outstandingMovements,
   PAYMENT_METHODS,
   type PaymentMethod,
-  paymentMethodOf,
 } from '@/domain/ledger'
 import { navigate, router } from '@/lib/router.svelte'
 import { finance } from '@/lib/stores/finance.svelte'
 import { toast } from '@/lib/stores/toast.svelte'
 import { toastUndo } from '@/lib/undo-toast'
-import DesktopMovementList from './DesktopMovementList.svelte'
-import MobileMovementList from './MobileMovementList.svelte'
+import MovementDetail from './MovementDetail.svelte'
+import MovementLedger from './MovementLedger.svelte'
 import { paymentLabelOf } from './movement-display'
 import RefundDialog from './RefundDialog.svelte'
 import SmartTransactionInput from './SmartTransactionInput.svelte'
 import TransactionFilters from './TransactionFilters.svelte'
 import TransactionForm from './TransactionForm.svelte'
-
-const SORT_OPTIONS: { value: string; label: string; compact: string }[] = [
-  { value: 'date:desc', label: 'Date: newest first', compact: 'Date ↓' },
-  { value: 'date:asc', label: 'Date: oldest first', compact: 'Date ↑' },
-  { value: 'amount:desc', label: 'Amount: high to low', compact: 'Amount ↓' },
-  { value: 'amount:asc', label: 'Amount: low to high', compact: 'Amount ↑' },
-  { value: 'description:asc', label: 'Description: A to Z', compact: 'Description ↑' },
-  { value: 'description:desc', label: 'Description: Z to A', compact: 'Description ↓' },
-  { value: 'category:asc', label: 'Category: A to Z', compact: 'Category ↑' },
-  { value: 'payment:asc', label: 'Payment: A to Z', compact: 'Payment ↑' },
-]
+import TransactionsRail from './TransactionsRail.svelte'
 
 function getParamList(params: URLSearchParams, key: string): string[] {
   const value = params.get(key)
@@ -58,14 +42,18 @@ function getParamList(params: URLSearchParams, key: string): string[] {
 }
 
 const financeState = $derived(finance.state)
-const isDesktop = new MediaQuery('(min-width: 640px)')
+const hybrid = new MediaQuery('(min-width: 900px)')
+const wideFilters = new MediaQuery('(min-width: 1040px)')
+const railVisible = new MediaQuery('(min-width: 1100px)')
 
-let sortKey = $state<string | null>(null)
-let sortDir = $state<'asc' | 'desc'>('desc')
 let editingMovement = $state<Movement | null>(null)
 let showEditForm = $state(false)
 let showAddForm = $state(false)
 let refundPurchase = $state<Movement | null>(null)
+let showFilters = $state(false)
+let selectedId = $state<string | null>(null)
+let detailOpen = $state(false)
+let deepLinked = $state(false)
 
 const searchParams = $derived(new URLSearchParams(router.search))
 const filterSearch = $derived(searchParams.get('search') ?? '')
@@ -101,6 +89,17 @@ $effect(() => {
   return () => clearTimeout(timer)
 })
 
+$effect(() => {
+  if (railVisible.current) detailOpen = false
+})
+
+$effect(() => {
+  if (deepLinked || !filterMovementId) return
+  selectedId = filterMovementId
+  if (!railVisible.current) detailOpen = true
+  deepLinked = true
+})
+
 function applyParams(next: URLSearchParams, replace = true) {
   const query = next.toString()
   navigate(query ? `${router.path}?${query}` : router.path, { replace })
@@ -120,7 +119,11 @@ function updateParam(key: string, value: string | string[] | null) {
   applyParams(next)
 }
 
-const months = $derived(availableMonths(financeState.movements))
+const months = $derived.by(() => {
+  const values = new Set<string>()
+  for (const movement of financeState.movements) values.add(movementMonth(movement))
+  return [...values].sort().reverse()
+})
 
 const knownDescriptions = $derived.by(() => {
   const descriptions = new Set<string>()
@@ -167,10 +170,7 @@ const debtRowsById = $derived.by(() => {
 
 const allPaymentMethods = $derived.by(() => {
   const labels = new Set<string>([...PAYMENT_METHODS, 'Someone else'])
-  for (const movement of financeState.movements) {
-    const method = paymentMethodOf(movement)
-    if (method) labels.add(method)
-  }
+  for (const movement of financeState.movements) labels.add(paymentLabelOf(movement))
   return Array.from(labels).sort()
 })
 
@@ -229,17 +229,6 @@ const filtered = $derived.by(() => {
       ),
     )
   }
-  if (sortKey === 'payment') {
-    movements = [...movements].sort(
-      (a, b) => paymentLabelOf(a).localeCompare(paymentLabelOf(b)) * (sortDir === 'asc' ? 1 : -1),
-    )
-  } else if (sortKey) {
-    movements = [...movements].sort((a, b) =>
-      compareMovements(a, b, sortKey as MovementSortKey, sortDir),
-    )
-  } else {
-    movements = [...movements].sort((a, b) => b.date.localeCompare(a.date))
-  }
   return movements
 })
 
@@ -252,18 +241,40 @@ const activeFilterCount = $derived(
     filterCounterparties.length,
 )
 
-function handleSort(key: string) {
-  if (sortKey === key) {
-    if (sortDir === 'desc') {
-      sortDir = 'asc'
-    } else {
-      sortKey = null
-      sortDir = 'desc'
-    }
-  } else {
-    sortKey = key
-    sortDir = 'desc'
-  }
+const hasFilters = $derived(activeFilterCount > 0 || filterSearch !== '')
+const selected = $derived(
+  selectedId ? (filtered.find((movement) => movement.id === selectedId) ?? null) : null,
+)
+const railMonth = $derived(filterMonth === 'all' ? currentYM() : filterMonth)
+const emptyMessage = $derived(
+  hasFilters
+    ? 'No transactions match'
+    : view === 'spending'
+      ? 'No spending transactions yet.'
+      : 'No activity yet.',
+)
+
+function clearFilters() {
+  applyParams(new URLSearchParams())
+}
+
+function selectMovement(movement: Movement) {
+  selectedId = movement.id
+  if (!railVisible.current) detailOpen = true
+}
+
+function openEdit(movement: Movement) {
+  detailOpen = false
+  editingMovement = movement
+  showEditForm = true
+}
+
+function goToDebt(movement: Movement) {
+  navigate(`/debts?movement=${movement.id}&settled=1`)
+}
+
+function openDebt(counterparty: string) {
+  navigate(`/debts?person=${encodeURIComponent(counterparty)}`)
 }
 
 function handleSmartAdd(row: {
@@ -318,17 +329,17 @@ function handleSmartAdd(row: {
 }
 
 function handleDelete(id: string) {
-  const selected = financeState.movements.find((movement) => movement.id === id)
-  if (!selected) return
+  const target = financeState.movements.find((movement) => movement.id === id)
+  if (!target) return
 
-  const ids = new Set([selected.id])
-  if (selected.kind === 'purchase') {
+  const ids = new Set([target.id])
+  if (target.kind === 'purchase') {
     const rootId =
-      selected.links?.find((linkedId) =>
+      target.links?.find((linkedId) =>
         financeState.movements.some(
           (movement) => movement.id === linkedId && movement.kind === 'purchase',
         ),
-      ) ?? selected.id
+      ) ?? target.id
     for (const movement of financeState.movements) {
       if (
         movement.kind === 'purchase' &&
@@ -347,31 +358,9 @@ function handleDelete(id: string) {
     auditId,
     'info',
   )
+  detailOpen = false
 }
-
-function handleRowOpen(movement: Movement) {
-  if (movement.kind !== 'purchase' && movement.kind !== 'income') return
-  editingMovement = movement
-  showEditForm = true
-}
-
-const emptyMessage = $derived(
-  view === 'spending' ? 'No spending transactions yet.' : 'No activity yet.',
-)
 </script>
-
-{#snippet clearAll()}
-  {#if activeFilterCount > 0 || filterSearch}
-    <Button
-      variant="ghost"
-      size="sm"
-      class="h-7 px-2 text-xs text-muted-foreground"
-      onclick={() => applyParams(new URLSearchParams())}
-    >
-      Clear all
-    </Button>
-  {/if}
-{/snippet}
 
 <div class="space-y-4">
   <div class="flex flex-wrap items-center justify-between gap-2">
@@ -387,139 +376,154 @@ const emptyMessage = $derived(
     />
   </div>
 
-  <SmartTransactionInput
-    onAdd={handleSmartAdd}
-    onOpenModal={() => {
-      showAddForm = true
-    }}
-    {knownDescriptions}
-    {categoriesForMonth}
-  />
+  <div class="grid items-start gap-4 min-[1100px]:grid-cols-[minmax(0,1fr)_300px]">
+    <div class="min-w-0 space-y-4">
+      <div class="panel p-3 transition-colors focus-within:border-ring">
+        <SmartTransactionInput
+          onAdd={handleSmartAdd}
+          onOpenModal={() => {
+            showAddForm = true
+          }}
+          {knownDescriptions}
+          {categoriesForMonth}
+        />
+      </div>
 
-  <div class="flex flex-wrap items-center gap-2">
-    <Input
-      placeholder="Search description..."
-      value={localSearch}
-      oninput={(event) => {
-        localSearch = event.currentTarget.value
-      }}
-      class="h-10 min-w-0 flex-1 text-xs sm:h-7 sm:w-44 sm:flex-none"
-      aria-label="Search transactions"
-    />
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="relative min-w-0 flex-1">
+          <MagnifyingGlassIcon
+            class="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            placeholder="Search description..."
+            value={localSearch}
+            oninput={(event) => {
+              localSearch = event.currentTarget.value
+            }}
+            class="h-10 pl-8 text-xs sm:h-7"
+            aria-label="Search transactions"
+          />
+        </div>
 
-    {#if !isDesktop.current}
-      <Select
-        type="single"
-        value={sortKey ? `${sortKey}:${sortDir}` : 'date:desc'}
-        onValueChange={(value) => {
-          if (!value) return
-          const [key, direction] = value.split(':')
-          sortKey = key === 'date' && direction === 'desc' ? null : key
-          sortDir = direction as 'asc' | 'desc'
-        }}
-      >
-        <SelectTrigger class="h-10 w-28 text-xs sm:h-7" aria-label="Sort transactions">
-          {SORT_OPTIONS.find(
-            (option) => option.value === (sortKey ? `${sortKey}:${sortDir}` : 'date:desc'),
-          )?.compact ?? 'Sort'}
-        </SelectTrigger>
-        <SelectContent>
-          {#each SORT_OPTIONS as option (option.value)}
-            <SelectItem value={option.value}>{option.label}</SelectItem>
-          {/each}
-        </SelectContent>
-      </Select>
-    {/if}
-
-    {#if isDesktop.current}
-      <TransactionFilters
-        {filterType}
-        {filterMonth}
-        {filterCategories}
-        {filterPayments}
-        {filterCounterparties}
-        {months}
-        {allCategories}
-        {allPaymentMethods}
-        {allCounterparties}
-        showOtherType={view === 'activity'}
-        {updateParam}
-      />
-    {:else}
-      <Popover>
-        <PopoverTrigger>
-          {#snippet child({ props })}
+        {#if wideFilters.current}
+          <TransactionFilters
+            {filterType}
+            {filterMonth}
+            {filterCategories}
+            {filterPayments}
+            {filterCounterparties}
+            {months}
+            {allCategories}
+            {allPaymentMethods}
+            {allCounterparties}
+            showOtherType={view === 'activity'}
+            {updateParam}
+          />
+          {#if hasFilters}
             <Button
-              variant="outline"
-              size="icon-sm"
-              class="size-10 sm:size-8 {activeFilterCount > 0
-                ? 'border-primary bg-muted text-foreground'
-                : ''}"
-              {...props}
+              variant="ghost"
+              size="sm"
+              class="h-7 px-2 text-xs text-muted-foreground"
+              onclick={clearFilters}
             >
-              <FunnelIcon class="size-3" />
-              <span class="sr-only">
-                {activeFilterCount > 0 ? `Filters, ${activeFilterCount} active` : 'Filters'}
-              </span>
+              Clear
             </Button>
-          {/snippet}
-        </PopoverTrigger>
-        <PopoverContent class="max-h-[70dvh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto p-3">
-          <div class="flex flex-col gap-3">
-            {@render clearAll()}
-            <TransactionFilters
-              {filterType}
-              {filterMonth}
-              {filterCategories}
-              {filterPayments}
-              {filterCounterparties}
-              {months}
-              {allCategories}
-              {allPaymentMethods}
-              {allCounterparties}
-              showOtherType={view === 'activity'}
-              {updateParam}
-              wide
-            />
-          </div>
-        </PopoverContent>
-      </Popover>
-    {/if}
+          {/if}
+        {:else}
+          <Button
+            variant="outline"
+            size="sm"
+            class="h-10 shrink-0 text-xs sm:h-7"
+            onclick={() => {
+              showFilters = true
+            }}
+          >
+            <FunnelIcon class="size-3" />
+            Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          </Button>
+        {/if}
+      </div>
 
-    {#if isDesktop.current}
-      {@render clearAll()}
-    {/if}
+      <MovementLedger
+        movements={filtered}
+        {debtRowsById}
+        {installmentsById}
+        selectedId={selected?.id ?? null}
+        hybrid={hybrid.current}
+        {emptyMessage}
+        onClear={hasFilters ? clearFilters : null}
+        onSelect={selectMovement}
+        onRefund={(movement) => {
+          refundPurchase = movement
+        }}
+        onDelete={handleDelete}
+      />
+    </div>
+
+    <TransactionsRail
+      movements={financeState.movements}
+      budgets={financeState.budgets}
+      {selected}
+      month={railMonth}
+      onEdit={openEdit}
+      onRefund={(movement) => {
+        refundPurchase = movement
+      }}
+      onDelete={handleDelete}
+      onGoToDebt={goToDebt}
+      onOpenDebt={openDebt}
+    />
   </div>
-
-  {#if isDesktop.current}
-    <DesktopMovementList
-      movements={filtered}
-      {debtRowsById}
-      {emptyMessage}
-      {installmentsById}
-      onOpen={handleRowOpen}
-      onRefund={(movement) => {
-        refundPurchase = movement
-      }}
-      onDelete={handleDelete}
-      onSort={handleSort}
-      {sortKey}
-      {sortDir}
-    />
-  {:else}
-    <MobileMovementList
-      movements={filtered}
-      {debtRowsById}
-      {emptyMessage}
-      {installmentsById}
-      onOpen={handleRowOpen}
-      onRefund={(movement) => {
-        refundPurchase = movement
-      }}
-      onDelete={handleDelete}
-    />
-  {/if}
 </div>
+
+{#if selected && detailOpen}
+  <Dialog bind:open={detailOpen}>
+    <DialogContent class="sm:max-w-sm">
+      <DialogHeader>
+        <DialogTitle>Entry details</DialogTitle>
+      </DialogHeader>
+      <MovementDetail
+        movement={selected}
+        allMovements={financeState.movements}
+        onEdit={openEdit}
+        onRefund={(movement) => {
+          refundPurchase = movement
+        }}
+        onDelete={handleDelete}
+        onGoToDebt={goToDebt}
+      />
+    </DialogContent>
+  </Dialog>
+{/if}
+
+{#if showFilters}
+  <Dialog bind:open={showFilters}>
+    <DialogContent class="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>Filters</DialogTitle>
+      </DialogHeader>
+      <div class="max-h-[60dvh] space-y-3 overflow-y-auto">
+        <TransactionFilters
+          {filterType}
+          {filterMonth}
+          {filterCategories}
+          {filterPayments}
+          {filterCounterparties}
+          {months}
+          {allCategories}
+          {allPaymentMethods}
+          {allCounterparties}
+          showOtherType={view === 'activity'}
+          {updateParam}
+          wide
+        />
+      </div>
+      <Button variant="outline" class="h-10 w-full" onclick={clearFilters}>
+        Clear all filters
+      </Button>
+    </DialogContent>
+  </Dialog>
+{/if}
 
 {#if showEditForm}
   <TransactionForm
