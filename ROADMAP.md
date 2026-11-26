@@ -1,42 +1,19 @@
 # Repository Roadmap
 
-*Goal: a feature-complete single-user personal finance tracker — transactions, budgets, debts, dashboard, trends, CSV import/export and appearance settings. Direction: finish the accepted Glass + Clay design port and the Transactions ledger layout, then Drive sync device verification, skeleton loading and advance-pay.*
+*Goal: a feature-complete single-user personal finance tracker — transactions, budgets, debts, dashboard, trends, CSV import/export and appearance settings. Direction: Drive sync device verification, skeleton loading and advance-pay.*
 
 ---
 
 ## Active Card
 > *There can only be ONE Active Card at a time. Finish or push to Next before opening another.*
 
-- **Design system port — Glass + Clay foundation (opened 2026-11-26):** replace the Nova oklch palette and one-off accents with the accepted Glass + Clay system — Ink-first bases, ink accents, system theme, 4px radii and accent-tinted surfaces — then split History from Settings and delete the design lab (ADR-0016).
-
-  **Intent:**
-  - Make `src/index.css` the single token source for the production app: base colours, ink accents, Glass/Clay surfaces, chart tokens and shadows.
-  - Keep every existing flow and semantic colour; this is a visual and shell change, not a domain change.
-
-  **Trade-offs / Risks:**
-  - Blur on surfaces is accepted, but it is a real mobile scroll cost: the 1,097-row ledger and Dashboard must be checked on the phone.
-  - Raw `AccentColor` is unsupported on Chrome Android/ChromeOS; a CSS `@supports` fallback to Ink mono keeps primary buttons valid. It also cannot read Plasma or Material palettes.
-  - Reusing `finances-theme` for an appearance blob resets the current theme preference by design; no migration shim.
-
-  **Acceptance Criteria (DoD):**
-  - `src/index.css` owns every token; no `--lab-*`, `data-lab-*` or `.lab-stage` lookups remain. `src/lab/`, `lab.html`, `lab-stage.html`, the `lab` script, `setResolvedThemeForLab` and `setFinancePersistence` are deleted.
-  - `<html>` carries `data-accent` and `data-ink-accent`; System is the default theme, reacts live to `prefers-color-scheme`, survives reload, and an old string value in `finances-theme` resets to system/ink/mono.
-  - Changing base or ink colour immediately repaints surfaces, chips, charts and the inline brand mark.
-  - Seven routes — Transactions, Budgets, Debts, Dashboard, Trends, History, Settings; `Tabs.svelte` is gone. Inline header nav at ≥1024px, drawer below; drawer focus trap and safe-area padding intact.
-  - `/settings` owns Theme, Base colour, Ink accent and Data; `/history` is the audit log only.
-  - Dialogs are bottom sheets below 640px with a `visualViewport` lift; the mobile nav stays a right drawer; selects/popovers stay undimmed and are not caught by the overlay.
-  - Income, expense, refund and debt status keep semantic red/green; badges stay neutral outlines.
-  - `bun run typecheck`, `bunx biome check src/ functions/`, `bun test` (225) and `bun run build` green; visual sign-off at 390/768/1280 × light/dark × four bases.
-
-  **Out of Scope:**
-  - The Transactions ledger layout rebuild (next card), sorting changes, new features, domain/data edits, icon migration beyond the nav, PWA manifest redesign.
+*None — the Glass + Clay port milestone closed 2026-11-26. Open the Drive sync verification card next.*
 
 ---
 
 ## Next Cards
 > *Direction-only one-liners for future work in this milestone.*
 
-- **Transactions ledger layout:** replace the table/cards with the accepted grouped ledger — date groups with daily totals, hybrid grid ≥900px, feed below, inspector rail ≥1100px and a detail panel/sheet. Restore every production affordance on top: row action menu and detail actions for edit, reimburse (with remaining amount), go-to-debt and delete (cascade + undo), smart-input suggestions, URL filters/search/month/type/category/payment/person/`movement`, `movementMonth()` and `paymentLabelOf()` semantics, and an empty state with a clear-filters action. Keep window virtualization over flattened header/row entries to protect the 1,097-row trace; drop sorting state and UI. The lab's hardcoded day/month in the rail must use real values.
 - **Google Drive sync — device verification (parked 2026-11-23):** the code landed (`edbf643`, `f8241fa`, `513ef0e`; ADR-0012 Proposed) with the `appDataFolder` snapshot, refresh-token cookie, version guard and Pull/Push prompt. Only the phone + desktop round-trip sign-off remains.
 - **Skeleton loading states for Dashboard:** lightweight placeholders for `DashboardPage`, carried over from the old UI/UX plan; re-target to the final page.
 - **Advance-pay for credit installments:** pay the next N installments now and shift the remainder; needs a `paidInstallments` marker in the model, so it wants its own card and probably an ADR.
@@ -45,6 +22,9 @@
 
 ## Done Cards
 > *Completed cards with objective outcomes.*
+
+- **Glass + Clay design port (opened/closed 2026-11-26):** replaced the Nova oklch palette with the accepted Glass + Clay system in `src/index.css` — 4px radius, Ink/Sage/Steel/Plum bases, nine ink accents, system theme, accent-derived surfaces, charts and soft shadows. A single `appearance` store keeps `{theme, accent, inkAccent}` in `finances-theme` (legacy values reset to system/ink/mono). Header nav with seven routes replaces the tab strip; `/settings` and `/history` are split; dialogs are bottom sheets on mobile with a `visualViewport` lift; selects/popovers stay undimmed. The design lab, `--lab-*` tokens and lab hooks are deleted. ADR-0016 Accepted. Gates: typecheck 0/0, Biome clean, 225 tests, build green.
+- **Transactions ledger layout (opened/closed 2026-11-26):** replaced the table/cards with the accepted grouped ledger: date headers with daily totals, hybrid grid ≥900px, feed below, inspector rail ≥1100px and a detail sheet below. Window virtualization runs over flattened header/row entries (1,200-row stress: ~25 DOM rows). Row menu and detail actions cover edit, reimburse, go-to-debt and delete (cascade + undo), the smart input is the panel command bar, and URL filters/search/month/type/category/payment/person/`movement` state is preserved with `movementMonth()` and `paymentLabelOf()` semantics. Sorting is removed per scope, the rail uses real month/day values, and every mutation toast is tappable to undo for mobile parity with Ctrl+Z.
 
 - **Svelte 5 port — foundation (opened 2026-11-24, closed 2026-11-26):** React, wouter, Base UI and recharts were retired; the Svelte 5 runes shell, History-API router, finance/toast stores, shadcn-svelte primitives and every page slice (Transactions, Debts, Budgets, Dashboard/Trends, Sync/import/export/History) landed behind the existing domain/data core. `src/domain`, `src/data`, `src/lib` and `functions/` stayed contract-compatible; 225 tests green. Decisions live in ADR-0015.
 

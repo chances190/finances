@@ -1,7 +1,7 @@
 ---
 id: 0016
 title: glass-clay-appearance-model
-status: Proposed
+status: Accepted
 date: 2026-11-26
 supersedes: []
 superseded_by: null
@@ -20,7 +20,7 @@ The design lab settled on one visual language and the Lead Architect accepted it
 * System theme is the default and resolves through `prefers-color-scheme`. The `system` ink accent maps to CSS `AccentColor`/`AccentColorText` behind `@supports`; unsupported platforms fall back to Ink mono in CSS, not JavaScript.
 * One appearance blob lives in the existing `finances-theme` key: `{ theme, accent, inkAccent }`. Invalid or legacy values reset to system/ink/mono; no migration shim.
 * Semantic red/green for income, expense, refunds and debt status are independent of the accent. Chart tokens follow the accent except income/expense.
-* The production app is the only token source. The lab is deleted once the port is signed off; git history and the recorded screenshots are the reference.
+* The production app is the only token source. The design lab has been deleted; git history and the recorded screenshots are the reference.
 
 ## Consequences
 
