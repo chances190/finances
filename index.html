@@ -27,9 +27,11 @@
         'orange',
       ]
       const pick = (value, allowed, fallback) => (allowed.includes(value) ? value : fallback)
-      const raw = localStorage.getItem('finances-theme')
-      const parsed = raw ? JSON.parse(raw) : null
-      const saved = parsed && typeof parsed === 'object' ? parsed : {}
+      let saved = {}
+      try {
+        const parsed = JSON.parse(localStorage.getItem('finances-theme') ?? '')
+        if (parsed && typeof parsed === 'object') saved = parsed
+      } catch {}
       const theme = pick(saved.theme, themes, 'system')
       const dark =
         theme === 'dark' ||

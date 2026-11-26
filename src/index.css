@@ -299,6 +299,14 @@
   --brand: #262b30;
 }
 
+.dark[data-accent="ink"][data-ink-accent="system"] {
+  --primary: #e6ecef;
+  --primary-foreground: #1a2024;
+  --ring: #c9d6dd;
+  --brand: #c9d6dd;
+}
+
+/* AccentColor is missing on Chrome Android/ChromeOS; the blocks above are the fallback. */
 @supports (color: AccentColor) {
   [data-accent="ink"][data-ink-accent="system"] {
     --primary: AccentColor;
@@ -434,6 +442,7 @@
 
   html {
     @apply font-sans;
+    background-color: var(--background);
   }
 
   body {
@@ -543,6 +552,7 @@
 }
 
 @layer utilities {
+  /* Scoped field skin: utilities outrank the form primitives' own background and border utilities. */
   .dialog-surface
     :is(input, textarea, [data-slot="select-trigger"]):not([type="checkbox"], [type="radio"]) {
     min-height: 38px;
