@@ -3,19 +3,14 @@ import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon'
 import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon'
 import TrashIcon from 'phosphor-svelte/lib/TrashIcon'
 import ConfirmDialog from '@/components/common/ConfirmDialog.svelte'
-import DataSettings from '@/components/common/DataSettings.svelte'
 import { Button } from '@/components/ui/button'
-import { SegmentedControl } from '@/components/ui/segmented-control'
 import { finance } from '@/lib/stores/finance.svelte'
-import { type ThemePreference, theme } from '@/lib/stores/theme.svelte'
 
 interface Props {
   heading?: string
-  showAppearance?: boolean
-  showData?: boolean
 }
 
-let { heading = 'Actions', showAppearance = true, showData = true }: Props = $props()
+let { heading = 'History' }: Props = $props()
 
 const financeState = $derived(finance.state)
 let showClearConfirm = $state(false)
@@ -78,32 +73,6 @@ let showClearConfirm = $state(false)
           </Button>
         </div>
       {/each}
-    </div>
-  {/if}
-
-  {#if showAppearance}
-    <div class="mt-6 space-y-3 border-t pt-4">
-      <h3 class="text-sm font-semibold text-foreground">Appearance</h3>
-      <div class="flex flex-wrap items-center gap-3">
-        <SegmentedControl
-          aria-label="Theme"
-          value={theme.preference}
-          onValueChange={(value) => theme.setPreference(value as ThemePreference)}
-          options={[
-            { value: 'system', label: 'System' },
-            { value: 'light', label: 'Light' },
-            { value: 'dark', label: 'Dark' },
-          ]}
-        />
-        <p class="text-xs text-muted-foreground">System follows your device’s appearance.</p>
-      </div>
-    </div>
-  {/if}
-
-  {#if showData}
-    <div class="mt-6 space-y-3 border-t pt-4">
-      <h3 class="text-sm font-semibold text-foreground">Data</h3>
-      <DataSettings />
     </div>
   {/if}
 

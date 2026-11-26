@@ -6,8 +6,8 @@ import AuditLogPanel from '@/components/common/AuditLogPanel.svelte'
 import DashboardPage from '@/components/dashboard/DashboardPage.svelte'
 import TrendsPage from '@/components/dashboard/TrendsPage.svelte'
 import DebtPage from '@/components/debts/DebtPage.svelte'
+import { setPreviewTheme } from '@/lib/stores/appearance.svelte'
 import { finance } from '@/lib/stores/finance.svelte'
-import { setResolvedThemeForLab } from '@/lib/stores/theme.svelte'
 import { richFixture, stressFixture } from './fixture'
 import LabSettingsScreen from './LabSettingsScreen.svelte'
 import LabShell from './LabShell.svelte'
@@ -80,8 +80,8 @@ $effect(() => {
 })
 
 $effect(() => {
-  setResolvedThemeForLab(resolvedTheme)
-  return () => setResolvedThemeForLab(null)
+  setPreviewTheme(resolvedTheme)
+  return () => setPreviewTheme(null)
 })
 
 $effect(() => {
@@ -123,7 +123,7 @@ onMount(() => {
     {:else if settings.screen === 'settings'}
       <LabSettingsScreen bind:settings />
     {:else}
-      <AuditLogPanel heading="History" showAppearance={false} showData={false} />
+      <AuditLogPanel heading="History" />
     {/if}
   </LabShell>
 </div>

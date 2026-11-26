@@ -1,28 +1,51 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-accent="ink" data-ink-accent="mono">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#ffffff" />
-    <meta name="description" content="Personal finance tracker" />
-    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Finances" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#f0f2f3">
+    <meta name="description" content="Personal finance tracker">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Finances">
     <title>Finances</title>
     <script>
-      try {
-        const stored = localStorage.getItem('finances-theme')
-        const dark =
-          stored === 'dark' ||
-          ((!stored || stored === 'system') &&
-            window.matchMedia('(prefers-color-scheme: dark)').matches)
-        document.documentElement.classList.toggle('dark', dark)
-        document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
-        document.querySelector('link[rel="icon"]')?.setAttribute('href', dark ? '/icon-dark.svg' : '/icon.svg')
-        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#262a32' : '#ffffff')
-      } catch {}
+    try {
+      const themes = ['system', 'light', 'dark']
+      const accents = ['ink', 'sage', 'steel', 'plum']
+      const inkAccents = [
+        'mono',
+        'system',
+        'yellow',
+        'green',
+        'red',
+        'pink',
+        'blue',
+        'purple',
+        'orange',
+      ]
+      const pick = (value, allowed, fallback) => (allowed.includes(value) ? value : fallback)
+      const raw = localStorage.getItem('finances-theme')
+      const parsed = raw ? JSON.parse(raw) : null
+      const saved = parsed && typeof parsed === 'object' ? parsed : {}
+      const theme = pick(saved.theme, themes, 'system')
+      const dark =
+        theme === 'dark' ||
+        (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      const root = document.documentElement
+      root.classList.toggle('dark', dark)
+      root.style.colorScheme = dark ? 'dark' : 'light'
+      root.dataset.accent = pick(saved.accent, accents, 'ink')
+      root.dataset.inkAccent = pick(saved.inkAccent, inkAccents, 'mono')
+      document
+        .querySelector('link[rel="icon"]')
+        ?.setAttribute('href', dark ? '/icon-dark.svg' : '/icon.svg')
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.setAttribute('content', dark ? '#1e2427' : '#f0f2f3')
+    } catch {}
     </script>
   </head>
   <body class="antialiased">

@@ -175,7 +175,7 @@ function handleSave() {
 </script>
 
 <Dialog open {onOpenChange}>
-  <DialogContent class="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
+  <DialogContent class="sm:max-h-[calc(100dvh-2rem)] sm:overflow-y-auto sm:max-w-lg">
     <DialogHeader>
       <DialogTitle>
         {#if editingMonth}

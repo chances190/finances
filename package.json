@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@hugeicons/core-free-icons": "^4.4.0",
+    "@hugeicons/svelte": "^1.1.5",
     "@fontsource-variable/manrope": "^5.3.0",
     "@tanstack/svelte-virtual": "^3.13.54",
     "bits-ui": "^2.22.0",
@@ -32,8 +34,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.9",
-    "@hugeicons/core-free-icons": "^4.4.0",
-    "@hugeicons/svelte": "^1.1.5",
     "@internationalized/date": "^3.12.4",
     "@sveltejs/vite-plugin-svelte": "^7.3.2",
     "@tailwindcss/vite": "^4.3.5",

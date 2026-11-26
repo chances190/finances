@@ -304,7 +304,7 @@ const matched = $derived(
 
 <Dialog {open} {onOpenChange}>
   <DialogContent
-    class="grid max-h-[calc(100svh-2rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-2xl"
+    class="grid grid-rows-[auto_minmax(0,1fr)] sm:max-h-[calc(100svh-2rem)] sm:overflow-hidden sm:max-w-2xl"
   >
     <DialogHeader>
       <DialogTitle>{mode === 'transactions' ? 'Import transactions' : 'Import backup'}</DialogTitle>

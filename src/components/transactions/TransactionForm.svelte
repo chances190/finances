@@ -287,7 +287,7 @@ function commit(movements: Movement[]) {
 </script>
 
 <Dialog {open} {onOpenChange}>
-  <DialogContent class="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
+  <DialogContent class="sm:max-h-[calc(100dvh-2rem)] sm:overflow-y-auto sm:max-w-md">
     <DialogHeader>
       <DialogTitle>
         {isGroupedInstallment

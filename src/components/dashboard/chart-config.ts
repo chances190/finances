@@ -19,7 +19,7 @@ import type { FutureCommitment, SpendingPaceResult } from '@/domain/calculations
 import { CATEGORY_COLORS, CHART_COLORS } from '@/domain/constants'
 import { type DisplayPaymentMethod, PAYMENT_METHOD_COLORS } from '@/domain/ledger'
 import { formatAxisCurrency, formatCurrency } from '@/lib/currency'
-import { theme } from '@/lib/stores/theme.svelte'
+import { type Accent, appearance, type InkAccent } from '@/lib/stores/appearance.svelte'
 
 ChartJS.register(
   CategoryScale,
@@ -38,6 +38,8 @@ ChartJS.register(
 
 export interface ChartPalette {
   dark: boolean
+  accent: Accent
+  inkAccent: InkAccent
   border: string
   grid: string
   muted: string
@@ -84,14 +86,17 @@ function readVar(style: CSSStyleDeclaration, name: string, fallback: string): st
 }
 
 export function chartPalette(): ChartPalette {
-  const dark = theme.resolved === 'dark'
-  const root = document.querySelector('.lab-stage') ?? document.documentElement
-  const style = getComputedStyle(root)
+  const accent = appearance.accent
+  const inkAccent = appearance.inkAccent
+  const dark = appearance.resolved === 'dark'
+  const style = getComputedStyle(document.documentElement)
   const read = (name: string, fallback: string) => readVar(style, name, fallback)
   const chart = (index: number, fallback: string) => read(`--chart-${index}`, fallback)
   const series = dark ? SERIES_DARK : CHART_COLORS
   return {
     dark,
+    accent,
+    inkAccent,
     border: read('--border', dark ? 'rgba(255, 255, 255, 0.12)' : '#e5e7eb'),
     grid: read('--chart-grid', dark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(30, 60, 60, 0.08)'),
     muted: read('--muted-foreground', dark ? '#b6c8c1' : '#5f6d68'),
