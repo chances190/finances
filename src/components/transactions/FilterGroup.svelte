@@ -18,11 +18,11 @@ let { idPrefix, label, options, selected, count, onToggle, wide }: Props = $prop
 </script>
 
 {#snippet list()}
-  <div class="space-y-1">
+  <div class="space-y-0.5">
     {#each options as option (option.value)}
       <label
         for={`${idPrefix}-${option.value}`}
-        class="flex min-h-10 cursor-pointer items-center gap-2 py-1"
+        class="flex min-h-8 cursor-pointer items-center gap-2 py-0.5"
       >
         <Checkbox
           id={`${idPrefix}-${option.value}`}
@@ -48,8 +48,8 @@ let { idPrefix, label, options, selected, count, onToggle, wide }: Props = $prop
           aria-pressed={selectedOption}
           onclick={() => onToggle(option.value, !selectedOption)}
           class={selectedOption
-            ? 'rounded-md border border-primary bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground'
-            : 'rounded-md border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground'}
+            ? 'rounded-md border border-primary bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground'
+            : 'rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground'}
         >
           {option.label}
         </button>

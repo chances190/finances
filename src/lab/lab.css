@@ -1466,14 +1466,14 @@ body,
   gap: 4px;
   height: 32px;
   padding: 0 10px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .lab-filter-clear {
   flex: 0 0 auto;
   color: var(--muted-foreground);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -1657,7 +1657,7 @@ body,
   border: 1px solid var(--border) !important;
   border-radius: 4px !important;
   background: color-mix(in srgb, var(--popover) 88%, transparent) !important;
-  box-shadow: 0 18px 46px rgb(0 0 0 / 28%) !important;
+  box-shadow: 0 10px 26px rgb(0 0 0 / 24%) !important;
   backdrop-filter: blur(22px) saturate(1.12);
   -webkit-backdrop-filter: blur(22px) saturate(1.12);
 }
@@ -1665,7 +1665,7 @@ body,
 .lab-stage:not(.dark) [data-slot="select-content"],
 .lab-stage:not(.dark) [data-slot="popover-content"] {
   background: rgb(255 255 255 / 92%) !important;
-  box-shadow: 0 16px 38px rgb(35 65 80 / 16%) !important;
+  box-shadow: 0 6px 18px rgb(35 65 80 / 9%) !important;
 }
 
 @media (max-width: 639px) {
