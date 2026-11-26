@@ -1,7 +1,7 @@
 ---
 id: 0015
 title: svelte-5-ui-stack
-status: Proposed
+status: Accepted
 date: 2026-11-24
 supersedes: [0003, 0005]
 superseded_by: null

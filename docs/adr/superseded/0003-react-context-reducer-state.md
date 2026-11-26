@@ -1,10 +1,10 @@
 ---
 id: 0003
 title: react-context-reducer-state
-status: Accepted
+status: Superseded
 date: 2026-08-06
 supersedes: []
-superseded_by: null
+superseded_by: 0015
 ---
 
 # 0003. React Context + useReducer State Management

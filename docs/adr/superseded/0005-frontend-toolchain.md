@@ -1,10 +1,10 @@
 ---
 id: 0005
 title: frontend-toolchain
-status: Accepted
+status: Superseded
 date: 2026-08-06
 supersedes: []
-superseded_by: null
+superseded_by: 0015
 ---
 
 # 0005. Frontend Toolchain (bun + Vite + Tailwind v4 + shadcn/ui)
