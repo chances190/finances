@@ -36,11 +36,25 @@ let { idPrefix, label, options, selected, count, onToggle, wide }: Props = $prop
 {/snippet}
 
 {#if wide}
-  <div>
-    <p class="mb-1 text-xs text-muted-foreground">
+  <div class="w-full space-y-1.5">
+    <p class="text-xs text-muted-foreground">
       {label}{count > 0 ? ` (${count})` : ''}
     </p>
-    {@render list()}
+    <div class="flex flex-wrap gap-1.5">
+      {#each options as option (option.value)}
+        {@const selectedOption = selected.includes(option.value)}
+        <button
+          type="button"
+          aria-pressed={selectedOption}
+          onclick={() => onToggle(option.value, !selectedOption)}
+          class={selectedOption
+            ? 'rounded-md border border-primary bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground'
+            : 'rounded-md border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground'}
+        >
+          {option.label}
+        </button>
+      {/each}
+    </div>
   </div>
 {:else}
   <Popover>

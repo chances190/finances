@@ -1834,15 +1834,3 @@ body,
   --chart-5: #625768;
   --chart-6: #bcb1e8;
 }
-
-body:has([data-slot="select-content"])::after,
-body:has([data-slot="popover-content"])::after {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: rgb(3 9 11 / 22%);
-  content: "";
-  pointer-events: none;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}

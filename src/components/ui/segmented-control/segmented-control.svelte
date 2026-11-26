@@ -34,7 +34,7 @@ let { options, value, onValueChange, class: className, 'aria-label': ariaLabel }
       class={cn(
         'flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors sm:min-h-6',
         selected
-          ? 'bg-background text-foreground shadow-sm'
+          ? 'bg-primary text-primary-foreground shadow-sm'
           : 'text-muted-foreground hover:text-foreground',
       )}
     >
