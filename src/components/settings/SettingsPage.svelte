@@ -74,7 +74,7 @@ function setInk(value: InkAccent) {
 <div class="space-y-4">
   <div>
     <h2 class="text-lg font-semibold text-foreground">Settings</h2>
-    <p class="text-xs text-muted-foreground">Appearance and data</p>
+    <p class="text-xs text-muted-foreground">Appearance and colour</p>
   </div>
 
   <section class="panel space-y-5 p-4 sm:p-5">

@@ -8,9 +8,9 @@ import {
   paymentLabelOf,
 } from '@/components/transactions/movement-display'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   categoryOf,
+  expenseAmount,
   installmentInfo,
   type Movement,
   outstandingMovements,
@@ -52,6 +52,7 @@ const hasDebt = $derived(
       (posting) => posting.account === 'receivable' || posting.account === 'payable',
     ),
 )
+const amount = $derived(movement.kind === 'purchase' ? expenseAmount(movement) : amountOf(movement))
 
 function formatDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', {
@@ -64,12 +65,10 @@ function formatDate(date: string): string {
 </script>
 
 <div>
-  <div class="flex items-start justify-between gap-2">
+  <div class="tx-entry-detail-head">
     <div class="min-w-0">
-      <div class="font-mono text-2xl font-bold tracking-tight {amountClass(movement)}">
-        {movement.kind === 'income' || movement.kind === 'refund' ? '+' : ''}{formatCurrency(
-          amountOf(movement),
-        )}
+      <div class="tx-entry-detail-amount {amountClass(movement)}">
+        {movement.kind === 'income' ? '+' : ''}{formatCurrency(amount)}
       </div>
       <p class="mt-1 text-sm font-semibold">{movement.description}</p>
     </div>
@@ -78,72 +77,67 @@ function formatDate(date: string): string {
     {/if}
   </div>
 
-  <div class="mt-3 space-y-1.5 border-t border-border pt-2 text-[11px]">
-    <div class="flex items-center justify-between gap-3">
-      <span class="text-muted-foreground">Date</span>
-      <span class="text-right font-medium">{formatDate(movement.date)}</span>
-    </div>
-    <div class="flex items-center justify-between gap-3">
-      <span class="text-muted-foreground">Payment</span>
-      <span class="text-right font-medium">{paymentLabelOf(movement)}</span>
-    </div>
-    <div class="flex items-center justify-between gap-3">
-      <span class="text-muted-foreground">Category</span>
-      <span class="text-right font-medium">{category ?? '—'}</span>
-    </div>
+  <div class="tx-entry-kv">
+    <div><span>Date</span><strong>{formatDate(movement.date)}</strong></div>
+    <div><span>Payment</span><strong>{paymentLabelOf(movement)}</strong></div>
+    <div><span>Category</span><strong>{category ?? '—'}</strong></div>
     {#if installment}
-      <div class="flex items-center justify-between gap-3">
-        <span class="text-muted-foreground">Installment</span>
-        <span class="text-right font-medium"> {installment.index + 1} of {installment.total} </span>
+      <div>
+        <span>Installment</span>
+        <strong>{installment.index + 1} of {installment.total}</strong>
       </div>
     {/if}
     {#if counterparties.length > 0}
-      <div class="flex items-center justify-between gap-3">
-        <span class="text-muted-foreground">Person</span>
-        <span class="text-right font-medium">{counterparties.join(', ')}</span>
-      </div>
+      <div><span>Person</span><strong>{counterparties.join(', ')}</strong></div>
     {/if}
-    <div class="flex items-center justify-between gap-3">
-      <span class="text-muted-foreground">Debt</span>
+    <div>
+      <span>Debt</span>
       {#if debtRows.length > 0}
         <DebtStatusBadge rows={debtRows} />
       {:else}
-        <span class="text-right font-medium">—</span>
+        <strong>—</strong>
       {/if}
     </div>
   </div>
 
   {#if detail}
-    <p
-      class="mt-2 rounded-[3px] bg-muted px-2 py-1.5 text-[10px] leading-relaxed text-muted-foreground"
-    >
-      {detail}
-    </p>
+    <p class="tx-entry-detail-note">{detail}</p>
   {/if}
 
-  <div class="mt-3 flex flex-wrap gap-2">
+  <div class="mt-3 grid grid-cols-2 gap-2">
     {#if canEdit}
-      <Button variant="outline" size="sm" class="h-10 flex-1" onclick={() => onEdit(movement)}>
+      <button
+        type="button"
+        class="tx-secondary py-2 text-xs font-semibold"
+        onclick={() => onEdit(movement)}
+      >
         Edit
-      </Button>
+      </button>
     {/if}
     {#if refundable > 0.004}
-      <Button variant="outline" size="sm" class="h-10 flex-1" onclick={() => onRefund(movement)}>
+      <button
+        type="button"
+        class="tx-secondary py-2 text-xs font-semibold"
+        onclick={() => onRefund(movement)}
+      >
         Reimbursed
-      </Button>
+      </button>
     {/if}
     {#if hasDebt}
-      <Button variant="outline" size="sm" class="h-10 flex-1" onclick={() => onGoToDebt(movement)}>
+      <button
+        type="button"
+        class="tx-secondary py-2 text-xs font-semibold"
+        onclick={() => onGoToDebt(movement)}
+      >
         Go to debt
-      </Button>
+      </button>
     {/if}
-    <Button
-      variant="destructive"
-      size="sm"
-      class="h-10 flex-1"
+    <button
+      type="button"
+      class="tx-secondary py-2 text-xs font-semibold text-destructive"
       onclick={() => onDelete(movement.id)}
     >
       Delete
-    </Button>
+    </button>
   </div>
 </div>

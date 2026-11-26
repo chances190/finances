@@ -19,6 +19,11 @@ import { finance, flushFinance, loadFinance } from '@/lib/stores/finance.svelte'
 import { toast } from '@/lib/stores/toast.svelte'
 import { initViewport } from '@/lib/viewport'
 
+const monthLabel = new Date().toLocaleDateString('en-GB', {
+  month: 'long',
+  year: 'numeric',
+})
+
 const activePath = $derived(
   navItems.find((item) => item.path === router.path)?.path ?? navItems[0].path,
 )
@@ -75,20 +80,28 @@ onMount(() => {
 
 <div class="min-h-dvh">
   <header class="app-header sticky top-0 z-40 border-b border-border pt-[env(safe-area-inset-top)]">
-    <div class="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
+    <div
+      class="mx-auto flex max-w-7xl items-center justify-between gap-3.5 px-4 py-3 max-md:gap-3 max-md:px-3 max-md:py-2.5"
+    >
       <a
         href="/"
-        class="flex items-center gap-2 text-base font-heading font-bold"
+        class="flex min-w-0 items-center gap-2.5"
         onclick={(event) => {
           event.preventDefault()
           navigate('/')
         }}
       >
-        <BrandMark class="size-7" />
-        Finances
+        <BrandMark class="size-8 shrink-0" />
+        <span class="min-w-0">
+          <span class="flex items-center gap-2">
+            <span class="brand-name">Finances</span>
+            <span class="brand-tag">Glass + Clay</span>
+          </span>
+          <span class="brand-sub hidden md:block">{monthLabel} · personal ledger</span>
+        </span>
       </a>
 
-      <nav class="ml-2 hidden items-center gap-0.5 lg:flex" aria-label="Main">
+      <nav class="hidden items-center gap-0.5 lg:flex" aria-label="Main">
         {#each navItems as item (item.path)}
           <button
             type="button"
@@ -103,14 +116,14 @@ onMount(() => {
         {/each}
       </nav>
 
-      <div class="ml-auto flex items-center gap-1">
+      <div class="flex items-center gap-1">
         <SyncControl />
         <MobileNav items={navItems} active={activePath} onChange={navigate} />
       </div>
     </div>
   </header>
 
-  <main class="mx-auto max-w-7xl px-4 py-5">
+  <main class="mx-auto max-w-7xl px-4 py-4 max-sm:px-3 max-sm:py-3">
     <svelte:boundary onerror={(error) => console.error(error)}>
       {#if router.path === '/budgets'}
         <BudgetPage />

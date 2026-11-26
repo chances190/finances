@@ -2,9 +2,7 @@
 import FunnelIcon from 'phosphor-svelte/lib/FunnelIcon'
 import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon'
 import { MediaQuery } from 'svelte/reactivity'
-import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { currentYM } from '@/domain/calculations'
 import { allCategoryNames, categoryOptionsForMonth } from '@/domain/categories'
@@ -27,6 +25,7 @@ import { navigate, router } from '@/lib/router.svelte'
 import { finance } from '@/lib/stores/finance.svelte'
 import { toast } from '@/lib/stores/toast.svelte'
 import { toastUndo } from '@/lib/undo-toast'
+import './transactions.css'
 import MovementDetail from './MovementDetail.svelte'
 import MovementLedger from './MovementLedger.svelte'
 import { paymentLabelOf } from './movement-display'
@@ -376,9 +375,9 @@ function handleDelete(id: string) {
     />
   </div>
 
-  <div class="grid items-start gap-4 min-[1100px]:grid-cols-[minmax(0,1fr)_300px]">
-    <div class="min-w-0 space-y-4">
-      <div class="panel p-3 transition-colors focus-within:border-ring">
+  <div class="tx-workspace">
+    <div class="tx-workspace-main space-y-4">
+      <div class="panel tx-quick-add p-3">
         <SmartTransactionInput
           onAdd={handleSmartAdd}
           onOpenModal={() => {
@@ -389,58 +388,49 @@ function handleDelete(id: string) {
         />
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <div class="relative min-w-0 flex-1">
-          <MagnifyingGlassIcon
-            class="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
+      <div class="tx-filter-bar">
+        <div class="tx-search">
+          <MagnifyingGlassIcon class="size-4 shrink-0 text-muted-foreground" />
+          <input
             placeholder="Search description..."
             value={localSearch}
             oninput={(event) => {
               localSearch = event.currentTarget.value
             }}
-            class="h-10 pl-8 text-xs sm:h-7"
             aria-label="Search transactions"
-          />
+          >
         </div>
 
         {#if wideFilters.current}
-          <TransactionFilters
-            {filterType}
-            {filterMonth}
-            {filterCategories}
-            {filterPayments}
-            {filterCounterparties}
-            {months}
-            {allCategories}
-            {allPaymentMethods}
-            {allCounterparties}
-            showOtherType={view === 'activity'}
-            {updateParam}
-          />
+          <div class="tx-filter-inline">
+            <TransactionFilters
+              {filterType}
+              {filterMonth}
+              {filterCategories}
+              {filterPayments}
+              {filterCounterparties}
+              {months}
+              {allCategories}
+              {allPaymentMethods}
+              {allCounterparties}
+              showOtherType={view === 'activity'}
+              {updateParam}
+            />
+          </div>
           {#if hasFilters}
-            <Button
-              variant="ghost"
-              size="sm"
-              class="h-7 px-2 text-xs text-muted-foreground"
-              onclick={clearFilters}
-            >
-              Clear
-            </Button>
+            <button type="button" class="tx-filter-clear" onclick={clearFilters}>Clear</button>
           {/if}
         {:else}
-          <Button
-            variant="outline"
-            size="sm"
-            class="h-10 shrink-0 text-xs sm:h-7"
+          <button
+            type="button"
+            class="tx-secondary tx-filter-button"
             onclick={() => {
               showFilters = true
             }}
           >
             <FunnelIcon class="size-3" />
             Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-          </Button>
+          </button>
         {/if}
       </div>
 
@@ -453,10 +443,6 @@ function handleDelete(id: string) {
         {emptyMessage}
         onClear={hasFilters ? clearFilters : null}
         onSelect={selectMovement}
-        onRefund={(movement) => {
-          refundPurchase = movement
-        }}
-        onDelete={handleDelete}
       />
     </div>
 
@@ -478,9 +464,9 @@ function handleDelete(id: string) {
 
 {#if selected && detailOpen}
   <Dialog bind:open={detailOpen}>
-    <DialogContent class="sm:max-w-sm">
-      <DialogHeader>
-        <DialogTitle>Entry details</DialogTitle>
+    <DialogContent class="gap-2.5 p-3 sm:max-w-sm">
+      <DialogHeader class="border-b border-border px-1 pr-8 pb-2">
+        <DialogTitle class="text-xs font-semibold">Entry details</DialogTitle>
       </DialogHeader>
       <MovementDetail
         movement={selected}
@@ -498,11 +484,11 @@ function handleDelete(id: string) {
 
 {#if showFilters}
   <Dialog bind:open={showFilters}>
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle>Filters</DialogTitle>
+    <DialogContent class="gap-2.5 p-3 sm:max-w-md">
+      <DialogHeader class="border-b border-border px-1 pr-8 pb-2">
+        <DialogTitle class="text-xs font-semibold">Filters</DialogTitle>
       </DialogHeader>
-      <div class="max-h-[60dvh] space-y-3 overflow-y-auto">
+      <div class="tx-filter-sheet max-h-[60dvh] overflow-y-auto">
         <TransactionFilters
           {filterType}
           {filterMonth}
@@ -518,9 +504,9 @@ function handleDelete(id: string) {
           wide
         />
       </div>
-      <Button variant="outline" class="h-10 w-full" onclick={clearFilters}>
+      <button type="button" class="tx-secondary w-full py-2 text-xs" onclick={clearFilters}>
         Clear all filters
-      </Button>
+      </button>
     </DialogContent>
   </Dialog>
 {/if}

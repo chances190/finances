@@ -57,7 +57,7 @@ function formatLastSynced(timestamp: number | null): string {
 <Button
   variant="ghost"
   size="icon-lg"
-  class="size-10 {sync.status === 'needs-reconnect' ? 'text-muted-foreground' : ''}"
+  class="size-8 {sync.status === 'needs-reconnect' ? 'text-muted-foreground' : ''}"
   aria-label={`Backup and sync: ${STATUS_LABEL[sync.status] ?? sync.status}`}
   onclick={() => {
     open = true

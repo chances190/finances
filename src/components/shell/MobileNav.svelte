@@ -1,13 +1,7 @@
 <script lang="ts">
 import ListIcon from 'phosphor-svelte/lib/ListIcon'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import NavIcon from './NavIcon.svelte'
 import type { NavItem } from './nav'
@@ -28,23 +22,23 @@ let open = $state(false)
       <Button
         variant="ghost"
         size="icon-lg"
-        class="size-10 lg:hidden"
+        class="size-8 lg:hidden"
         aria-label="Open navigation"
         aria-expanded={open}
         {...props}
       >
-        <ListIcon />
+        <ListIcon class="size-4" />
       </Button>
     {/snippet}
   </DialogTrigger>
 
   <DialogContent
-    class="content-start left-auto right-0 top-0 h-full w-72 max-w-none translate-x-0 translate-y-0 gap-0 rounded-l-[6px] p-0 sm:max-w-none max-sm:top-0 max-sm:right-0 max-sm:bottom-auto max-sm:left-auto max-sm:h-full max-sm:max-h-none max-sm:w-72 max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:rounded-l-[6px] max-sm:border-y-0 max-sm:border-r-0"
+    class="top-[calc(4rem+env(safe-area-inset-top))] right-2.5 left-2.5 w-auto max-w-none translate-x-0 translate-y-0 gap-0 rounded-[6px] p-0 sm:max-w-none max-sm:top-[calc(4rem+env(safe-area-inset-top))] max-sm:right-2.5 max-sm:bottom-auto max-sm:left-2.5 max-sm:max-h-[calc(100dvh-5rem)] max-sm:w-auto max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-[6px] max-sm:border max-sm:pb-0"
   >
-    <DialogHeader class="border-b border-border p-4">
-      <DialogTitle>Navigate</DialogTitle>
-    </DialogHeader>
-    <nav class="flex flex-col gap-0.5 p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+    <div class="flex items-center justify-between border-b border-border px-1 pt-2.5 pr-9 pb-2">
+      <DialogTitle class="text-xs font-semibold">Navigate</DialogTitle>
+    </div>
+    <nav class="flex flex-col gap-[3px] p-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">
       {#each items as item (item.path)}
         <button
           type="button"

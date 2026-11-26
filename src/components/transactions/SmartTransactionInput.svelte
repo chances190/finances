@@ -1,9 +1,8 @@
 <script lang="ts">
 import PlusIcon from 'phosphor-svelte/lib/PlusIcon'
-import { Button } from '@/components/ui/button'
 import { localYMD } from '@/domain/calculations'
 import type { PaymentMethod } from '@/domain/ledger'
-import { formatPlainCurrency } from '@/lib/currency'
+import { formatCurrency } from '@/lib/currency'
 import {
   acceptSuggestion,
   detectDateMonth,
@@ -33,7 +32,6 @@ let raw = $state('')
 let dismissed = $state<string | null>(null)
 let activeSuggestion = $state(0)
 let submitError = $state<string | null>(null)
-let focused = $state(false)
 let suggestionEl = $state<HTMLDivElement | null>(null)
 
 const categories = $derived(categoriesForMonth(detectDateMonth(raw)))
@@ -56,7 +54,7 @@ function attemptSubmit() {
   }
   if (parsed.amount === null) return
   onAdd({
-    description: parsed.description,
+    description: parsed.description || 'New transaction',
     amount: parsed.amount,
     category: parsed.category,
     paymentMethod: parsed.paymentMethod,
@@ -106,22 +104,20 @@ function handleKeydown(event: KeyboardEvent) {
 
 <div class="relative">
   <form
-    class="flex items-stretch gap-1.5"
+    class="flex min-w-0 items-center gap-2"
     onsubmit={(event) => {
       event.preventDefault()
       submitOrAccept()
     }}
   >
-    <Button
+    <button
       type="button"
-      variant="ghost"
-      size="icon"
-      class="size-10 shrink-0 sm:size-8"
+      class="tx-quick-add-icon"
       onclick={attemptSubmit}
       aria-label="Add transaction from input"
     >
       <PlusIcon class="size-4" />
-    </Button>
+    </button>
 
     <div class="relative min-w-0 flex-1">
       <input
@@ -134,18 +130,16 @@ function handleKeydown(event: KeyboardEvent) {
         }}
         onkeydown={handleKeydown}
         onblur={() => {
-          focused = false
           dismissed = raw
         }}
         onfocus={() => {
-          focused = true
           dismissed = null
         }}
         enterkeyhint="go"
         autocomplete="off"
         spellcheck="false"
         placeholder="Description 25,90 #Food @Debit hoje"
-        class="h-10 min-w-0 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground sm:h-8"
+        class="min-w-0 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
         aria-label="Quick add transaction"
       >
       {#if showSuggestions}
@@ -177,49 +171,26 @@ function handleKeydown(event: KeyboardEvent) {
       {/if}
     </div>
 
-    <Button
+    <button
       type="button"
-      variant="outline"
-      size="sm"
-      class="h-10 shrink-0 text-xs sm:h-8"
+      class="tx-primary shrink-0 px-3 py-1.5 text-xs font-semibold"
       onclick={onOpenModal}
     >
       Add
-    </Button>
+    </button>
     <button type="submit" class="sr-only" tabindex={-1} aria-label="Add transaction"></button>
   </form>
 
-  {#if focused || raw.trim() !== ''}
-    <div
-      class="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-border pt-2 text-[10px] text-muted-foreground"
-    >
-      <span
-        >Payment:
-        <span class="font-medium text-foreground">{parsed.paymentMethod ?? '—'}</span></span
-      >
-      <span>
-        Amount:
-        <span class="font-mono font-medium text-foreground">
-          {parsed.amount !== null ? formatPlainCurrency(parsed.amount) : '—'}
-        </span>
-      </span>
-      <span>
-        Description:
-        <span class="font-medium text-foreground">{parsed.description || '—'}</span>
-      </span>
-      <span
-        >Category: <span class="font-medium text-foreground">{parsed.category || '—'}</span></span
-      >
-      <span>Date: <span class="font-medium text-foreground">{parsed.date || '—'}</span></span>
-    </div>
-  {/if}
-
-  {#if !showSuggestions && submitError}
-    <div
-      class="mt-1 rounded-[3px] bg-destructive/10 px-2 py-1 text-[10px] text-destructive"
-      role="alert"
-    >
-      {submitError}
+  {#if raw.trim()}
+    <div class="tx-command-preview">
+      <span>{parsed.description || 'New transaction'}</span>
+      <span class="font-mono">{formatCurrency(parsed.amount ?? 0)}</span>
+      <span>{parsed.category ? `#${parsed.category}` : '#Other'}</span>
+      <span>{parsed.paymentMethod ?? (parsed.kind === 'income' ? '@Transfer' : '@Debit/PIX')}</span>
+      <span>{parsed.date ?? localYMD()}</span>
+      {#if submitError || parsed.error}
+        <span class="text-destructive">{submitError ?? parsed.error}</span>
+      {/if}
     </div>
   {/if}
 </div>
