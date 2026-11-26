@@ -21,7 +21,7 @@ function reset() {
 }
 </script>
 
-<LabToolbar {settings} onReset={reset} />
+<LabToolbar bind:settings onReset={reset} />
 
 <div class="lab-stage-wrap">
   <div
@@ -33,7 +33,7 @@ function reset() {
     data-mobile-nav={settings.mobileNav}
     style="width: {settings.viewport}px"
   >
-    <LabShell {settings}>
+    <LabShell bind:settings>
       {#if settings.screen === 'transactions'}
         <LabTransactions iconPack={settings.iconPack} ledgerVariant={settings.ledger} />
       {:else}

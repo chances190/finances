@@ -6,7 +6,7 @@ interface Props {
   onReset: () => void
 }
 
-let { settings, onReset }: Props = $props()
+let { settings = $bindable(), onReset }: Props = $props()
 
 const presets: { value: Preset; label: string; hint: string; swatch: string }[] = [
   { value: 'warm', label: 'Warm Tactile', hint: 'bone + graphite', swatch: 'var(--preset-warm)' },

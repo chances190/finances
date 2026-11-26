@@ -8,7 +8,7 @@ interface Props {
   children: Snippet
 }
 
-let { settings, children }: Props = $props()
+let { settings = $bindable(), children }: Props = $props()
 
 const items: {
   key: LabScreen | 'budgets' | 'debts' | 'trends' | 'actions'
