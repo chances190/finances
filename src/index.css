@@ -97,9 +97,10 @@
   --chart-3: #94a0a6;
   --chart-4: #5f6f79;
   --chart-5: #c4ccd0;
+  --chart-6: #8b99a1;
   --chart-income: #2f8f62;
   --chart-expense: #c95858;
-  --chart-budgeted: #c4ccd0;
+  --chart-budgeted: #b8c4c7;
   --chart-grid: rgb(36 62 72 / 9%);
   --shadow-panel: inset 0 1px 0 rgb(255 255 255 / 88%), 0 5px 14px rgb(38 70 84 / 7%);
   --shadow-floating: 0 2px 6px rgb(35 65 80 / 4%);
@@ -141,6 +142,7 @@
   --chart-3: #dde4e7;
   --chart-4: #aebcc2;
   --chart-5: #c9d4d9;
+  --chart-6: #d5dde0;
   --chart-income: #6fd4a0;
   --chart-expense: #f08a8a;
   --chart-budgeted: #5c6b73;
@@ -167,6 +169,7 @@
   --chart-3: #7aaea7;
   --chart-4: #3d7f95;
   --chart-5: #b8c4c7;
+  --chart-6: #6fa8b8;
   --chart-budgeted: #b8c4c7;
 }
 
@@ -187,6 +190,7 @@
   --chart-3: #96b4c8;
   --chart-4: #2f7c88;
   --chart-5: #c6d9e4;
+  --chart-6: #7ba3b2;
 }
 
 [data-accent="plum"] {
@@ -206,6 +210,7 @@
   --chart-3: #bb92a8;
   --chart-4: #5e568f;
   --chart-5: #dcc2d1;
+  --chart-6: #8a80b8;
 }
 
 .dark[data-accent="sage"] {
@@ -231,6 +236,7 @@
   --chart-3: #b6e4d9;
   --chart-4: #7fc6da;
   --chart-5: #5c6b73;
+  --chart-6: #9ecdd8;
   --chart-budgeted: #5c6b73;
 }
 
@@ -257,6 +263,7 @@
   --chart-3: #b7d9ea;
   --chart-4: #7fd0d8;
   --chart-5: #586872;
+  --chart-6: #9cc5ce;
 }
 
 .dark[data-accent="plum"] {
@@ -282,6 +289,7 @@
   --chart-3: #e6c7da;
   --chart-4: #a79bdc;
   --chart-5: #625768;
+  --chart-6: #bcb1e8;
 }
 
 [data-accent="ink"][data-ink-accent="system"] {

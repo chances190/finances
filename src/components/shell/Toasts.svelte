@@ -10,7 +10,7 @@ import { dismissToast, toastState } from '@/lib/stores/toast.svelte'
   {#each toastState.list as toast (toast.id)}
     <div
       role={toast.type === 'error' ? 'alert' : 'status'}
-      class="flex items-center gap-2 rounded-lg border border-border bg-popover px-3 py-2 text-xs text-foreground shadow-lg"
+      class="floating-surface flex items-center gap-2 px-3 py-2 text-xs text-foreground"
     >
       <span class="flex-1">{toast.message}</span>
       <button

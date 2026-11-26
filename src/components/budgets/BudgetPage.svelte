@@ -198,7 +198,7 @@ function closeForm() {
                   {#each Object.entries(range.budget.categoryLimits).filter(
                     ([, value]) => value > 0,
                   ) as [category, value] (category)}
-                    <span class="bg-muted px-1.5 py-0.5 text-xs">
+                    <span class="rounded-[3px] bg-muted px-1.5 py-0.5 text-xs">
                       {category}: {formatCurrency(value)}
                     </span>
                   {/each}
