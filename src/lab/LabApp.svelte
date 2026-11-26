@@ -14,6 +14,7 @@ const screens = new Set<LabScreen>([
   'dashboard',
   'trends',
   'actions',
+  'settings',
 ])
 
 function sendSettings() {
@@ -34,6 +35,10 @@ onMount(() => {
     }
     if (event.data?.type === 'lab-screen' && screens.has(event.data.screen)) {
       settings.screen = event.data.screen
+      return
+    }
+    if (event.data?.type === 'lab-settings-change') {
+      Object.assign(settings, event.data.settings)
     }
   }
   window.addEventListener('message', handleMessage)

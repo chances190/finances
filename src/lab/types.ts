@@ -1,9 +1,16 @@
 export type Density = 'comfortable' | 'compact'
-export type Accent = 'preset' | 'ink' | 'sage' | 'steel' | 'plum'
-export type InkAccent = 'sage' | 'steel' | 'plum'
+export type Accent = 'ink' | 'sage' | 'steel' | 'plum'
+export type InkAccent = 'mono' | 'yellow' | 'green' | 'red' | 'pink' | 'blue' | 'purple' | 'orange'
 export type LabTheme = 'light' | 'dark'
 export type Dataset = 'rich' | 'stress'
-export type LabScreen = 'transactions' | 'budgets' | 'debts' | 'dashboard' | 'trends' | 'actions'
+export type LabScreen =
+  | 'transactions'
+  | 'budgets'
+  | 'debts'
+  | 'dashboard'
+  | 'trends'
+  | 'actions'
+  | 'settings'
 export type IconName =
   | 'transactions'
   | 'budgets'
@@ -32,8 +39,8 @@ export interface LabSettings {
 
 export const defaultSettings: LabSettings = {
   density: 'comfortable',
-  accent: 'preset',
-  inkAccent: 'sage',
+  accent: 'sage',
+  inkAccent: 'mono',
   theme: 'dark',
   dataset: 'rich',
   screen: 'transactions',

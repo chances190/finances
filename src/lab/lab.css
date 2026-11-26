@@ -268,17 +268,17 @@ body {
 }
 
 .lab-stage[data-accent="sage"] {
-  --primary: #748f82;
-  --primary-foreground: #f7fffb;
-  --ring: #748f82;
-  --lab-accent: #748f82;
+  --primary: #2f6f68;
+  --primary-foreground: #f7fffc;
+  --ring: #2f6f68;
+  --lab-accent: #2f6f68;
 }
 
 .lab-stage.dark[data-accent="sage"] {
-  --primary: #a9c4b4;
-  --primary-foreground: #183028;
-  --ring: #a9c4b4;
-  --lab-accent: #a9c4b4;
+  --primary: #95d6c7;
+  --primary-foreground: #102a26;
+  --ring: #95d6c7;
+  --lab-accent: #95d6c7;
 }
 
 .lab-stage[data-accent="steel"] {
@@ -427,9 +427,14 @@ body {
   color: var(--muted-foreground);
 }
 
-.lab-icon-button:hover {
-  background: var(--muted);
+.lab-icon-button:hover,
+.lab-icon-button.is-active {
+  background: var(--lab-hover);
   color: var(--foreground);
+}
+
+.lab-icon-button.is-active {
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
 .lab-nav {
@@ -1530,6 +1535,7 @@ body,
 
 .lab-stage.dark[data-accent="steel"] {
   --card: rgb(24 34 44 / 72%);
+  --lab-ledger-solid: rgb(22 29 37 / 94%);
   --card-foreground: #e9f2f8;
   --popover: rgb(20 29 38 / 96%);
   --popover-foreground: #e9f2f8;
@@ -1563,6 +1569,7 @@ body,
 
 .lab-stage.dark[data-accent="plum"] {
   --card: rgb(36 28 40 / 74%);
+  --lab-ledger-solid: rgb(31 24 34 / 94%);
   --card-foreground: #f2e9f1;
   --popover: rgb(30 23 34 / 96%);
   --popover-foreground: #f2e9f1;
@@ -1596,6 +1603,7 @@ body,
 
 .lab-stage.dark[data-accent="ink"] {
   --card: rgb(32 37 40 / 74%);
+  --lab-ledger-solid: rgb(26 30 32 / 94%);
   --card-foreground: #edf1f2;
   --popover: rgb(27 32 35 / 96%);
   --popover-foreground: #edf1f2;
@@ -1761,82 +1769,116 @@ body,
   background: var(--lab-selected);
 }
 
-.lab-stage[data-accent="ink"][data-ink-accent="sage"] {
-  --primary: #2f6f68;
-  --primary-foreground: #f7fffc;
-  --ring: #2f6f68;
-  --lab-accent: #2f6f68;
-  --chart-1: #2f6f68;
-  --chart-2: #4f8f88;
-  --chart-3: #7aaea7;
-  --chart-4: #3d7f95;
-  --chart-5: #b8c4c7;
-  --chart-6: #6fa8b8;
+.lab-stage[data-accent="ink"][data-ink-accent="yellow"] {
+  --primary: #8a6508;
+  --primary-foreground: #fff9e6;
+  --ring: #8a6508;
+  --lab-accent: #8a6508;
+  --chart-1: #8a6508;
 }
 
-.lab-stage.dark[data-accent="ink"][data-ink-accent="sage"] {
-  --primary: #95d6c7;
-  --primary-foreground: #102a26;
-  --ring: #95d6c7;
-  --lab-accent: #95d6c7;
-  --chart-1: #95d6c7;
-  --chart-2: #6fb8aa;
-  --chart-3: #b6e4d9;
-  --chart-4: #7fc6da;
-  --chart-5: #5c6b73;
-  --chart-6: #9ecdd8;
+.lab-stage.dark[data-accent="ink"][data-ink-accent="yellow"] {
+  --primary: #e8c25a;
+  --primary-foreground: #2b2208;
+  --ring: #e8c25a;
+  --lab-accent: #e8c25a;
+  --chart-1: #e8c25a;
 }
 
-.lab-stage[data-accent="ink"][data-ink-accent="steel"] {
-  --primary: #3f6f91;
-  --primary-foreground: #f7fcff;
-  --ring: #3f6f91;
-  --lab-accent: #3f6f91;
-  --chart-1: #3f6f91;
-  --chart-2: #6b93b0;
-  --chart-3: #96b4c8;
-  --chart-4: #2f7c88;
-  --chart-5: #c6d9e4;
-  --chart-6: #7ba3b2;
+.lab-stage[data-accent="ink"][data-ink-accent="green"] {
+  --primary: #2f6f4a;
+  --primary-foreground: #f2fff7;
+  --ring: #2f6f4a;
+  --lab-accent: #2f6f4a;
+  --chart-1: #2f6f4a;
 }
 
-.lab-stage.dark[data-accent="ink"][data-ink-accent="steel"] {
-  --primary: #9cc9e2;
-  --primary-foreground: #132630;
-  --ring: #9cc9e2;
-  --lab-accent: #9cc9e2;
-  --chart-1: #9cc9e2;
-  --chart-2: #78afd0;
-  --chart-3: #b7d9ea;
-  --chart-4: #7fd0d8;
-  --chart-5: #586872;
-  --chart-6: #9cc5ce;
+.lab-stage.dark[data-accent="ink"][data-ink-accent="green"] {
+  --primary: #7ddba0;
+  --primary-foreground: #09271a;
+  --ring: #7ddba0;
+  --lab-accent: #7ddba0;
+  --chart-1: #7ddba0;
 }
 
-.lab-stage[data-accent="ink"][data-ink-accent="plum"] {
-  --primary: #7b4a68;
-  --primary-foreground: #fff7fc;
-  --ring: #7b4a68;
-  --lab-accent: #7b4a68;
-  --chart-1: #7b4a68;
-  --chart-2: #9b6b86;
-  --chart-3: #bb92a8;
-  --chart-4: #5e568f;
-  --chart-5: #dcc2d1;
-  --chart-6: #8a80b8;
+.lab-stage[data-accent="ink"][data-ink-accent="red"] {
+  --primary: #a33434;
+  --primary-foreground: #fff5f5;
+  --ring: #a33434;
+  --lab-accent: #a33434;
+  --chart-1: #a33434;
 }
 
-.lab-stage.dark[data-accent="ink"][data-ink-accent="plum"] {
-  --primary: #d3a4c2;
-  --primary-foreground: #2c1824;
-  --ring: #d3a4c2;
-  --lab-accent: #d3a4c2;
-  --chart-1: #d3a4c2;
-  --chart-2: #b981a3;
-  --chart-3: #e6c7da;
-  --chart-4: #a79bdc;
-  --chart-5: #625768;
-  --chart-6: #bcb1e8;
+.lab-stage.dark[data-accent="ink"][data-ink-accent="red"] {
+  --primary: #f09a9a;
+  --primary-foreground: #2c1010;
+  --ring: #f09a9a;
+  --lab-accent: #f09a9a;
+  --chart-1: #f09a9a;
+}
+
+.lab-stage[data-accent="ink"][data-ink-accent="pink"] {
+  --primary: #a33a72;
+  --primary-foreground: #fff5fa;
+  --ring: #a33a72;
+  --lab-accent: #a33a72;
+  --chart-1: #a33a72;
+}
+
+.lab-stage.dark[data-accent="ink"][data-ink-accent="pink"] {
+  --primary: #f0a6c8;
+  --primary-foreground: #2c1420;
+  --ring: #f0a6c8;
+  --lab-accent: #f0a6c8;
+  --chart-1: #f0a6c8;
+}
+
+.lab-stage[data-accent="ink"][data-ink-accent="blue"] {
+  --primary: #3a5f9e;
+  --primary-foreground: #f4f8ff;
+  --ring: #3a5f9e;
+  --lab-accent: #3a5f9e;
+  --chart-1: #3a5f9e;
+}
+
+.lab-stage.dark[data-accent="ink"][data-ink-accent="blue"] {
+  --primary: #9dbdf0;
+  --primary-foreground: #0d1c30;
+  --ring: #9dbdf0;
+  --lab-accent: #9dbdf0;
+  --chart-1: #9dbdf0;
+}
+
+.lab-stage[data-accent="ink"][data-ink-accent="purple"] {
+  --primary: #6a47a3;
+  --primary-foreground: #f8f4ff;
+  --ring: #6a47a3;
+  --lab-accent: #6a47a3;
+  --chart-1: #6a47a3;
+}
+
+.lab-stage.dark[data-accent="ink"][data-ink-accent="purple"] {
+  --primary: #c3a6f0;
+  --primary-foreground: #1d1230;
+  --ring: #c3a6f0;
+  --lab-accent: #c3a6f0;
+  --chart-1: #c3a6f0;
+}
+
+.lab-stage[data-accent="ink"][data-ink-accent="orange"] {
+  --primary: #9e5326;
+  --primary-foreground: #fff7f0;
+  --ring: #9e5326;
+  --lab-accent: #9e5326;
+  --chart-1: #9e5326;
+}
+
+.lab-stage.dark[data-accent="ink"][data-ink-accent="orange"] {
+  --primary: #f0b07a;
+  --primary-foreground: #2b1708;
+  --ring: #f0b07a;
+  --lab-accent: #f0b07a;
+  --chart-1: #f0b07a;
 }
 
 .lab-stage:not(.dark)[data-preset="glass"] {

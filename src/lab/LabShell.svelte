@@ -74,7 +74,13 @@ function select(key: (typeof items)[number]['key']) {
       >
         <LabIcon name="menu" className="size-4" />
       </button>
-      <button type="button" class="lab-icon-button" aria-label="Settings">
+      <button
+        type="button"
+        class="lab-icon-button {settings.screen === 'settings' ? 'is-active' : ''}"
+        aria-label="Settings"
+        aria-pressed={settings.screen === 'settings'}
+        onclick={() => (settings.screen = 'settings')}
+      >
         <LabIcon name="settings" className="size-4" />
       </button>
     </div>

@@ -8,6 +8,7 @@ import DebtPage from '@/components/debts/DebtPage.svelte'
 import { finance } from '@/lib/stores/finance.svelte'
 import { setResolvedThemeForLab } from '@/lib/stores/theme.svelte'
 import { richFixture, stressFixture } from './fixture'
+import LabSettingsScreen from './LabSettingsScreen.svelte'
 import LabShell from './LabShell.svelte'
 import LabTransactions from './LabTransactions.svelte'
 import { defaultSettings, type LabSettings } from './types'
@@ -52,12 +53,14 @@ const mirroredTokens = [
 $effect(() => {
   const themeMode = settings.theme
   const accent = settings.accent
+  const inkAccent = settings.inkAccent
   const stage = document.querySelector<HTMLElement>('.lab-stage')
   if (!stage) return
   const computed = getComputedStyle(stage)
   const root = document.documentElement
   root.classList.toggle('dark', themeMode === 'dark')
   root.dataset.labAccent = accent
+  root.dataset.labInkAccent = inkAccent
   root.style.colorScheme = themeMode
   for (const token of mirroredTokens) {
     const value = computed.getPropertyValue(token).trim()
@@ -111,6 +114,8 @@ onMount(() => {
       <DashboardPage />
     {:else if settings.screen === 'trends'}
       <TrendsPage />
+    {:else if settings.screen === 'settings'}
+      <LabSettingsScreen bind:settings />
     {:else}
       <AuditLogPanel />
     {/if}

@@ -9,15 +9,19 @@ interface Props {
 let { settings = $bindable(), onReset }: Props = $props()
 
 const inkAccents: { value: InkAccent; label: string }[] = [
-  { value: 'sage', label: 'Sage' },
-  { value: 'steel', label: 'Steel' },
-  { value: 'plum', label: 'Plum' },
+  { value: 'mono', label: 'Black / White' },
+  { value: 'yellow', label: 'Yellow' },
+  { value: 'green', label: 'Green' },
+  { value: 'red', label: 'Red' },
+  { value: 'pink', label: 'Pink' },
+  { value: 'blue', label: 'Blue' },
+  { value: 'purple', label: 'Purple' },
+  { value: 'orange', label: 'Orange' },
 ]
 
 const accents: { value: Accent; label: string; color: string }[] = [
-  { value: 'preset', label: 'Preset', color: 'var(--lab-accent)' },
   { value: 'ink', label: 'Ink', color: '#262b30' },
-  { value: 'sage', label: 'Sage', color: '#748f82' },
+  { value: 'sage', label: 'Sage', color: '#2f6f68' },
   { value: 'steel', label: 'Steel', color: '#5f7f93' },
   { value: 'plum', label: 'Plum', color: '#7b4a68' },
 ]
