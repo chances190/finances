@@ -13,16 +13,15 @@ let { settings = $bindable() }: Props = $props()
 interface BaseOption {
   value: Accent
   label: string
-  hint: string
   light: string
   dark: string
 }
 
 const bases: BaseOption[] = [
-  { value: 'sage', label: 'Sage', hint: 'Green surface', light: '#2f6f68', dark: '#95d6c7' },
-  { value: 'ink', label: 'Ink', hint: 'Neutral graphite', light: '#262b30', dark: '#e6ecef' },
-  { value: 'steel', label: 'Steel', hint: 'Cool blue', light: '#5f7f93', dark: '#9cc0d4' },
-  { value: 'plum', label: 'Plum', hint: 'Deep mauve', light: '#7b4a68', dark: '#c79ab9' },
+  { value: 'sage', label: 'Sage', light: '#2f6f68', dark: '#95d6c7' },
+  { value: 'ink', label: 'Ink', light: '#262b30', dark: '#e6ecef' },
+  { value: 'steel', label: 'Steel', light: '#5f7f93', dark: '#9cc0d4' },
+  { value: 'plum', label: 'Plum', light: '#7b4a68', dark: '#c79ab9' },
 ]
 
 interface InkOption {
@@ -102,7 +101,7 @@ function setInk(value: InkAccent) {
             aria-pressed={selected}
             onclick={() => setBase(base.value)}
             class={cn(
-              'flex items-center gap-2.5 rounded-md border px-2.5 py-2 text-left transition-colors',
+              'flex items-center gap-2.5 rounded-md border px-3 py-2.5 text-left transition-colors',
               selected ? 'border-primary bg-primary/10' : 'border-border bg-card hover:bg-muted',
             )}
           >
@@ -110,10 +109,7 @@ function setInk(value: InkAccent) {
               class="size-5 shrink-0 rounded-full ring-1 ring-black/10 ring-inset dark:ring-white/20"
               style:background={dark ? base.dark : base.light}
             ></span>
-            <span class="min-w-0">
-              <span class="block text-xs font-semibold text-foreground">{base.label}</span>
-              <span class="block truncate text-[11px] text-muted-foreground">{base.hint}</span>
-            </span>
+            <span class="text-xs font-semibold text-foreground">{base.label}</span>
           </button>
         {/each}
       </div>
