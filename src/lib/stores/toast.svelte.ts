@@ -1,7 +1,13 @@
+export interface ToastAction {
+  label: string
+  run: () => void
+}
+
 export interface Toast {
   id: number
   message: string
   type: 'success' | 'error' | 'info'
+  action?: ToastAction
 }
 
 let nextId = 0
@@ -13,14 +19,14 @@ export const toastState = {
   },
 }
 
-export function toast(message: string, type: Toast['type'] = 'info') {
+export function toast(message: string, type: Toast['type'] = 'info', action?: ToastAction) {
   const id = nextId++
-  toasts = [...toasts, { id, message, type }]
+  toasts = [...toasts, { id, message, type, action }]
   setTimeout(
     () => {
       toasts = toasts.filter((candidate) => candidate.id !== id)
     },
-    type === 'error' ? 6000 : 3000,
+    action || type === 'error' ? 6000 : 3000,
   )
 }
 

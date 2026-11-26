@@ -232,16 +232,29 @@ function scheduleSave() {
         }, 0)
 }
 
+function dispatch(action: FinanceAction) {
+  const next = reducer(state, action)
+  if (next === state) return
+  const dataChanged = next.movements !== state.movements || next.budgets !== state.budgets
+  state = next
+  if (dataChanged && next.loaded && action.type !== 'LOAD') scheduleSave()
+}
+
 export const finance = {
   get state() {
     return state
   },
-  dispatch(action: FinanceAction) {
-    const next = reducer(state, action)
-    if (next === state) return
-    const dataChanged = next.movements !== state.movements || next.budgets !== state.budgets
-    state = next
-    if (dataChanged && next.loaded && action.type !== 'LOAD') scheduleSave()
+  dispatch,
+  dispatchUndoable(action: FinanceAction): string | null {
+    const before = state.auditLog[0]?.id
+    dispatch(action)
+    const latest = state.auditLog[0]
+    return latest && latest.id !== before ? latest.id : null
+  },
+  dispatchBatch(actions: FinanceAction[]): string | null {
+    const before = new Set(state.auditLog.map((entry) => entry.id))
+    for (const action of actions) dispatch(action)
+    return state.auditLog.filter((entry) => !before.has(entry.id)).at(-1)?.id ?? null
   },
 }
 

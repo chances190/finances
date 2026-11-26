@@ -32,6 +32,7 @@ import {
 import { navigate, router } from '@/lib/router.svelte'
 import { finance } from '@/lib/stores/finance.svelte'
 import { toast } from '@/lib/stores/toast.svelte'
+import { toastUndo } from '@/lib/undo-toast'
 import DesktopMovementList from './DesktopMovementList.svelte'
 import MobileMovementList from './MobileMovementList.svelte'
 import { paymentLabelOf } from './movement-display'
@@ -295,8 +296,8 @@ function handleSmartAdd(row: {
       toast(result.reason, 'error')
       return
     }
-    finance.dispatch({ type: 'ADD_MOVEMENTS', payload: [result.value] })
-    toast('Income added', 'success')
+    const auditId = finance.dispatchUndoable({ type: 'ADD_MOVEMENTS', payload: [result.value] })
+    toastUndo('Income added', auditId)
     return
   }
 
@@ -312,8 +313,8 @@ function handleSmartAdd(row: {
     toast(result.reason, 'error')
     return
   }
-  finance.dispatch({ type: 'ADD_MOVEMENTS', payload: result.value })
-  toast('Transaction added', 'success')
+  const auditId = finance.dispatchUndoable({ type: 'ADD_MOVEMENTS', payload: result.value })
+  toastUndo('Transaction added', auditId)
 }
 
 function handleDelete(id: string) {
@@ -340,11 +341,10 @@ function handleDelete(id: string) {
       if (movement.links?.some((linkedId) => ids.has(linkedId))) ids.add(movement.id)
     }
   }
-  finance.dispatch({ type: 'DELETE_MOVEMENTS', payload: [...ids] })
-  toast(
-    ids.size > 1
-      ? 'Purchase and linked activity deleted — Ctrl+Z to undo'
-      : 'Transaction deleted — Ctrl+Z to undo',
+  const auditId = finance.dispatchUndoable({ type: 'DELETE_MOVEMENTS', payload: [...ids] })
+  toastUndo(
+    ids.size > 1 ? 'Purchase and linked activity deleted' : 'Transaction deleted',
+    auditId,
     'info',
   )
 }

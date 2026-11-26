@@ -31,6 +31,7 @@ import { addCurrency, formatCurrency } from '@/lib/currency'
 import { navigate, router } from '@/lib/router.svelte'
 import { finance } from '@/lib/stores/finance.svelte'
 import { toast } from '@/lib/stores/toast.svelte'
+import { toastUndo } from '@/lib/undo-toast'
 import {
   aggregate,
   BADGE_GREEN,
@@ -177,8 +178,8 @@ function recordSettlements(rows: OutstandingMovement[]) {
     settled = addCurrency(settled, row.outstanding)
   }
 
-  finance.dispatch({ type: 'ADD_MOVEMENTS', payload: movements })
-  toast(`${formatCurrency(settled)} settled — Ctrl+Z to undo`, 'success')
+  const auditId = finance.dispatchUndoable({ type: 'ADD_MOVEMENTS', payload: movements })
+  toastUndo(`${formatCurrency(settled)} settled`, auditId)
 }
 
 function revokeSettlement(row: OutstandingMovement) {
@@ -191,8 +192,8 @@ function revokeSettlement(row: OutstandingMovement) {
     )
     .map((movement) => movement.id)
   if (ids.length === 0) return
-  finance.dispatch({ type: 'DELETE_MOVEMENTS', payload: ids })
-  toast('Settlement undone — Ctrl+Z to restore', 'info')
+  const auditId = finance.dispatchUndoable({ type: 'DELETE_MOVEMENTS', payload: ids })
+  toastUndo('Settlement undone', auditId, 'info')
 }
 
 function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarget {

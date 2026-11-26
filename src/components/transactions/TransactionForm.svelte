@@ -29,8 +29,8 @@ import {
   paymentMethodOf,
 } from '@/domain/ledger'
 import { addCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
-import { finance } from '@/lib/stores/finance.svelte'
-import { toast } from '@/lib/stores/toast.svelte'
+import { type FinanceAction, finance } from '@/lib/stores/finance.svelte'
+import { toastUndo } from '@/lib/undo-toast'
 import SplitConfigModal from './SplitConfigModal.svelte'
 
 interface FormState {
@@ -264,24 +264,26 @@ function handleSave() {
 
 function commit(movements: Movement[]) {
   const editing = Boolean(editMovement)
+  const actions: FinanceAction[] = []
   if (!editing) {
-    finance.dispatch({ type: 'ADD_MOVEMENTS', payload: movements })
+    actions.push({ type: 'ADD_MOVEMENTS', payload: movements })
   } else {
     const existingIds = new Set(editGroup.map((movement) => movement.id))
     for (const movement of movements) {
       if (existingIds.has(movement.id)) {
-        finance.dispatch({ type: 'UPDATE_MOVEMENT', payload: movement })
+        actions.push({ type: 'UPDATE_MOVEMENT', payload: movement })
       } else {
-        finance.dispatch({ type: 'ADD_MOVEMENTS', payload: [movement] })
+        actions.push({ type: 'ADD_MOVEMENTS', payload: [movement] })
       }
     }
     for (const movement of editGroup) {
       if (!movements.some((updated) => updated.id === movement.id)) {
-        finance.dispatch({ type: 'DELETE_MOVEMENT', payload: movement.id })
+        actions.push({ type: 'DELETE_MOVEMENT', payload: movement.id })
       }
     }
   }
-  toast(editing ? 'Transaction updated' : 'Transaction added', 'success')
+  const auditId = finance.dispatchBatch(actions)
+  toastUndo(editing ? 'Transaction updated' : 'Transaction added', auditId)
   onOpenChange(false)
 }
 </script>

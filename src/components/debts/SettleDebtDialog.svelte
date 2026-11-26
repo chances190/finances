@@ -18,6 +18,7 @@ import { buildSettlement, localYMD } from '@/domain/ledger'
 import { addCurrency, formatCurrency, formatPlainCurrency, parseCurrency } from '@/lib/currency'
 import { finance } from '@/lib/stores/finance.svelte'
 import { toast } from '@/lib/stores/toast.svelte'
+import { toastUndo } from '@/lib/undo-toast'
 import type { SettleTarget } from './debt-helpers'
 
 interface Props {
@@ -63,8 +64,8 @@ function handleSave() {
     toast(settlement.reason, 'error')
     return
   }
-  finance.dispatch({ type: 'ADD_MOVEMENTS', payload: [settlement.value] })
-  toast('Settlement recorded', 'success')
+  const auditId = finance.dispatchUndoable({ type: 'ADD_MOVEMENTS', payload: [settlement.value] })
+  toastUndo('Settlement recorded', auditId)
   onOpenChange(false)
 }
 </script>

@@ -26,6 +26,7 @@ import {
 import { formatCurrency, parseCurrency } from '@/lib/currency'
 import { finance } from '@/lib/stores/finance.svelte'
 import { toast } from '@/lib/stores/toast.svelte'
+import { toastUndo } from '@/lib/undo-toast'
 
 interface Props {
   purchase: Movement
@@ -57,8 +58,8 @@ function handleSave() {
     toast(result.reason, 'error')
     return
   }
-  finance.dispatch({ type: 'ADD_MOVEMENTS', payload: [result.value] })
-  toast('Reimbursement recorded', 'success')
+  const auditId = finance.dispatchUndoable({ type: 'ADD_MOVEMENTS', payload: [result.value] })
+  toastUndo('Reimbursement recorded', auditId)
   onOpenChange(false)
 }
 </script>
