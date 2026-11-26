@@ -25,6 +25,7 @@ import { type DisplayPaymentMethod, expensesByPaymentMethod } from '@/domain/led
 import { formatCurrency } from '@/lib/currency'
 import { navigate, router } from '@/lib/router.svelte'
 import { finance } from '@/lib/stores/finance.svelte'
+import ChartLegend from './ChartLegend.svelte'
 import ChartView from './ChartView.svelte'
 import {
   buildBudgetChart,
@@ -108,8 +109,8 @@ const dailyAvg = $derived(currentDay > 0 ? pace.spentSoFar / currentDay : 0)
 const invested = $derived(budget ? budget.plannedIncome * budget.investmentRate : 0)
 const paceStatus = $derived(PACE_STATUS[pace.status])
 
-const dailyChart = $derived(buildPaceChart(pace.daily, currentDay, palette))
-const cumulativeChart = $derived(buildPaceChart(pace.cumulative, currentDay, palette))
+const dailyChart = $derived(buildPaceChart(pace.daily, currentDay, palette, 'daily'))
+const cumulativeChart = $derived(buildPaceChart(pace.cumulative, currentDay, palette, 'cumulative'))
 const budgetChart = $derived(buildBudgetChart(budgetVsActualData, palette))
 const paymentPie = $derived(buildPaymentPie(paymentMethodData, palette))
 </script>
@@ -230,13 +231,13 @@ const paymentPie = $derived(buildPaymentPie(paymentMethodData, palette))
 
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <p class="font-mono text-base text-violet-500">
+            <p class="font-mono text-base text-primary">
               {formatCurrency(pace.suggestionPerDay)}
             </p>
             <p class="text-xs text-muted-foreground">Recommended per day</p>
           </div>
           <div>
-            <p class="font-mono text-base text-orange-500">{formatCurrency(dailyAvg)}</p>
+            <p class="font-mono text-base text-foreground">{formatCurrency(dailyAvg)}</p>
             <p class="text-xs text-muted-foreground">Average per day</p>
           </div>
         </div>
@@ -263,14 +264,30 @@ const paymentPie = $derived(buildPaymentPie(paymentMethodData, palette))
         </div>
 
         <div>
-          <h4 class="mb-2 text-xs font-medium text-muted-foreground">Daily (R$)</h4>
+          <h4 class="mb-1 text-xs font-medium text-muted-foreground">Daily (R$)</h4>
+          <ChartLegend
+            class="mb-2"
+            items={[
+              { label: 'Actual', color: palette.series.actual },
+              { label: 'Daily quota', color: palette.series.primary, dashed: true },
+              { label: 'Trend', color: palette.series.projection },
+            ]}
+          />
           <LazyChart class="h-56">
             <ChartView type="bar" data={dailyChart.data} options={dailyChart.options} />
           </LazyChart>
         </div>
 
         <div>
-          <h4 class="mb-2 text-xs font-medium text-muted-foreground">Cumulative (R$)</h4>
+          <h4 class="mb-1 text-xs font-medium text-muted-foreground">Cumulative (R$)</h4>
+          <ChartLegend
+            class="mb-2"
+            items={[
+              { label: 'Actual', color: palette.series.actual },
+              { label: 'Daily quota', color: palette.series.primary, dashed: true },
+              { label: 'Projection', color: palette.series.projection, dashed: true },
+            ]}
+          />
           <LazyChart class="h-56">
             <ChartView type="bar" data={cumulativeChart.data} options={cumulativeChart.options} />
           </LazyChart>
@@ -280,7 +297,15 @@ const paymentPie = $derived(buildPaymentPie(paymentMethodData, palette))
 
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <div class="panel space-y-3 p-4 lg:col-span-2">
-        <h3 class="text-sm font-semibold">Budget vs Actual</h3>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="text-sm font-semibold">Budget vs Actual</h3>
+          <ChartLegend
+            items={[
+              { label: 'Budgeted', color: palette.series.budgeted },
+              { label: 'Actual', color: palette.series.actual },
+            ]}
+          />
+        </div>
         {#if budgetVsActualData.length === 0}
           <div class="flex h-48 items-center justify-center text-xs text-muted-foreground">
             No budget set for this month.

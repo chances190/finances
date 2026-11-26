@@ -17,6 +17,7 @@ import {
 import { formatCurrency } from '@/lib/currency'
 import { navigate, router } from '@/lib/router.svelte'
 import { finance } from '@/lib/stores/finance.svelte'
+import ChartLegend from './ChartLegend.svelte'
 import ChartView from './ChartView.svelte'
 import {
   buildBudgetChart,
@@ -186,7 +187,15 @@ const yearBudgetChart = $derived(buildBudgetChart(yearlyBudgetVsActual, palette)
     </div>
 
     <div class="panel space-y-3 p-4">
-      <h3 class="text-sm font-semibold">Monthly Income vs Spending</h3>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h3 class="text-sm font-semibold">Monthly Income vs Spending</h3>
+        <ChartLegend
+          items={[
+            { label: 'Income', color: palette.series.income },
+            { label: 'Spending', color: palette.series.expense },
+          ]}
+        />
+      </div>
       <LazyChart class="h-64">
         <ChartView type="bar" data={monthlyChart.data} options={monthlyChart.options} />
       </LazyChart>
@@ -208,7 +217,10 @@ const yearBudgetChart = $derived(buildBudgetChart(yearlyBudgetVsActual, palette)
 
       {#if isCurrentYear}
         <div class="panel space-y-3 p-4">
-          <h3 class="text-sm font-semibold">Upcoming Spending</h3>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h3 class="text-sm font-semibold">Upcoming Spending</h3>
+            <ChartLegend items={[{ label: 'Total', color: palette.series.actual }]} />
+          </div>
           {#if commitmentsData.length === 0}
             <div class="flex h-48 items-center justify-center text-xs text-muted-foreground">
               No upcoming spending.
@@ -227,7 +239,15 @@ const yearBudgetChart = $derived(buildBudgetChart(yearlyBudgetVsActual, palette)
     </div>
 
     <div class="panel space-y-3 p-4">
-      <h3 class="text-sm font-semibold">Year Budget vs Actual</h3>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h3 class="text-sm font-semibold">Year Budget vs Actual</h3>
+        <ChartLegend
+          items={[
+            { label: 'Budgeted', color: palette.series.budgeted },
+            { label: 'Actual', color: palette.series.actual },
+          ]}
+        />
+      </div>
       {#if yearlyBudgetVsActual.length === 0}
         <div class="flex h-48 items-center justify-center text-xs text-muted-foreground">
           No budgets set for this year.

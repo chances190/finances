@@ -327,6 +327,7 @@ function commit(movements: Movement[]) {
           <MoneyInput
             id="tx-amount"
             value={form.amount}
+            placeholder="0,00"
             onValueChange={(value) => {
               form.amount = value
             }}
@@ -339,6 +340,7 @@ function commit(movements: Movement[]) {
         <Input
           id="tx-description"
           value={form.description}
+          placeholder="What was it?"
           oninput={(event) => {
             form.description = event.currentTarget.value
           }}

@@ -15,6 +15,56 @@ import { defaultSettings, type LabSettings } from './types'
 let settings = $state<LabSettings>({ ...defaultSettings })
 let mounted = $state(false)
 
+const mirroredTokens = [
+  '--background',
+  '--foreground',
+  '--card',
+  '--card-foreground',
+  '--popover',
+  '--popover-foreground',
+  '--primary',
+  '--primary-foreground',
+  '--secondary',
+  '--secondary-foreground',
+  '--muted',
+  '--muted-foreground',
+  '--accent',
+  '--accent-foreground',
+  '--destructive',
+  '--destructive-foreground',
+  '--border',
+  '--input',
+  '--ring',
+  '--radius',
+  '--lab-accent',
+  '--chart-1',
+  '--chart-2',
+  '--chart-3',
+  '--chart-4',
+  '--chart-5',
+  '--chart-6',
+  '--chart-income',
+  '--chart-expense',
+  '--chart-budgeted',
+  '--chart-grid',
+]
+
+$effect(() => {
+  const themeMode = settings.theme
+  const accent = settings.accent
+  const stage = document.querySelector<HTMLElement>('.lab-stage')
+  if (!stage) return
+  const computed = getComputedStyle(stage)
+  const root = document.documentElement
+  root.classList.toggle('dark', themeMode === 'dark')
+  root.dataset.labAccent = accent
+  root.style.colorScheme = themeMode
+  for (const token of mirroredTokens) {
+    const value = computed.getPropertyValue(token).trim()
+    if (value) root.style.setProperty(token, value)
+  }
+})
+
 $effect(() => {
   const payload = settings.dataset === 'rich' ? richFixture : stressFixture()
   untrack(() => finance.dispatch({ type: 'LOAD', payload }))
