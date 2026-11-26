@@ -1062,7 +1062,9 @@ body,
   inset: 0;
   z-index: 35;
   border: 0;
-  background: rgb(0 0 0 / 28%);
+  background: rgb(3 9 11 / 38%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .lab-secondary {
@@ -1245,7 +1247,9 @@ body,
   position: absolute;
   inset: 0;
   border: 0;
-  background: rgb(0 0 0 / 36%);
+  background: rgb(3 9 11 / 38%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .lab-detail-panel {
