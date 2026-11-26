@@ -51,8 +51,9 @@ export function amountOf(movement: Movement): number {
 }
 
 export function amountClass(movement: Movement): string {
-  if (movement.kind === 'income' || movement.kind === 'refund') return 'text-primary'
-  if (movement.kind === 'purchase') return 'text-foreground'
+  if (movement.kind === 'income' || movement.kind === 'refund')
+    return 'text-green-600 dark:text-green-400'
+  if (movement.kind === 'purchase') return 'text-red-600 dark:text-red-400'
   return 'text-muted-foreground'
 }
 

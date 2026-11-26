@@ -1116,7 +1116,11 @@ body,
 }
 
 .lab-rail-net.is-positive {
-  color: var(--lab-accent);
+  color: #16815b;
+}
+
+.dark .lab-rail-net.is-positive {
+  color: #7ddbb4;
 }
 
 .lab-rail-net.is-negative {

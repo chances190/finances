@@ -175,7 +175,9 @@ const yearBudgetChart = $derived(buildBudgetChart(yearlyBudgetVsActual, palette)
         label="Income − spending"
         icon={balanceIcon}
         value={formatCurrency(yearData.totalBalance)}
-        valueClass="font-mono {yearData.totalBalance >= 0 ? 'text-primary' : 'text-destructive'}"
+        valueClass="font-mono {yearData.totalBalance >= 0
+          ? 'text-green-600 dark:text-green-400'
+          : 'text-red-600 dark:text-red-400'}"
       />
       <StatCard
         label="Savings Rate"

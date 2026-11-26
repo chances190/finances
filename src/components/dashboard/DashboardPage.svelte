@@ -185,13 +185,17 @@ const paymentPie = $derived(buildPaymentPie(paymentMethodData, palette))
         label="Net Spending"
         icon={balanceIcon}
         value={formatCurrency(monthData.balance)}
-        valueClass="font-mono {monthData.balance >= 0 ? 'text-primary' : 'text-destructive'}"
+        valueClass="font-mono {monthData.balance >= 0
+          ? 'text-green-600 dark:text-green-400'
+          : 'text-red-600 dark:text-red-400'}"
       />
       <StatCard
         label="Net Voucher"
         icon={voucherIcon}
         value={formatCurrency(monthData.mealVoucher)}
-        valueClass="font-mono {monthData.mealVoucher >= 0 ? 'text-primary' : 'text-destructive'}"
+        valueClass="font-mono {monthData.mealVoucher >= 0
+          ? 'text-green-600 dark:text-green-400'
+          : 'text-red-600 dark:text-red-400'}"
       />
     </div>
 
