@@ -203,19 +203,12 @@ let state = $state.raw<FinanceState>({
 })
 
 let saveHandle: number | null = null
-let persistenceEnabled = true
-
-export function setFinancePersistence(enabled: boolean) {
-  persistenceEnabled = enabled
-}
-
 function persist() {
-  if (!state.loaded || !persistenceEnabled) return
+  if (!state.loaded) return
   saveData({ movements: state.movements, budgets: state.budgets })
 }
 
 function scheduleSave() {
-  if (!persistenceEnabled) return
   if (saveHandle !== null) {
     if (typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(saveHandle)
     else window.clearTimeout(saveHandle)

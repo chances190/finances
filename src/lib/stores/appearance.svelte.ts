@@ -57,10 +57,9 @@ function read(): AppearanceState {
 }
 
 let saved = $state<AppearanceState>(read())
-let labPreview = $state<ResolvedTheme | null>(null)
 const systemDark = new MediaQuery('(prefers-color-scheme: dark)')
 const resolved: ResolvedTheme = $derived(
-  labPreview ?? (saved.theme === 'system' ? (systemDark.current ? 'dark' : 'light') : saved.theme),
+  saved.theme === 'system' ? (systemDark.current ? 'dark' : 'light') : saved.theme,
 )
 
 function write() {
@@ -83,10 +82,6 @@ function apply() {
   document
     .querySelector<HTMLLinkElement>('link[rel="icon"]')
     ?.setAttribute('href', resolved === 'dark' ? '/icon-dark.svg' : '/icon.svg')
-}
-
-export function setPreviewTheme(theme: ResolvedTheme | null) {
-  labPreview = theme
 }
 
 let started = false
