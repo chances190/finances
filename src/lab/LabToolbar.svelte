@@ -10,6 +10,7 @@ let { settings = $bindable(), onReset }: Props = $props()
 
 const inkAccents: { value: InkAccent; label: string }[] = [
   { value: 'mono', label: 'Black / White' },
+  { value: 'system', label: 'System' },
   { value: 'yellow', label: 'Yellow' },
   { value: 'green', label: 'Green' },
   { value: 'red', label: 'Red' },
@@ -79,6 +80,7 @@ function set<K extends keyof LabSettings>(key: K, value: LabSettings[K]) {
         <span>Theme</span>
         <div class="lab-segment">
           {#each [
+            ['system', 'System'],
             ['light', 'Light'],
             ['dark', 'Dark'],
           ] as [value, label] (value)}

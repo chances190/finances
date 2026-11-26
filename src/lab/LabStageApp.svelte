@@ -1,5 +1,6 @@
 <script lang="ts">
 import { onMount, untrack } from 'svelte'
+import { MediaQuery } from 'svelte/reactivity'
 import BudgetPage from '@/components/budgets/BudgetPage.svelte'
 import AuditLogPanel from '@/components/common/AuditLogPanel.svelte'
 import DashboardPage from '@/components/dashboard/DashboardPage.svelte'
@@ -15,6 +16,11 @@ import { defaultSettings, type LabSettings } from './types'
 
 let settings = $state<LabSettings>({ ...defaultSettings })
 let mounted = $state(false)
+
+const systemDark = new MediaQuery('(prefers-color-scheme: dark)')
+const resolvedTheme = $derived(
+  settings.theme === 'system' ? (systemDark.current ? 'dark' : 'light') : settings.theme,
+)
 
 const mirroredTokens = [
   '--background',
@@ -51,7 +57,7 @@ const mirroredTokens = [
 ]
 
 $effect(() => {
-  const themeMode = settings.theme
+  const themeMode = resolvedTheme
   const accent = settings.accent
   const inkAccent = settings.inkAccent
   const stage = document.querySelector<HTMLElement>('.lab-stage')
@@ -74,7 +80,7 @@ $effect(() => {
 })
 
 $effect(() => {
-  setResolvedThemeForLab(settings.theme)
+  setResolvedThemeForLab(resolvedTheme)
   return () => setResolvedThemeForLab(null)
 })
 
@@ -97,7 +103,7 @@ onMount(() => {
 
 <div
   class="lab-stage"
-  class:dark={settings.theme === 'dark'}
+  class:dark={resolvedTheme === 'dark'}
   data-preset="glass"
   data-density={settings.density}
   data-accent={settings.accent}

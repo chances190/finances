@@ -18,8 +18,8 @@ interface BaseOption {
 }
 
 const bases: BaseOption[] = [
-  { value: 'sage', label: 'Sage', light: '#2f6f68', dark: '#95d6c7' },
   { value: 'ink', label: 'Ink', light: '#262b30', dark: '#e6ecef' },
+  { value: 'sage', label: 'Sage', light: '#2f6f68', dark: '#95d6c7' },
   { value: 'steel', label: 'Steel', light: '#5f7f93', dark: '#9cc0d4' },
   { value: 'plum', label: 'Plum', light: '#7b4a68', dark: '#c79ab9' },
 ]
@@ -29,11 +29,25 @@ interface InkOption {
   label: string
   light: string
   dark: string
-  mono?: boolean
+  swatch?: string
 }
 
 const inkAccents: InkOption[] = [
-  { value: 'mono', label: 'Black / White', light: '#262b30', dark: '#e6ecef', mono: true },
+  {
+    value: 'mono',
+    label: 'Black / White',
+    light: '#262b30',
+    dark: '#e6ecef',
+    swatch: 'linear-gradient(135deg, #1b1b1f 50%, #f4f4f5 50%)',
+  },
+  {
+    value: 'system',
+    label: 'System',
+    light: '#2f6f68',
+    dark: '#95d6c7',
+    swatch:
+      'conic-gradient(from 0deg, #e8c25a, #7ddba0, #9dbdf0, #c3a6f0, #f0a6c8, #f09a9a, #f0b07a, #e8c25a)',
+  },
   { value: 'yellow', label: 'Yellow', light: '#8a6508', dark: '#e8c25a' },
   { value: 'green', label: 'Green', light: '#2f6f4a', dark: '#7ddba0' },
   { value: 'red', label: 'Red', light: '#a33434', dark: '#f09a9a' },
@@ -81,6 +95,7 @@ function setInk(value: InkAccent) {
         aria-label="Theme"
         value={settings.theme}
         options={[
+          { value: 'system', label: 'System' },
           { value: 'light', label: 'Light' },
           { value: 'dark', label: 'Dark' },
         ]}
@@ -136,11 +151,7 @@ function setInk(value: InkAccent) {
             >
               <span
                 class="size-6 rounded-full ring-1 ring-black/15 ring-inset dark:ring-white/25"
-                style:background={accent.mono
-                  ? 'linear-gradient(135deg, #1b1b1f 50%, #f4f4f5 50%)'
-                  : dark
-                    ? accent.dark
-                    : accent.light}
+                style:background={accent.swatch ?? (dark ? accent.dark : accent.light)}
               ></span>
               <span class="text-[11px] leading-tight text-foreground">{accent.label}</span>
             </button>

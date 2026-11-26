@@ -1764,6 +1764,13 @@ body,
   background: var(--lab-selected);
 }
 
+.lab-stage[data-accent="ink"][data-ink-accent="system"] {
+  --primary: AccentColor;
+  --primary-foreground: AccentColorText;
+  --ring: AccentColor;
+  --lab-accent: AccentColor;
+}
+
 .lab-stage[data-accent="ink"][data-ink-accent="yellow"] {
   --primary: #8a6508;
   --primary-foreground: #fff9e6;
