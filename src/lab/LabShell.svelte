@@ -26,7 +26,7 @@ const items: {
 let sheetOpen = $state(false)
 
 function select(key: (typeof items)[number]['key']) {
-  if (key === 'transactions' || key === 'dashboard') settings.screen = key
+  settings.screen = key
   sheetOpen = false
 }
 </script>
@@ -39,7 +39,7 @@ function select(key: (typeof items)[number]['key']) {
         class="lab-nav-item {settings.screen === item.key ? 'is-active' : ''}"
         onclick={() => select(item.key)}
       >
-        <LabIcon pack={settings.iconPack} name={item.icon} className="size-4" />
+        <LabIcon name={item.icon} className="size-4" />
         <span>{item.label}</span>
       </button>
     {/each}
@@ -53,7 +53,7 @@ function select(key: (typeof items)[number]['key']) {
       <div class="min-w-0">
         <div class="flex items-center gap-2">
           <span class="lab-brand-name">Finances</span>
-          <span class="lab-brand-tag">{settings.preset}</span>
+          <span class="lab-brand-tag">Glass + Clay</span>
         </div>
         <p class="lab-brand-sub">November 2026 · personal ledger</p>
       </div>
@@ -74,15 +74,21 @@ function select(key: (typeof items)[number]['key']) {
           sheetOpen = !sheetOpen
         }}
       >
-        <LabIcon pack={settings.iconPack} name="menu" className="size-4" />
+        <LabIcon name="menu" className="size-4" />
       </button>
       <button type="button" class="lab-icon-button" aria-label="Settings">
-        <LabIcon pack={settings.iconPack} name="settings" className="size-4" />
+        <LabIcon name="settings" className="size-4" />
       </button>
     </div>
   </header>
 
   {#if sheetOpen}
+    <button
+      type="button"
+      class="lab-sheet-backdrop"
+      aria-label="Close navigation"
+      onclick={() => (sheetOpen = false)}
+    ></button>
     <div class="lab-sheet">
       <div class="lab-sheet-head">
         <span>Navigate</span>
@@ -104,23 +110,4 @@ function select(key: (typeof items)[number]['key']) {
       {@render children()}
     </main>
   </div>
-
-  {#if settings.mobileNav === 'bottom'}
-    <nav class="lab-bottom-nav">
-      {#each items.slice(0, 4) as item (item.key)}
-        <button
-          type="button"
-          class="lab-bottom-item {settings.screen === item.key ? 'is-active' : ''}"
-          onclick={() => select(item.key)}
-        >
-          <LabIcon pack={settings.iconPack} name={item.icon} className="size-4" />
-          <span>{item.label}</span>
-        </button>
-      {/each}
-      <button type="button" class="lab-bottom-item" onclick={() => (sheetOpen = true)}>
-        <LabIcon pack={settings.iconPack} name="menu" className="size-4" />
-        <span>More</span>
-      </button>
-    </nav>
-  {/if}
 </div>

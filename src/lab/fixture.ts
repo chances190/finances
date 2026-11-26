@@ -29,6 +29,19 @@ const november: Budget = {
   categoryLimits: { Food: 400, Fun: 200, Transport: 150, Tech: 250 },
 }
 
+const richBudgets: Budget[] = [
+  { ...november, referenceMonth: '2026-09' },
+  { ...november, referenceMonth: '2026-10' },
+  november,
+  {
+    referenceMonth: '2026-12',
+    plannedIncome: 5200,
+    plannedMealVoucher: 600,
+    investmentRate: 0.2,
+    categoryLimits: { Food: 420, Fun: 220, Transport: 160, Tech: 300, Home: 200 },
+  },
+]
+
 export const richFixture: { movements: Movement[]; budgets: Budget[] } = {
   movements: [
     {
@@ -103,8 +116,40 @@ export const richFixture: { movements: Movement[]; budgets: Budget[] } = {
         { account: 'voucher', amount: 100 },
       ],
     },
+    {
+      id: 'carla-dinner',
+      date: '2026-10-28',
+      kind: 'purchase',
+      description: 'Dinner with Carla',
+      postings: [
+        { account: 'expense', amount: 20, category: 'Food' },
+        { account: 'receivable', amount: 20, counterparty: 'Carla' },
+        { account: 'checking', amount: -40 },
+      ],
+    },
+    {
+      id: 'diego-rent',
+      date: '2026-11-10',
+      kind: 'purchase',
+      description: 'Rent share',
+      postings: [
+        { account: 'expense', amount: 200, category: 'Home' },
+        { account: 'payable', amount: -200, counterparty: 'Diego' },
+      ],
+    },
+    {
+      id: 'bob-settlement',
+      date: '2026-11-24',
+      kind: 'settlement',
+      description: 'Paid Bob back',
+      postings: [
+        { account: 'payable', amount: 10, counterparty: 'Bob' },
+        { account: 'checking', amount: -10 },
+      ],
+      links: ['concert'],
+    },
   ],
-  budgets: [november],
+  budgets: richBudgets,
 }
 
 const stressCategories = ['Food', 'Fun', 'Transport', 'Tech', 'Home', 'Health']
@@ -142,5 +187,5 @@ export function stressFixture(count = 1000): {
       ),
     )
   }
-  return { movements, budgets: [november] }
+  return { movements, budgets: richBudgets }
 }

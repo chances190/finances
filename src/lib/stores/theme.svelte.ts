@@ -14,10 +14,15 @@ function readPreference(): ThemePreference {
 }
 
 let preference = $state<ThemePreference>(readPreference())
+let labOverride = $state<ResolvedTheme | null>(null)
 const systemDark = new MediaQuery('(prefers-color-scheme: dark)')
 const resolved: ResolvedTheme = $derived(
-  preference === 'system' ? (systemDark.current ? 'dark' : 'light') : preference,
+  labOverride ?? (preference === 'system' ? (systemDark.current ? 'dark' : 'light') : preference),
 )
+
+export function setResolvedThemeForLab(next: ResolvedTheme | null) {
+  labOverride = next
+}
 
 let started = false
 
@@ -48,6 +53,7 @@ export function initTheme(): () => void {
 }
 
 function setPreference(next: ThemePreference) {
+  if (labOverride) return
   preference = next
   try {
     localStorage.setItem(STORAGE_KEY, next)

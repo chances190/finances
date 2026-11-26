@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Accent, LabScreen, LabSettings, LabTheme, LedgerVariant, Preset } from './types'
+import type { Accent, LabSettings, LabTheme } from './types'
 
 interface Props {
   settings: LabSettings
@@ -8,28 +8,11 @@ interface Props {
 
 let { settings = $bindable(), onReset }: Props = $props()
 
-const presets: { value: Preset; label: string; hint: string; swatch: string }[] = [
-  { value: 'warm', label: 'Warm Tactile', hint: 'bone + graphite', swatch: 'var(--preset-warm)' },
-  { value: 'glass', label: 'Frosted Glass', hint: 'sage + blur', swatch: 'var(--preset-glass)' },
-  { value: 'clay', label: 'Soft Clay', hint: 'terracotta', swatch: 'var(--preset-clay)' },
-  {
-    value: 'nordic',
-    label: 'Nordic Mono',
-    hint: 'taupe hairlines',
-    swatch: 'var(--preset-nordic)',
-  },
-]
-
-const ledgers: { value: LedgerVariant; label: string }[] = [
-  { value: 'feed', label: 'Feed' },
-  { value: 'hybrid', label: 'Hybrid' },
-  { value: 'table', label: 'Table' },
-]
-
 const accents: { value: Accent; label: string; color: string }[] = [
   { value: 'preset', label: 'Preset', color: 'var(--lab-accent)' },
-  { value: 'ink', label: 'Ink', color: '#27241f' },
-  { value: 'teal', label: 'Teal', color: '#3f7f78' },
+  { value: 'ink', label: 'Ink', color: '#262b30' },
+  { value: 'sage', label: 'Sage', color: '#748f82' },
+  { value: 'steel', label: 'Steel', color: '#5f7f93' },
   { value: 'plum', label: 'Plum', color: '#7b4a68' },
 ]
 
@@ -45,77 +28,17 @@ function set<K extends keyof LabSettings>(key: K, value: LabSettings[K]) {
     <div class="lab-toolbar-brand">
       <span class="lab-toolbar-mark">dl</span>
       <div>
-        <strong>Design lab</strong>
-        <span>real components · synthetic data</span>
+        <strong>Design lab · round 2</strong>
       </div>
-    </div>
-
-    <div class="lab-toolbar-group lab-preset-group">
-      {#each presets as preset (preset.value)}
-        <button
-          type="button"
-          class="lab-preset {settings.preset === preset.value ? 'is-active' : ''}"
-          onclick={() => set('preset', preset.value)}
-          title={preset.hint}
-        >
-          <span class="lab-swatch" style="background: {preset.swatch}"></span>
-          {preset.label}
-        </button>
-      {/each}
     </div>
 
     <div class="lab-toolbar-row">
-      <div class="lab-control">
-        <span>Screen</span>
-        <div class="lab-segment">
-          {#each [
-            ['transactions', 'Ledger'],
-            ['dashboard', 'Dashboard'],
-          ] as [value, label] (value)}
-            <button
-              type="button"
-              class={settings.screen === value ? 'is-active' : ''}
-              onclick={() => set('screen', value as LabScreen)}
-            >
-              {label}
-            </button>
-          {/each}
-        </div>
-      </div>
-
-      <div class="lab-control">
-        <span>Ledger</span>
-        <div class="lab-segment">
-          {#each ledgers as ledger (ledger.value)}
-            <button
-              type="button"
-              class={settings.ledger === ledger.value ? 'is-active' : ''}
-              onclick={() => set('ledger', ledger.value)}
-            >
-              {ledger.label}
-            </button>
-          {/each}
-        </div>
-      </div>
-
       <label class="lab-control">
-        <span>Desktop nav</span>
+        <span>Desktop nav · open</span>
         <select bind:value={settings.desktopNav}>
           {#each [
             ['top', 'Top tabs'],
             ['side', 'Sidebar'],
-          ] as [value, label] (value)}
-            <option {value}>{label}</option>
-          {/each}
-        </select>
-      </label>
-
-      <label class="lab-control">
-        <span>Mobile nav</span>
-        <select bind:value={settings.mobileNav}>
-          {#each [
-            ['bottom', 'Bottom bar'],
-            ['sheet', 'Sheet'],
           ] as [value, label] (value)}
             <option {value}>{label}</option>
           {/each}
@@ -128,19 +51,6 @@ function set<K extends keyof LabSettings>(key: K, value: LabSettings[K]) {
           {#each [
             ['comfortable', 'Comfortable'],
             ['compact', 'Compact'],
-          ] as [value, label] (value)}
-            <option {value}>{label}</option>
-          {/each}
-        </select>
-      </label>
-
-      <label class="lab-control">
-        <span>Icons</span>
-        <select bind:value={settings.iconPack}>
-          {#each [
-            ['phosphor', 'Phosphor'],
-            ['tabler', 'Tabler'],
-            ['hugeicons', 'Hugeicons'],
           ] as [value, label] (value)}
             <option {value}>{label}</option>
           {/each}
