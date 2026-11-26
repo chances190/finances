@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Accent, LabSettings, LabTheme } from './types'
+import type { Accent, InkAccent, LabSettings, LabTheme } from './types'
 
 interface Props {
   settings: LabSettings
@@ -7,6 +7,12 @@ interface Props {
 }
 
 let { settings = $bindable(), onReset }: Props = $props()
+
+const inkAccents: { value: InkAccent; label: string }[] = [
+  { value: 'sage', label: 'Sage' },
+  { value: 'steel', label: 'Steel' },
+  { value: 'plum', label: 'Plum' },
+]
 
 const accents: { value: Accent; label: string; color: string }[] = [
   { value: 'preset', label: 'Preset', color: 'var(--lab-accent)' },
@@ -34,18 +40,6 @@ function set<K extends keyof LabSettings>(key: K, value: LabSettings[K]) {
 
     <div class="lab-toolbar-row">
       <label class="lab-control">
-        <span>Desktop nav · open</span>
-        <select bind:value={settings.desktopNav}>
-          {#each [
-            ['top', 'Top tabs'],
-            ['side', 'Sidebar'],
-          ] as [value, label] (value)}
-            <option {value}>{label}</option>
-          {/each}
-        </select>
-      </label>
-
-      <label class="lab-control">
         <span>Density</span>
         <select bind:value={settings.density}>
           {#each [
@@ -65,6 +59,17 @@ function set<K extends keyof LabSettings>(key: K, value: LabSettings[K]) {
           {/each}
         </select>
       </label>
+
+      {#if settings.accent === 'ink'}
+        <label class="lab-control">
+          <span>Ink colour</span>
+          <select bind:value={settings.inkAccent}>
+            {#each inkAccents as accent (accent.value)}
+              <option value={accent.value}>{accent.label}</option>
+            {/each}
+          </select>
+        </label>
+      {/if}
 
       <div class="lab-control">
         <span>Theme</span>

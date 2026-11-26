@@ -1,6 +1,6 @@
-export type DesktopNav = 'top' | 'side'
 export type Density = 'comfortable' | 'compact'
 export type Accent = 'preset' | 'ink' | 'sage' | 'steel' | 'plum'
+export type InkAccent = 'sage' | 'steel' | 'plum'
 export type LabTheme = 'light' | 'dark'
 export type Dataset = 'rich' | 'stress'
 export type LabScreen = 'transactions' | 'budgets' | 'debts' | 'dashboard' | 'trends' | 'actions'
@@ -21,9 +21,9 @@ export type IconName =
   | 'arrow'
 
 export interface LabSettings {
-  desktopNav: DesktopNav
   density: Density
   accent: Accent
+  inkAccent: InkAccent
   theme: LabTheme
   dataset: Dataset
   screen: LabScreen
@@ -31,9 +31,9 @@ export interface LabSettings {
 }
 
 export const defaultSettings: LabSettings = {
-  desktopNav: 'top',
   density: 'comfortable',
   accent: 'preset',
+  inkAccent: 'sage',
   theme: 'dark',
   dataset: 'rich',
   screen: 'transactions',

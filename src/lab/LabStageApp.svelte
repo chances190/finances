@@ -98,6 +98,7 @@ onMount(() => {
   data-preset="glass"
   data-density={settings.density}
   data-accent={settings.accent}
+  data-ink-accent={settings.inkAccent}
 >
   <LabShell bind:settings>
     {#if settings.screen === 'transactions'}

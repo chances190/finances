@@ -59,11 +59,9 @@ function select(key: (typeof items)[number]['key']) {
       </div>
     </div>
 
-    {#if settings.desktopNav === 'top'}
-      <div class="lab-desktop-nav">
-        {@render nav(false)}
-      </div>
-    {/if}
+    <div class="lab-desktop-nav">
+      {@render nav(false)}
+    </div>
 
     <div class="lab-header-actions">
       <button
@@ -101,11 +99,6 @@ function select(key: (typeof items)[number]['key']) {
   {/if}
 
   <div class="lab-body">
-    {#if settings.desktopNav === 'side'}
-      <aside class="lab-sidebar">
-        {@render nav(true)}
-      </aside>
-    {/if}
     <main class="lab-main">
       {@render children()}
     </main>
