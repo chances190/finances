@@ -40,7 +40,7 @@ const debtCount = $derived(
     <div class="lab-rail-split">
       <div>
         <span>Income</span>
-        <strong class="text-green-600 dark:text-green-400">{formatCurrency(income)}</strong>
+        <strong class="text-primary">{formatCurrency(income)}</strong>
       </div>
       <div>
         <span>Spending</span>
@@ -89,17 +89,13 @@ const debtCount = $derived(
         {#each receivables as row (row.counterparty)}
           <div>
             <span>{row.counterparty}</span
-            ><strong class="text-green-600 dark:text-green-400"
-              >owes {formatCurrency(row.amount)}</strong
-            >
+            ><strong class="text-primary">owes {formatCurrency(row.amount)}</strong>
           </div>
         {/each}
         {#each payables as row (row.counterparty)}
           <div>
             <span>{row.counterparty}</span
-            ><strong class="text-red-600 dark:text-red-400"
-              >you owe {formatCurrency(row.amount)}</strong
-            >
+            ><strong class="text-destructive">you owe {formatCurrency(row.amount)}</strong>
           </div>
         {/each}
       </div>
