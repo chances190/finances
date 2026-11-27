@@ -123,7 +123,7 @@ onMount(() => {
     </div>
   </header>
 
-  <main class="mx-auto max-w-7xl px-4 py-4 max-sm:px-3 max-sm:py-3">
+  <main class="mx-auto max-w-7xl px-4 py-4 max-md:px-3 max-md:py-3">
     <svelte:boundary onerror={(error) => console.error(error)}>
       {#if router.path === '/budgets'}
         <BudgetPage />

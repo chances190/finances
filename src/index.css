@@ -504,6 +504,12 @@
     -webkit-backdrop-filter: blur(12px) saturate(0.9);
   }
 
+  .sheet-overlay {
+    background: rgb(3 9 11 / 38%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
   .floating-surface {
     border: 1px solid var(--border);
     border-radius: 4px;
@@ -520,7 +526,7 @@
   .dialog-surface {
     border: 1px solid var(--border);
     border-radius: 4px;
-    background: color-mix(in srgb, var(--popover) 90%, transparent);
+    background: color-mix(in srgb, var(--popover) 88%, transparent);
     box-shadow: var(--shadow-dialog);
     backdrop-filter: blur(24px) saturate(1.12);
     -webkit-backdrop-filter: blur(24px) saturate(1.12);
@@ -584,7 +590,7 @@
 
 @layer utilities {
   /* Scoped field skin: utilities outrank the form primitives' own background and border utilities. */
-  .dialog-surface
+  .dialog-surface:not(.tx-sheet)
     :is(input, textarea, [data-slot="select-trigger"]):not([type="checkbox"], [type="radio"]) {
     min-height: 38px;
     border-color: color-mix(in srgb, var(--foreground) 18%, var(--border));
@@ -593,13 +599,13 @@
   }
 
   .dark
-    .dialog-surface
+    .dialog-surface:not(.tx-sheet)
     :is(input, textarea, [data-slot="select-trigger"]):not([type="checkbox"], [type="radio"]) {
     border-color: rgb(255 255 255 / 18%);
     background: color-mix(in srgb, var(--foreground) 9%, var(--popover));
   }
 
-  .dialog-surface label {
+  .dialog-surface:not(.tx-sheet) label {
     color: var(--foreground);
     font-weight: 500;
   }

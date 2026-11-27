@@ -152,6 +152,12 @@ describe('§2.4 payment method', () => {
     expect(result.kind).toBe('expense')
   })
 
+  test('bare debit alias resolves to Debit/PIX', () => {
+    const result = parse('23,50 Almoço @Debit hoje')
+    expect(result.paymentMethod).toBe('Debit/PIX')
+    expect(result.description).toBe('Almoço')
+  })
+
   test('voucher resolves by direction', () => {
     const income = parse('23,50 Almoço @Voucher')
     expect(income.paymentMethod).toBe('Voucher Income')

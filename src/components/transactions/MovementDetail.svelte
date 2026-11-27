@@ -13,6 +13,8 @@ import {
   expenseAmount,
   installmentInfo,
   type Movement,
+  monthRelation,
+  movementMonth,
   outstandingMovements,
   refundableAmount,
 } from '@/domain/ledger'
@@ -53,6 +55,7 @@ const hasDebt = $derived(
     ),
 )
 const amount = $derived(movement.kind === 'purchase' ? expenseAmount(movement) : amountOf(movement))
+const isFuture = $derived(monthRelation(movementMonth(movement)) === 'future')
 
 function formatDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', {
@@ -64,7 +67,7 @@ function formatDate(date: string): string {
 }
 </script>
 
-<div>
+<div class={isFuture ? 'opacity-70' : undefined}>
   <div class="tx-entry-detail-head">
     <div class="min-w-0">
       <div class="tx-entry-detail-amount {amountClass(movement)}">
@@ -90,14 +93,12 @@ function formatDate(date: string): string {
     {#if counterparties.length > 0}
       <div><span>Person</span><strong>{counterparties.join(', ')}</strong></div>
     {/if}
-    <div>
-      <span>Debt</span>
-      {#if debtRows.length > 0}
+    {#if debtRows.length > 0}
+      <div>
+        <span>Debt</span>
         <DebtStatusBadge rows={debtRows} />
-      {:else}
-        <strong>—</strong>
-      {/if}
-    </div>
+      </div>
+    {/if}
   </div>
 
   {#if detail}
@@ -111,7 +112,7 @@ function formatDate(date: string): string {
         class="tx-secondary py-2 text-xs font-semibold"
         onclick={() => onEdit(movement)}
       >
-        Edit
+        Edit entry
       </button>
     {/if}
     {#if refundable > 0.004}

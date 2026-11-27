@@ -10,6 +10,7 @@ import DialogPortal from './dialog-portal.svelte'
 let {
   ref = $bindable(null),
   class: className,
+  overlayClass,
   portalProps,
   children,
   showCloseButton = true,
@@ -17,12 +18,13 @@ let {
 }: WithoutChildrenOrChild<DialogPrimitive.ContentProps> & {
   portalProps?: WithoutChildrenOrChild<ComponentProps<typeof DialogPortal>>
   children: Snippet
+  overlayClass?: string
   showCloseButton?: boolean
 } = $props()
 </script>
 
 <DialogPortal {...portalProps}>
-  <DialogOverlay />
+  <DialogOverlay class={overlayClass} />
   <DialogPrimitive.Content
     bind:ref
     data-slot="dialog-content"

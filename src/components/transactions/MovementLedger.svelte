@@ -9,7 +9,6 @@ import HouseIcon from 'phosphor-svelte/lib/HouseIcon'
 import TagIcon from 'phosphor-svelte/lib/TagIcon'
 import { untrack } from 'svelte'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import type { InstallmentInfo, Movement, OutstandingMovement } from '@/domain/ledger'
 import { categoryOf, expenseAmount, monthRelation, movementMonth } from '@/domain/ledger'
 import { formatCurrency } from '@/lib/currency'
@@ -25,7 +24,6 @@ interface Props {
   selectedId: string | null
   hybrid: boolean
   emptyMessage: string
-  onClear: (() => void) | null
   onSelect: (movement: Movement) => void
 }
 
@@ -36,7 +34,6 @@ let {
   selectedId,
   hybrid,
   emptyMessage,
-  onClear,
   onSelect,
 }: Props = $props()
 
@@ -131,7 +128,7 @@ $effect(() => {
       estimateSize: (index) => {
         const group = list[index]
         const rows = group?.items.length ?? 1
-        return mode ? 28 + rows * 46 : 30 + rows * 72 + 12
+        return mode ? 28 + rows * 46 : 39 + rows * 72
       },
       overscan: 8,
       getItemKey: (index) => list[index]?.date ?? index,
@@ -165,9 +162,6 @@ function groupKey(index: number): string | number {
   <div class="panel px-4 py-14 text-center">
     <p class="text-sm font-medium">{emptyMessage}</p>
     <p class="mt-1 text-xs text-muted-foreground">Try a different filter or clear the search.</p>
-    {#if onClear}
-      <Button variant="outline" size="sm" class="mt-3 h-10" onclick={onClear}>Clear filters</Button>
-    {/if}
   </div>
 {:else if hybrid}
   <div class="panel surface-solid overflow-hidden">
@@ -194,7 +188,7 @@ function groupKey(index: number): string | number {
             <div class="tx-hybrid-date">
               <span>{dateLabel(group.date)}</span>
               {#if group.total !== 0}
-                <span class="font-mono font-semibold {totalClass(group.total)}">
+                <span class="tx-date-total {totalClass(group.total)}">
                   {sign(group.total)}{formatCurrency(Math.abs(group.total))}
                 </span>
               {/if}
@@ -255,19 +249,19 @@ function groupKey(index: number): string | number {
         <div
           data-index={virtualRow.index}
           {@attach measureRow}
-          class="absolute top-0 left-0 w-full pb-3"
+          class="absolute top-0 left-0 w-full tx-feed-group"
           style="transform: translateY({virtualRow.start - scrollMargin}px);"
         >
           <div class="tx-date-header">
             <span>{dateLabel(group.date)}</span>
             {#if group.total !== 0}
-              <span class="font-mono font-semibold {totalClass(group.total)}">
+              <span class="tx-date-total {totalClass(group.total)}">
                 {sign(group.total)}{formatCurrency(Math.abs(group.total))}
               </span>
             {/if}
           </div>
 
-          <div class="panel surface-solid mt-1.5 divide-y divide-border overflow-hidden">
+          <div class="panel surface-solid divide-y divide-border overflow-hidden">
             {#each group.items as movement (movement.id)}
               {@const category = categoryOf(movement)}
               {@const installment = installmentsById.get(movement.id)}
@@ -296,7 +290,7 @@ function groupKey(index: number): string | number {
                     <DebtStatusBadge rows={debtRows} />
                   </span>
                   <span
-                    class="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground"
+                    class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
                   >
                     <span>{paymentLabelOf(movement)}</span>
                     {#if category}

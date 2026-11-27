@@ -54,6 +54,10 @@ let selectedId = $state<string | null>(null)
 let detailOpen = $state(false)
 let deepLinked = $state(false)
 
+const sheetClass =
+  'tx-sheet top-auto right-0 bottom-0 left-0 w-full max-w-none translate-x-0 translate-y-0 gap-0 overflow-y-auto rounded-[4px] border-x-0 border-b-0 p-3 max-h-[82dvh] sm:max-w-none max-sm:max-h-[82dvh] max-sm:rounded-t-[4px] max-sm:pb-[calc(0.75rem+env(safe-area-inset-bottom))] data-open:animate-none data-closed:animate-none'
+const sheetOverlay = 'sheet-overlay data-open:animate-none data-closed:animate-none'
+
 const searchParams = $derived(new URLSearchParams(router.search))
 const filterSearch = $derived(searchParams.get('search') ?? '')
 const filterMonth = $derived(searchParams.get('month') ?? 'all')
@@ -122,12 +126,6 @@ const months = $derived.by(() => {
   const values = new Set<string>()
   for (const movement of financeState.movements) values.add(movementMonth(movement))
   return [...values].sort().reverse()
-})
-
-const knownDescriptions = $derived.by(() => {
-  const descriptions = new Set<string>()
-  for (const movement of financeState.movements) descriptions.add(movement.description)
-  return Array.from(descriptions).sort()
 })
 
 const allCategories = $derived(allCategoryNames(financeState.budgets, financeState.movements))
@@ -383,7 +381,6 @@ function handleDelete(id: string) {
           onOpenModal={() => {
             showAddForm = true
           }}
-          {knownDescriptions}
           {categoriesForMonth}
         />
       </div>
@@ -441,7 +438,6 @@ function handleDelete(id: string) {
         selectedId={selected?.id ?? null}
         hybrid={hybrid.current}
         {emptyMessage}
-        onClear={hasFilters ? clearFilters : null}
         onSelect={selectMovement}
       />
     </div>
@@ -464,9 +460,21 @@ function handleDelete(id: string) {
 
 {#if selected && detailOpen}
   <Dialog bind:open={detailOpen}>
-    <DialogContent class="gap-2.5 p-3 sm:max-w-sm">
-      <DialogHeader class="border-b border-border px-1 pr-8 pb-2">
+    <DialogContent class={sheetClass} overlayClass={sheetOverlay} showCloseButton={false}>
+      <DialogHeader
+        class="flex flex-row items-center justify-between gap-0 border-b border-border px-1 pt-0.5 pb-2"
+      >
         <DialogTitle class="text-xs font-semibold">Entry details</DialogTitle>
+        <button
+          type="button"
+          aria-label="Close entry details"
+          class="text-lg leading-none text-muted-foreground"
+          onclick={() => {
+            detailOpen = false
+          }}
+        >
+          ×
+        </button>
       </DialogHeader>
       <MovementDetail
         movement={selected}
@@ -484,11 +492,23 @@ function handleDelete(id: string) {
 
 {#if showFilters}
   <Dialog bind:open={showFilters}>
-    <DialogContent class="gap-2.5 p-3 sm:max-w-md">
-      <DialogHeader class="border-b border-border px-1 pr-8 pb-2">
+    <DialogContent class={sheetClass} overlayClass={sheetOverlay} showCloseButton={false}>
+      <DialogHeader
+        class="flex flex-row items-center justify-between gap-0 border-b border-border px-1 pt-0.5 pb-2"
+      >
         <DialogTitle class="text-xs font-semibold">Filters</DialogTitle>
+        <button
+          type="button"
+          aria-label="Close filters"
+          class="text-lg leading-none text-muted-foreground"
+          onclick={() => {
+            showFilters = false
+          }}
+        >
+          ×
+        </button>
       </DialogHeader>
-      <div class="tx-filter-sheet max-h-[60dvh] overflow-y-auto">
+      <div class="tx-filter-sheet">
         <TransactionFilters
           {filterType}
           {filterMonth}
@@ -504,7 +524,7 @@ function handleDelete(id: string) {
           wide
         />
       </div>
-      <button type="button" class="tx-secondary w-full py-2 text-xs" onclick={clearFilters}>
+      <button type="button" class="tx-secondary mt-3 w-full py-2 text-xs" onclick={clearFilters}>
         Clear all filters
       </button>
     </DialogContent>

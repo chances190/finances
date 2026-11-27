@@ -36,6 +36,7 @@ interface PaymentAlias {
 
 const PAYMENT_ALIASES: PaymentAlias[] = [
   { label: 'Debit/PIX', method: 'Debit/PIX', kind: 'expense' },
+  { label: 'Debit', method: 'Debit/PIX', kind: 'expense', suggest: false },
   { label: 'Credit', method: 'Credit', kind: 'expense' },
   { label: 'Voucher Debit', method: 'Voucher Debit', kind: 'expense' },
   { label: 'Cash', method: 'Cash', kind: 'expense' },

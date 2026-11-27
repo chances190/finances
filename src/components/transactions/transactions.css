@@ -115,9 +115,16 @@
   color: var(--muted-foreground);
 }
 
-.tx-feed-groups {
+.tx-feed-group {
   display: grid;
   gap: 12px;
+  padding-bottom: 12px;
+}
+
+.tx-date-total {
+  margin-left: 6px;
+  font-family: var(--font-mono);
+  font-weight: 600;
 }
 
 .tx-date-header {
@@ -155,7 +162,7 @@
 }
 
 .tx-feed-row.is-selected {
-  background: color-mix(in oklab, var(--brand) 10%, var(--card));
+  background: var(--state-selected);
   box-shadow: inset 3px 0 0 var(--brand);
 }
 
@@ -226,7 +233,7 @@
 }
 
 .tx-hybrid-row.is-selected {
-  background: color-mix(in oklab, var(--brand) 10%, var(--card));
+  background: var(--state-selected);
   box-shadow: inset 3px 0 0 var(--brand);
 }
 

@@ -14,6 +14,8 @@ interface Props {
 
 let { items, active, onChange }: Props = $props()
 let open = $state(false)
+
+const sheetOverlay = 'sheet-overlay data-open:animate-none data-closed:animate-none'
 </script>
 
 <Dialog bind:open>
@@ -33,12 +35,28 @@ let open = $state(false)
   </DialogTrigger>
 
   <DialogContent
-    class="top-[calc(4rem+env(safe-area-inset-top))] right-2.5 left-2.5 w-auto max-w-none translate-x-0 translate-y-0 gap-0 rounded-[6px] p-0 sm:max-w-none max-sm:top-[calc(4rem+env(safe-area-inset-top))] max-sm:right-2.5 max-sm:bottom-auto max-sm:left-2.5 max-sm:max-h-[calc(100dvh-5rem)] max-sm:w-auto max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-[6px] max-sm:border max-sm:pb-0"
+    class="top-[calc(4rem+env(safe-area-inset-top))] right-2.5 left-2.5 w-auto max-w-none translate-x-0 translate-y-0 gap-0 rounded-[4px] p-0 sm:max-w-none max-sm:top-[calc(4rem+env(safe-area-inset-top))] max-sm:right-2.5 max-sm:bottom-auto max-sm:left-2.5 max-sm:max-h-[calc(100dvh-5rem)] max-sm:w-auto max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-[4px] max-sm:border max-sm:pb-0 data-open:animate-none data-closed:animate-none"
+    overlayClass={sheetOverlay}
+    showCloseButton={false}
   >
-    <div class="flex items-center justify-between border-b border-border px-1 pt-2.5 pr-9 pb-2">
+    <div
+      class="mx-2.5 mt-2.5 flex items-center justify-between border-b border-border px-1 pt-0.5 pb-2"
+    >
       <DialogTitle class="text-xs font-semibold">Navigate</DialogTitle>
+      <button
+        type="button"
+        aria-label="Close navigation"
+        class="text-lg leading-none text-muted-foreground"
+        onclick={() => {
+          open = false
+        }}
+      >
+        ×
+      </button>
     </div>
-    <nav class="flex flex-col gap-[3px] p-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">
+    <nav
+      class="flex flex-col gap-[3px] px-2.5 pt-0 pb-[calc(0.625rem+env(safe-area-inset-bottom))]"
+    >
       {#each items as item (item.path)}
         <button
           type="button"
