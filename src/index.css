@@ -80,7 +80,7 @@
   --muted-foreground: #4c616b;
   --accent: color-mix(in oklab, var(--brand) 14%, #fff);
   --accent-foreground: #192a31;
-  --destructive: #b03a3a;
+  --destructive: #dc2626;
   --border: rgb(40 50 55 / 22%);
   --input: rgb(40 50 55 / 26%);
   --ring: #262b30;
@@ -133,7 +133,7 @@
   --muted-foreground: #b8cbc4;
   --accent: color-mix(in oklab, var(--brand) 12%, var(--card));
   --accent-foreground: #eaf3ef;
-  --destructive: #f08a8a;
+  --destructive: #f87171;
   --border: rgb(220 235 240 / 10%);
   --input: rgb(220 235 240 / 13%);
   --ring: #c9d6dd;

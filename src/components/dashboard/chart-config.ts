@@ -143,10 +143,10 @@ export function chartPalette(): ChartPalette {
     series: {
       income: read('--chart-income', series.income),
       expense: read('--chart-expense', series.expense),
-      primary: chart(1, series.primary),
+      primary: chart(3, series.primary),
       warning: chart(3, series.warning),
       suggestion: chart(3, series.suggestion),
-      projection: chart(4, series.projection),
+      projection: chart(2, series.projection),
       balance: chart(1, series.balance),
       budgeted: read('--chart-budgeted', series.budgeted),
       actual: chart(1, series.actual),
@@ -459,19 +459,22 @@ export function buildCategoryTrends(
   categories: string[],
   palette: ChartPalette,
 ): { data: ChartData; options: ChartOptions } {
-  const mono = palette.accent === 'ink' && palette.inkAccent === 'mono'
-  const dashes: (number[] | undefined)[] = [undefined, [5, 4], [2, 4], [8, 4], [3, 3], [10, 4]]
   return {
     data: {
       labels: data.map((entry) => monthLabel(entry.month)),
-      datasets: categories.map((category, index) =>
-        lineDataset(
-          category,
-          data.map((entry) => Number(entry[category] ?? 0)),
-          palette.categories[index % palette.categories.length],
-          mono ? dashes[index % dashes.length] : false,
-        ),
-      ),
+      datasets: categories.map((category, index) => {
+        const color = palette.categories[index % palette.categories.length]
+        return {
+          ...lineDataset(
+            category,
+            data.map((entry) => Number(entry[category] ?? 0)),
+            color,
+          ),
+          tension: 0.2,
+          pointRadius: 0,
+          pointHoverRadius: 0,
+        }
+      }),
     },
     options: baseOptions(palette),
   }
