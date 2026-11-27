@@ -81,7 +81,7 @@ onMount(() => {
 <div class="min-h-dvh">
   <header class="app-header sticky top-0 z-40 border-b border-border pt-[env(safe-area-inset-top)]">
     <div
-      class="mx-auto flex max-w-7xl items-center justify-between gap-3.5 px-4 py-3 max-md:gap-3 max-md:px-3 max-md:py-2.5"
+      class="mx-auto flex max-w-7xl items-center justify-between gap-3.5 px-4 py-3 max-lg:gap-3 max-lg:px-3 max-lg:py-2.5"
     >
       <a
         href="/"
@@ -123,7 +123,7 @@ onMount(() => {
     </div>
   </header>
 
-  <main class="mx-auto max-w-7xl px-4 py-4 max-md:px-3 max-md:py-3">
+  <main class="mx-auto max-w-7xl px-4 py-4 max-lg:px-3 max-lg:py-3">
     <svelte:boundary onerror={(error) => console.error(error)}>
       {#if router.path === '/budgets'}
         <BudgetPage />
