@@ -1,7 +1,6 @@
 <script lang="ts">
-import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon'
-import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon'
-import TrashIcon from 'phosphor-svelte/lib/TrashIcon'
+import { Delete02Icon, Redo02Icon, Undo02Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import ConfirmDialog from '@/components/common/ConfirmDialog.svelte'
 import { Button } from '@/components/ui/button'
 import { finance } from '@/lib/stores/finance.svelte'
@@ -27,7 +26,7 @@ let showClearConfirm = $state(false)
         disabled={financeState.redoStack.length === 0}
         aria-label="Redo"
       >
-        <ArrowClockwiseIcon /> Redo
+        <HugeiconsIcon icon={Redo02Icon} size={16} /> Redo
       </Button>
       {#if financeState.auditLog.length > 0}
         <Button
@@ -38,7 +37,7 @@ let showClearConfirm = $state(false)
           }}
           aria-label="Clear history"
         >
-          <TrashIcon /> Clear
+          <HugeiconsIcon icon={Delete02Icon} size={16} /> Clear
         </Button>
       {/if}
     </div>
@@ -69,7 +68,7 @@ let showClearConfirm = $state(false)
             onclick={() => finance.dispatch({ type: 'UNDO', payload: entry.id })}
             aria-label="Undo this action"
           >
-            <ArrowCounterClockwiseIcon /> Undo
+            <HugeiconsIcon icon={Undo02Icon} size={16} /> Undo
           </Button>
         </div>
       {/each}

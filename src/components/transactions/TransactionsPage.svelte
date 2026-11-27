@@ -21,6 +21,7 @@ import {
   PAYMENT_METHODS,
   type PaymentMethod,
 } from '@/domain/ledger'
+import { DESKTOP_QUERY } from '@/lib/breakpoints'
 import { navigate, router } from '@/lib/router.svelte'
 import { finance } from '@/lib/stores/finance.svelte'
 import { toast } from '@/lib/stores/toast.svelte'
@@ -41,9 +42,7 @@ function getParamList(params: URLSearchParams, key: string): string[] {
 }
 
 const financeState = $derived(finance.state)
-const hybrid = new MediaQuery('(min-width: 900px)')
-const wideFilters = new MediaQuery('(min-width: 1040px)')
-const railVisible = new MediaQuery('(min-width: 1100px)')
+const desktop = new MediaQuery(DESKTOP_QUERY)
 
 let editingMovement = $state<Movement | null>(null)
 let showEditForm = $state(false)
@@ -93,13 +92,13 @@ $effect(() => {
 })
 
 $effect(() => {
-  if (railVisible.current) detailOpen = false
+  if (desktop.current) detailOpen = false
 })
 
 $effect(() => {
   if (deepLinked || !filterMovementId) return
   selectedId = filterMovementId
-  if (!railVisible.current) detailOpen = true
+  if (!desktop.current) detailOpen = true
   deepLinked = true
 })
 
@@ -257,7 +256,7 @@ function clearFilters() {
 
 function selectMovement(movement: Movement) {
   selectedId = movement.id
-  if (!railVisible.current) detailOpen = true
+  if (!desktop.current) detailOpen = true
 }
 
 function openEdit(movement: Movement) {
@@ -402,7 +401,7 @@ function handleDelete(id: string) {
           >
         </div>
 
-        {#if wideFilters.current}
+        {#if desktop.current}
           <div class="tx-filter-inline">
             <TransactionFilters
               {filterType}
@@ -437,10 +436,11 @@ function handleDelete(id: string) {
 
       <MovementLedger
         movements={filtered}
+        budgets={financeState.budgets}
         {debtRowsById}
         {installmentsById}
         selectedId={selected?.id ?? null}
-        hybrid={hybrid.current}
+        hybrid={desktop.current}
         {emptyMessage}
         onSelect={selectMovement}
       />

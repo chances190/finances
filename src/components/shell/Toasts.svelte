@@ -1,5 +1,6 @@
 <script lang="ts">
-import XIcon from 'phosphor-svelte/lib/XIcon'
+import { Cancel01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { dismissToast, toastState } from '@/lib/stores/toast.svelte'
 </script>
 
@@ -36,7 +37,7 @@ import { dismissToast, toastState } from '@/lib/stores/toast.svelte'
         aria-label="Dismiss notification"
         class="flex size-10 shrink-0 items-center justify-center opacity-70 hover:opacity-100"
       >
-        <XIcon class="size-3" />
+        <HugeiconsIcon icon={Cancel01Icon} size={12} class="size-3" />
       </button>
     </div>
   {/each}

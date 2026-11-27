@@ -389,4 +389,39 @@ describe('validateFinanceData', () => {
     expect(result.data.budgets).toHaveLength(1)
     expect(result.skippedBudgets).toBe(2)
   })
+
+  test('keeps category icons that match category limits', () => {
+    const result = validateFinanceData({
+      transactions: [],
+      budgets: [
+        {
+          referenceMonth: '2026-07',
+          plannedIncome: 1000,
+          plannedMealVoucher: 0,
+          categoryLimits: { Food: 500 },
+          categoryIcons: { Food: 'food', Ghost: 'tag' },
+        },
+      ],
+    })
+
+    expect(result.data.budgets[0].categoryIcons).toEqual({ Food: 'food' })
+  })
+
+  test('skips budgets with malformed category icons', () => {
+    const result = validateFinanceData({
+      transactions: [],
+      budgets: [
+        {
+          referenceMonth: '2026-07',
+          plannedIncome: 1000,
+          plannedMealVoucher: 0,
+          categoryLimits: { Food: 500 },
+          categoryIcons: { Food: 42 },
+        },
+      ],
+    })
+
+    expect(result.data.budgets).toHaveLength(0)
+    expect(result.skippedBudgets).toBe(1)
+  })
 })

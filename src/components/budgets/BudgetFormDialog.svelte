@@ -1,7 +1,6 @@
 <script lang="ts">
-import CopyIcon from 'phosphor-svelte/lib/CopyIcon'
-import PlusIcon from 'phosphor-svelte/lib/PlusIcon'
-import TrashIcon from 'phosphor-svelte/lib/TrashIcon'
+import { Copy01Icon, Delete02Icon, PlusSignIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { untrack } from 'svelte'
 import ConfirmDialog from '@/components/common/ConfirmDialog.svelte'
 import { Button } from '@/components/ui/button'
@@ -12,6 +11,7 @@ import { MoneyInput } from '@/components/ui/money-input'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import type { Budget } from '@/domain/entities'
 import { addMonths } from '@/domain/ledger'
+import type { CategoryIconName } from '@/lib/category-icons'
 import { addCurrency, formatCurrency } from '@/lib/currency'
 import { finance } from '@/lib/stores/finance.svelte'
 import { toast } from '@/lib/stores/toast.svelte'
@@ -22,6 +22,7 @@ import {
   monthsBetween,
   toBudget,
 } from './budget-form'
+import CategoryIconPicker from './CategoryIconPicker.svelte'
 
 interface PendingConflict {
   title: string
@@ -99,8 +100,14 @@ function handleAddCategory() {
 
 function removeCategory(category: string) {
   const next = { ...form.categoryLimits }
+  const icons = { ...form.categoryIcons }
   delete next[category]
-  form = { ...form, categoryLimits: next }
+  delete icons[category]
+  form = { ...form, categoryLimits: next, categoryIcons: icons }
+}
+
+function setCategoryIcon(category: string, name: CategoryIconName) {
+  form = { ...form, categoryIcons: { ...form.categoryIcons, [category]: name } }
 }
 
 function commitSave(months: string[], toDelete: string[], budget: Budget) {
@@ -262,7 +269,7 @@ function handleSave() {
         {/if}
         <div class="flex">
           <Button variant="outline" size="sm" onclick={handleClone}>
-            <CopyIcon /> Copy previous budget
+            <HugeiconsIcon icon={Copy01Icon} size={16} /> Copy previous budget
           </Button>
         </div>
       </div>
@@ -321,30 +328,37 @@ function handleSave() {
         <div class="grid grid-cols-2 gap-2">
           {#each categoryRows as cat (cat)}
             {@const catId = `budget-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`}
-            <div class="flex items-end gap-1 space-y-0.5">
-              <div class="flex-1">
-                <Label for={catId} class="text-[10px] text-muted-foreground">{cat}</Label>
-                <MoneyInput
-                  id={catId}
-                  placeholder="0"
-                  value={form.categoryLimits[cat] ?? ''}
-                  onValueChange={(limit) => {
-                    form = {
-                      ...form,
-                      categoryLimits: { ...form.categoryLimits, [cat]: limit },
-                    }
-                  }}
+            <div class="space-y-1">
+              <div class="flex items-center gap-1.5">
+                <CategoryIconPicker
+                  category={cat}
+                  value={form.categoryIcons[cat]}
+                  onSelect={(name) => setCategoryIcon(cat, name)}
                 />
+                <Label for={catId} class="min-w-0 flex-1 truncate text-[10px] text-muted-foreground"
+                  >{cat}</Label
+                >
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="size-6 shrink-0 text-destructive hover:text-destructive"
+                  onclick={() => removeCategory(cat)}
+                  aria-label={`Remove category ${cat}`}
+                >
+                  <HugeiconsIcon icon={Delete02Icon} size={12} class="size-3" />
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="size-10 shrink-0 text-destructive hover:text-destructive"
-                onclick={() => removeCategory(cat)}
-                aria-label={`Remove category ${cat}`}
-              >
-                <TrashIcon class="size-3" />
-              </Button>
+              <MoneyInput
+                id={catId}
+                placeholder="0"
+                value={form.categoryLimits[cat] ?? ''}
+                onValueChange={(limit) => {
+                  form = {
+                    ...form,
+                    categoryLimits: { ...form.categoryLimits, [cat]: limit },
+                  }
+                }}
+              />
             </div>
           {/each}
         </div>
@@ -394,7 +408,7 @@ function handleSave() {
               showAddCategory = true
             }}
           >
-            <PlusIcon class="size-3" /> Add Category
+            <HugeiconsIcon icon={PlusSignIcon} size={12} class="size-3" /> Add Category
           </Button>
         {/if}
       </div>

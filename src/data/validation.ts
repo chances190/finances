@@ -199,6 +199,20 @@ export function parseBudget(value: unknown): Budget | null {
     ([category, limit]) => category.trim() !== '' && isNonNegativeFinite(limit),
   )
   if (!validLimits) return null
+  const limits = b.categoryLimits as Record<string, number>
+
+  let categoryIcons: Record<string, string> | undefined
+  if (b.categoryIcons != null) {
+    if (typeof b.categoryIcons !== 'object' || Array.isArray(b.categoryIcons)) return null
+    const entries = Object.entries(b.categoryIcons)
+    const validIcons = entries.every(
+      ([category, icon]) =>
+        category.trim() !== '' && typeof icon === 'string' && icon.trim() !== '',
+    )
+    if (!validIcons) return null
+    const filtered = entries.filter(([category]) => category in limits)
+    if (filtered.length > 0) categoryIcons = Object.fromEntries(filtered)
+  }
 
   const rate = b.investmentRate
   if (rate != null && (!isNonNegativeFinite(rate) || rate > 1)) return null
@@ -208,7 +222,8 @@ export function parseBudget(value: unknown): Budget | null {
     plannedIncome: b.plannedIncome,
     plannedMealVoucher: b.plannedMealVoucher,
     investmentRate: rate == null ? DEFAULT_INVESTMENT_RATE : rate,
-    categoryLimits: b.categoryLimits as Record<string, number>,
+    categoryLimits: limits,
+    ...(categoryIcons ? { categoryIcons } : {}),
   }
 }
 

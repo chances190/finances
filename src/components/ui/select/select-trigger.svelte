@@ -1,6 +1,7 @@
 <script lang="ts">
+import { ArrowDown01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { Select as SelectPrimitive } from 'bits-ui'
-import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon'
 import { cn, type WithoutChild } from '@/lib/utils.js'
 
 let {
@@ -25,5 +26,9 @@ let {
   {...restProps}
 >
   {@render children?.()}
-  <CaretDownIcon class="text-muted-foreground size-4 pointer-events-none" />
+  <HugeiconsIcon
+    icon={ArrowDown01Icon}
+    size={16}
+    class="text-muted-foreground size-4 pointer-events-none"
+  />
 </SelectPrimitive.Trigger>

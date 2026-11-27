@@ -1,7 +1,6 @@
 <script lang="ts">
-import FileCodeIcon from 'phosphor-svelte/lib/FileCodeIcon'
-import FileCsvIcon from 'phosphor-svelte/lib/FileCsvIcon'
-import FileTextIcon from 'phosphor-svelte/lib/FileTextIcon'
+import { FileCodeIcon, FileSpreadsheetIcon, FileTextIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { onDestroy } from 'svelte'
 import ConfirmDialog from '@/components/common/ConfirmDialog.svelte'
 import { Button } from '@/components/ui/button'
@@ -329,10 +328,10 @@ const matched = $derived(
         >
           <div class="flex justify-center gap-2 text-muted-foreground">
             {#if mode === 'transactions'}
-              <FileCsvIcon size={24} />
-              <FileCodeIcon size={24} />
+              <HugeiconsIcon icon={FileSpreadsheetIcon} size={24} />
+              <HugeiconsIcon icon={FileCodeIcon} size={24} />
             {:else}
-              <FileTextIcon size={24} />
+              <HugeiconsIcon icon={FileTextIcon} size={24} />
             {/if}
           </div>
           <p class="text-sm text-muted-foreground">

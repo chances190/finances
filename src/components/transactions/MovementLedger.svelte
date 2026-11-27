@@ -1,16 +1,12 @@
 <script lang="ts">
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/svelte'
 import { createWindowVirtualizer } from '@tanstack/svelte-virtual'
-import CarIcon from 'phosphor-svelte/lib/CarIcon'
-import DevicesIcon from 'phosphor-svelte/lib/DevicesIcon'
-import FilmStripIcon from 'phosphor-svelte/lib/FilmStripIcon'
-import ForkKnifeIcon from 'phosphor-svelte/lib/ForkKnifeIcon'
-import HeartbeatIcon from 'phosphor-svelte/lib/HeartbeatIcon'
-import HouseIcon from 'phosphor-svelte/lib/HouseIcon'
-import TagIcon from 'phosphor-svelte/lib/TagIcon'
 import { untrack } from 'svelte'
 import { Badge } from '@/components/ui/badge'
+import type { Budget } from '@/domain/entities'
 import type { InstallmentInfo, Movement, OutstandingMovement } from '@/domain/ledger'
 import { categoryOf, expenseAmount, monthRelation, movementMonth } from '@/domain/ledger'
+import { resolveCategoryIcon } from '@/lib/category-icons'
 import { formatCurrency } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 import DebtStatusBadge from './DebtStatusBadge.svelte'
@@ -19,6 +15,7 @@ import PaymentBadge from './PaymentBadge.svelte'
 
 interface Props {
   movements: Movement[]
+  budgets: Budget[]
   debtRowsById: Map<string, OutstandingMovement[]>
   installmentsById: Map<string, InstallmentInfo>
   selectedId: string | null
@@ -29,6 +26,7 @@ interface Props {
 
 let {
   movements,
+  budgets,
   debtRowsById,
   installmentsById,
   selectedId,
@@ -43,17 +41,14 @@ interface Group {
   total: number
 }
 
-const categoryIcons: Record<string, typeof TagIcon> = {
-  Food: ForkKnifeIcon,
-  Fun: FilmStripIcon,
-  Transport: CarIcon,
-  Tech: DevicesIcon,
-  Home: HouseIcon,
-  Health: HeartbeatIcon,
-}
+const budgetByMonth = $derived(new Map(budgets.map((budget) => [budget.referenceMonth, budget])))
 
-function categoryIcon(category: string | undefined) {
-  return (category && categoryIcons[category]) || TagIcon
+function iconFor(movement: Movement, category: string | undefined): IconSvgElement {
+  const month = movement.date.slice(0, 7)
+  return resolveCategoryIcon(
+    category ?? '',
+    budgetByMonth.get(month)?.categoryIcons?.[category ?? ''],
+  )
 }
 
 function dateLabel(date: string): string {
@@ -199,7 +194,7 @@ function groupKey(index: number): string | number {
               {@const installment = installmentsById.get(movement.id)}
               {@const debtRows = debtRowsById.get(movement.id) ?? []}
               {@const detail = detailOf(movement, debtRows)}
-              {@const Icon = categoryIcon(category)}
+              {@const Icon = iconFor(movement, category)}
               <button
                 type="button"
                 class={cn(
@@ -210,7 +205,9 @@ function groupKey(index: number): string | number {
                 aria-pressed={selectedId === movement.id}
                 onclick={() => onSelect(movement)}
               >
-                <span class="tx-hybrid-icon"><Icon class="size-4" /></span>
+                <span class="tx-hybrid-icon"
+                  ><HugeiconsIcon icon={Icon} size={16} class="size-4" /></span
+                >
                 <span class="tx-hybrid-main">
                   <span class="tx-hybrid-title">
                     <span class="truncate text-sm font-medium">{movement.description}</span>
@@ -267,7 +264,7 @@ function groupKey(index: number): string | number {
               {@const installment = installmentsById.get(movement.id)}
               {@const debtRows = debtRowsById.get(movement.id) ?? []}
               {@const detail = detailOf(movement, debtRows)}
-              {@const Icon = categoryIcon(category)}
+              {@const Icon = iconFor(movement, category)}
               <button
                 type="button"
                 class={cn(
@@ -278,7 +275,9 @@ function groupKey(index: number): string | number {
                 aria-pressed={selectedId === movement.id}
                 onclick={() => onSelect(movement)}
               >
-                <span class="tx-feed-icon"><Icon class="size-4" /></span>
+                <span class="tx-feed-icon"
+                  ><HugeiconsIcon icon={Icon} size={16} class="size-4" /></span
+                >
                 <span class="min-w-0 flex-1 text-left">
                   <span class="flex min-w-0 items-center gap-1.5">
                     <span class="truncate text-sm font-semibold">{movement.description}</span>

@@ -1,6 +1,7 @@
 <script lang="ts">
+import { Tick02Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { Select as SelectPrimitive } from 'bits-ui'
-import CheckIcon from 'phosphor-svelte/lib/CheckIcon'
 import { cn, type WithoutChild } from '@/lib/utils.js'
 
 let {
@@ -33,7 +34,7 @@ let {
         {label || value}
       {/if}
       {#if selected}
-        <CheckIcon class="size-3.5 shrink-0 text-primary" />
+        <HugeiconsIcon icon={Tick02Icon} size={16} class="size-3.5 shrink-0 text-primary" />
       {/if}
     </span>
   {/snippet}

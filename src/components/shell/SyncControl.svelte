@@ -1,9 +1,12 @@
 <script lang="ts">
-import ArrowsClockwiseIcon from 'phosphor-svelte/lib/ArrowsClockwiseIcon'
-import CloudArrowUpIcon from 'phosphor-svelte/lib/CloudArrowUpIcon'
-import CloudCheckIcon from 'phosphor-svelte/lib/CloudCheckIcon'
-import CloudSlashIcon from 'phosphor-svelte/lib/CloudSlashIcon'
-import WarningIcon from 'phosphor-svelte/lib/WarningIcon'
+import {
+  Alert02Icon,
+  CloudCheckIcon,
+  CloudOffIcon,
+  CloudUploadIcon,
+  RefreshIcon,
+} from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { onMount } from 'svelte'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,13 +47,13 @@ function formatLastSynced(timestamp: number | null): string {
 
 {#snippet statusIcon(value: string)}
   {#if value === 'syncing'}
-    <ArrowsClockwiseIcon class="animate-spin" />
+    <HugeiconsIcon icon={RefreshIcon} size={16} class="size-4 animate-spin" />
   {:else if value === 'idle'}
-    <CloudCheckIcon />
+    <HugeiconsIcon icon={CloudCheckIcon} size={16} class="size-4" />
   {:else if value === 'error' || value === 'conflict'}
-    <WarningIcon />
+    <HugeiconsIcon icon={Alert02Icon} size={16} class="size-4" />
   {:else}
-    <CloudSlashIcon />
+    <HugeiconsIcon icon={CloudOffIcon} size={16} class="size-4" />
   {/if}
 {/snippet}
 
@@ -108,7 +111,7 @@ function formatLastSynced(timestamp: number | null): string {
         </Button>
       {:else}
         <Button onclick={() => void sync.connect()} disabled={busy || !sync.configured}>
-          <CloudArrowUpIcon data-icon="inline-start" />
+          <HugeiconsIcon icon={CloudUploadIcon} size={16} data-icon="inline-start" />
           {busy ? 'Connecting…' : 'Connect Google Drive'}
         </Button>
       {/if}

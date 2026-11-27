@@ -15,6 +15,7 @@ import {
   currentYM,
   expensesByAccount,
   futureCommitments,
+  groupBudgetsByRange,
   incomeByMonth,
   installmentInfo,
   isBalanced,
@@ -721,5 +722,30 @@ describe('selectors', () => {
     expect(outstandingMovements([dinner, settlement], 'receivable')[0].settlements).toEqual([
       { date: '2026-11-10', paid: 50, forgiven: 0, overpaid: 10 },
     ])
+  })
+})
+
+describe('groupBudgetsByRange', () => {
+  const base = {
+    plannedIncome: 1000,
+    plannedMealVoucher: 0,
+    investmentRate: 0,
+    categoryLimits: { Food: 500 },
+  }
+
+  test('splits consecutive months when category icons differ', () => {
+    const budgets: Budget[] = [
+      { ...base, referenceMonth: '2026-11', categoryIcons: { Food: 'food' } },
+      { ...base, referenceMonth: '2026-12', categoryIcons: { Food: 'gift' } },
+    ]
+    expect(groupBudgetsByRange(budgets)).toHaveLength(2)
+  })
+
+  test('merges consecutive months with matching category icons', () => {
+    const budgets: Budget[] = [
+      { ...base, referenceMonth: '2026-11', categoryIcons: { Food: 'food' } },
+      { ...base, referenceMonth: '2026-12', categoryIcons: { Food: 'food' } },
+    ]
+    expect(groupBudgetsByRange(budgets)).toHaveLength(1)
   })
 })

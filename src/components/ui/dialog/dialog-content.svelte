@@ -1,6 +1,7 @@
 <script lang="ts">
+import { Cancel01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { Dialog as DialogPrimitive } from 'bits-ui'
-import XIcon from 'phosphor-svelte/lib/XIcon'
 import type { ComponentProps, Snippet } from 'svelte'
 import { Button } from '@/components/ui/button/index.js'
 import { cn, type WithoutChildrenOrChild } from '@/lib/utils.js'
@@ -40,7 +41,7 @@ let {
       <DialogPrimitive.Close data-slot="dialog-close">
         {#snippet child({ props })}
           <Button variant="ghost" class="absolute top-2 right-2" size="icon-sm" {...props}>
-            <XIcon />
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
             <span class="sr-only">Close</span>
           </Button>
         {/snippet}

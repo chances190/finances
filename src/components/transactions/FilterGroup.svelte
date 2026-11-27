@@ -1,5 +1,6 @@
 <script lang="ts">
-import FunnelIcon from 'phosphor-svelte/lib/FunnelIcon'
+import { FilterIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -61,7 +62,7 @@ let { idPrefix, label, options, selected, count, onToggle, wide }: Props = $prop
     <PopoverTrigger>
       {#snippet child({ props })}
         <Button variant="outline" size="sm" {...props}>
-          <FunnelIcon class="size-3" />
+          <HugeiconsIcon icon={FilterIcon} size={12} class="size-3" />
           {label}{count > 0 ? ` (${count})` : ''}
         </Button>
       {/snippet}

@@ -1,8 +1,11 @@
 <script lang="ts">
-import ForkKnifeIcon from 'phosphor-svelte/lib/ForkKnifeIcon'
-import PiggyBankIcon from 'phosphor-svelte/lib/PiggyBankIcon'
-import TrendDownIcon from 'phosphor-svelte/lib/TrendDownIcon'
-import TrendUpIcon from 'phosphor-svelte/lib/TrendUpIcon'
+import {
+  PiggyBankIcon,
+  Restaurant01Icon,
+  TrendingDownIcon,
+  TrendingUpIcon,
+} from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import EmptyState from '@/components/common/EmptyState.svelte'
 import LazyChart from '@/components/common/LazyChart.svelte'
 import StatCard from '@/components/common/StatCard.svelte'
@@ -116,19 +119,19 @@ const paymentPie = $derived(buildPaymentPie(paymentMethodData, palette))
 </script>
 
 {#snippet incomeIcon()}
-  <TrendUpIcon class="size-3 text-green-500" />
+  <HugeiconsIcon icon={TrendingUpIcon} size={12} class="size-3 text-green-500" />
 {/snippet}
 
 {#snippet expenseIcon()}
-  <TrendDownIcon class="size-3 text-red-500" />
+  <HugeiconsIcon icon={TrendingDownIcon} size={12} class="size-3 text-red-500" />
 {/snippet}
 
 {#snippet balanceIcon()}
-  <PiggyBankIcon class="size-3 text-muted-foreground" />
+  <HugeiconsIcon icon={PiggyBankIcon} size={12} class="size-3 text-muted-foreground" />
 {/snippet}
 
 {#snippet voucherIcon()}
-  <ForkKnifeIcon class="size-3 text-pink-500" />
+  <HugeiconsIcon icon={Restaurant01Icon} size={12} class="size-3 text-pink-500" />
 {/snippet}
 
 {#if financeState.movements.length === 0}
@@ -202,7 +205,7 @@ const paymentPie = $derived(buildPaymentPie(paymentMethodData, palette))
     {#if currentDay > 0 && dailyQuota === 0}
       <div class="panel p-4">
         <div class="flex items-center gap-2 text-sm text-muted-foreground">
-          <TrendDownIcon class="size-4" />
+          <HugeiconsIcon icon={TrendingDownIcon} size={16} class="size-4" />
           <span>
             {budget
               ? 'Add planned income to this budget to see your spending pace.'
@@ -216,7 +219,7 @@ const paymentPie = $derived(buildPaymentPie(paymentMethodData, palette))
       <div class="panel space-y-4 p-4">
         <div class="flex items-center justify-between">
           <h3 class="flex items-center gap-2 text-sm font-semibold">
-            <TrendDownIcon class="size-4" />
+            <HugeiconsIcon icon={TrendingDownIcon} size={16} class="size-4" />
             Spending Pace
           </h3>
           <Badge variant="outline" class={paceStatus.color}>{paceStatus.label}</Badge>

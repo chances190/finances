@@ -6,6 +6,7 @@ export interface Budget {
   plannedMealVoucher: number
   investmentRate: number
   categoryLimits: Record<string, number>
+  categoryIcons?: Record<string, string>
 }
 
 export interface FinanceData {

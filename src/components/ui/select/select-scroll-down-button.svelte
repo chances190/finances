@@ -1,6 +1,7 @@
 <script lang="ts">
+import { ArrowDown01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { Select as SelectPrimitive } from 'bits-ui'
-import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon'
 import { cn, type WithoutChildrenOrChild } from '@/lib/utils.js'
 
 let {
@@ -19,5 +20,5 @@ let {
   )}
   {...restProps}
 >
-  <CaretDownIcon />
+  <HugeiconsIcon icon={ArrowDown01Icon} size={16} />
 </SelectPrimitive.ScrollDownButton>

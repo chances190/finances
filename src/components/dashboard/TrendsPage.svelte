@@ -1,8 +1,11 @@
 <script lang="ts">
-import ArrowDownIcon from 'phosphor-svelte/lib/ArrowDownIcon'
-import ArrowUpIcon from 'phosphor-svelte/lib/ArrowUpIcon'
-import PiggyBankIcon from 'phosphor-svelte/lib/PiggyBankIcon'
-import TrendUpIcon from 'phosphor-svelte/lib/TrendUpIcon'
+import {
+  ArrowDown01Icon,
+  ArrowUp01Icon,
+  PiggyBankIcon,
+  TrendingUpIcon,
+} from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import EmptyState from '@/components/common/EmptyState.svelte'
 import LazyChart from '@/components/common/LazyChart.svelte'
 import StatCard from '@/components/common/StatCard.svelte'
@@ -106,19 +109,19 @@ const yearBudgetChart = $derived(buildBudgetChart(yearlyBudgetVsActual, palette)
 </script>
 
 {#snippet incomeIcon()}
-  <ArrowUpIcon class="size-3 text-green-500" />
+  <HugeiconsIcon icon={ArrowUp01Icon} size={12} class="size-3 text-green-500" />
 {/snippet}
 
 {#snippet spendingIcon()}
-  <ArrowDownIcon class="size-3 text-red-500" />
+  <HugeiconsIcon icon={ArrowDown01Icon} size={12} class="size-3 text-red-500" />
 {/snippet}
 
 {#snippet balanceIcon()}
-  <PiggyBankIcon class="size-3 text-muted-foreground" />
+  <HugeiconsIcon icon={PiggyBankIcon} size={12} class="size-3 text-muted-foreground" />
 {/snippet}
 
 {#snippet savingsIcon()}
-  <TrendUpIcon class="size-3 text-cyan-500" />
+  <HugeiconsIcon icon={TrendingUpIcon} size={12} class="size-3 text-cyan-500" />
 {/snippet}
 
 {#if years.length === 0}

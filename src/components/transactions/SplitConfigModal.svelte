@@ -1,7 +1,6 @@
 <script lang="ts">
-import LightningAIcon from 'phosphor-svelte/lib/LightningAIcon'
-import PlusIcon from 'phosphor-svelte/lib/PlusIcon'
-import TrashIcon from 'phosphor-svelte/lib/TrashIcon'
+import { BoltIcon, Delete02Icon, PlusSignIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -129,7 +128,7 @@ function handleCancel() {
                 title={`Remove ${split.name || `person ${index + 1}`}`}
                 aria-label={`Remove ${split.name || `person ${index + 1}`}`}
               >
-                <TrashIcon />
+                <HugeiconsIcon icon={Delete02Icon} size={16} />
               </Button>
             </li>
           {/each}
@@ -138,11 +137,11 @@ function handleCancel() {
 
       <div class="flex gap-2">
         <Button variant="outline" size="sm" class="h-10 flex-1" onclick={handleAddPerson}>
-          <PlusIcon class="size-3" /> Add person
+          <HugeiconsIcon icon={PlusSignIcon} size={12} class="size-3" /> Add person
         </Button>
         {#if splits.length > 0}
           <Button variant="outline" size="sm" class="h-10 flex-1" onclick={handleSplitEvenly}>
-            <LightningAIcon class="size-3" /> Split evenly
+            <HugeiconsIcon icon={BoltIcon} size={12} class="size-3" /> Split evenly
           </Button>
         {/if}
       </div>

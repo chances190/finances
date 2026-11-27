@@ -10,6 +10,7 @@ export interface BudgetFormData {
   plannedMealVoucher: string
   investmentRate: string
   categoryLimits: Record<string, string>
+  categoryIcons: Record<string, string>
 }
 
 export function formatPercent(rate: number): string {
@@ -23,8 +24,13 @@ export function parsePercent(value: string): number {
 export function emptyBudget(refMonth: string, budgets: Budget[]): BudgetFormData {
   const source = budgetForMonth(refMonth, budgets)
   const categoryLimits: Record<string, string> = {}
+  const categoryIcons: Record<string, string> = {}
   if (source) {
-    for (const name of budgetCategoryNames(source)) categoryLimits[name] = ''
+    for (const name of budgetCategoryNames(source)) {
+      categoryLimits[name] = ''
+      const icon = source.categoryIcons?.[name]
+      if (icon) categoryIcons[name] = icon
+    }
   }
   return {
     referenceMonth: refMonth,
@@ -32,6 +38,7 @@ export function emptyBudget(refMonth: string, budgets: Budget[]): BudgetFormData
     plannedMealVoucher: '',
     investmentRate: formatPercent(DEFAULT_INVESTMENT_RATE),
     categoryLimits,
+    categoryIcons,
   }
 }
 
@@ -40,19 +47,27 @@ export function toBudget(data: BudgetFormData): Budget {
   for (const [category, value] of Object.entries(data.categoryLimits)) {
     limits[category] = parseCurrency(value)
   }
+  const icons: Record<string, string> = {}
+  for (const [category, icon] of Object.entries(data.categoryIcons)) {
+    if (category in limits && icon) icons[category] = icon
+  }
   return {
     referenceMonth: data.referenceMonth,
     plannedIncome: parseCurrency(data.plannedIncome),
     plannedMealVoucher: parseCurrency(data.plannedMealVoucher),
     investmentRate: parsePercent(data.investmentRate),
     categoryLimits: limits,
+    ...(Object.keys(icons).length > 0 ? { categoryIcons: icons } : {}),
   }
 }
 
 export function formFromBudget(budget: Budget): BudgetFormData {
   const limits: Record<string, string> = {}
+  const categoryIcons: Record<string, string> = {}
   for (const [category, value] of Object.entries(budget.categoryLimits)) {
     limits[category] = value === 0 ? '' : formatPlainCurrency(value)
+    const icon = budget.categoryIcons?.[category]
+    if (icon) categoryIcons[category] = icon
   }
   return {
     referenceMonth: budget.referenceMonth,
@@ -60,6 +75,7 @@ export function formFromBudget(budget: Budget): BudgetFormData {
     plannedMealVoucher: formatPlainCurrency(budget.plannedMealVoucher),
     investmentRate: formatPercent(budget.investmentRate),
     categoryLimits: limits,
+    categoryIcons,
   }
 }
 

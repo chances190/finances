@@ -1,7 +1,7 @@
 <script lang="ts">
+import { MinusSignIcon, Tick02Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { Checkbox as CheckboxPrimitive } from 'bits-ui'
-import CheckIcon from 'phosphor-svelte/lib/CheckIcon'
-import MinusIcon from 'phosphor-svelte/lib/MinusIcon'
 import { cn, type WithoutChildrenOrChild } from '@/lib/utils.js'
 
 let {
@@ -30,9 +30,9 @@ let {
       class="[&>svg]:size-3.5 grid place-content-center text-current transition-none"
     >
       {#if checked}
-        <CheckIcon />
+        <HugeiconsIcon icon={Tick02Icon} size={16} />
       {:else if indeterminate}
-        <MinusIcon />
+        <HugeiconsIcon icon={MinusSignIcon} size={16} />
       {/if}
     </div>
   {/snippet}

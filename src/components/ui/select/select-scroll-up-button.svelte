@@ -1,6 +1,7 @@
 <script lang="ts">
+import { ArrowUp01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { Select as SelectPrimitive } from 'bits-ui'
-import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon'
 import { cn, type WithoutChildrenOrChild } from '@/lib/utils.js'
 
 let {
@@ -19,5 +20,5 @@ let {
   )}
   {...restProps}
 >
-  <CaretUpIcon />
+  <HugeiconsIcon icon={ArrowUp01Icon} size={16} />
 </SelectPrimitive.ScrollUpButton>

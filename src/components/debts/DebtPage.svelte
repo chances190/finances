@@ -1,8 +1,11 @@
 <script lang="ts">
-import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon'
-import PercentIcon from 'phosphor-svelte/lib/PercentIcon'
-import UserIcon from 'phosphor-svelte/lib/UserIcon'
-import UsersIcon from 'phosphor-svelte/lib/UsersIcon'
+import {
+  CheckmarkCircle02Icon,
+  PercentIcon,
+  UserIcon,
+  UserMultipleIcon,
+} from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { MediaQuery } from 'svelte/reactivity'
 import EmptyState from '@/components/common/EmptyState.svelte'
 import { Badge } from '@/components/ui/badge'
@@ -27,6 +30,7 @@ import {
   type OutstandingMovement,
   outstandingMovements,
 } from '@/domain/ledger'
+import { DESKTOP_QUERY } from '@/lib/breakpoints'
 import { addCurrency, formatCurrency } from '@/lib/currency'
 import { navigate, router } from '@/lib/router.svelte'
 import { finance } from '@/lib/stores/finance.svelte'
@@ -56,7 +60,7 @@ interface SectionData {
 }
 
 const financeState = $derived(finance.state)
-const isDesktop = new MediaQuery('(min-width: 640px)')
+const isDesktop = new MediaQuery(DESKTOP_QUERY)
 
 const searchParams = $derived(new URLSearchParams(router.search))
 const viewMode = $derived<ViewMode>(searchParams.get('view') === 'person' ? 'person' : 'purchase')
@@ -204,11 +208,11 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
 </script>
 
 {#snippet purchaseIcon()}
-  <UserIcon class="size-3" />
+  <HugeiconsIcon icon={UserIcon} size={12} class="size-3" />
 {/snippet}
 
 {#snippet personIcon()}
-  <UsersIcon class="size-3" />
+  <HugeiconsIcon icon={UserMultipleIcon} size={12} class="size-3" />
 {/snippet}
 
 {#snippet personStatus(person: PersonData)}
@@ -216,7 +220,9 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
     <Badge variant="outline" class={BADGE_GREEN}>Paid</Badge>
   {:else if showSettled && person.anySettled}
     <span title="Partially paid">
-      <PercentIcon
+      <HugeiconsIcon
+        icon={PercentIcon}
+        size={16}
         class="size-3.5 text-amber-600 dark:text-amber-400"
         aria-label="Partially paid"
       />
@@ -234,7 +240,11 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
       aria-label={`Undo settlement for ${row.counterparty}`}
       onclick={() => revokeSettlement(row)}
     >
-      <CheckCircleIcon class="size-4 text-green-600 dark:text-green-400" />
+      <HugeiconsIcon
+        icon={CheckmarkCircle02Icon}
+        size={16}
+        class="size-4 text-green-600 dark:text-green-400"
+      />
     </Button>
   {:else}
     <Button
@@ -247,7 +257,7 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
         target = { rows: [row] }
       }}
     >
-      <PercentIcon class="size-4" />
+      <HugeiconsIcon icon={PercentIcon} size={16} class="size-4" />
     </Button>
     <Button
       variant="ghost"
@@ -257,7 +267,7 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
       aria-label={`Settle ${formatCurrency(row.outstanding)} from ${row.counterparty}`}
       onclick={() => recordSettlements([row])}
     >
-      <CheckCircleIcon class="size-4" />
+      <HugeiconsIcon icon={CheckmarkCircle02Icon} size={16} class="size-4" />
     </Button>
   {/if}
 {/snippet}
@@ -333,7 +343,7 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
               aria-label="Settle all"
               onclick={() => recordSettlements(openRows)}
             >
-              <CheckCircleIcon class="size-5" />
+              <HugeiconsIcon icon={CheckmarkCircle02Icon} size={20} class="size-5" />
             </Button>
           {/if}
         </div>
@@ -439,7 +449,7 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
                 target = targetFor(person, rows)
               }}
             >
-              <PercentIcon class="size-5" />
+              <HugeiconsIcon icon={PercentIcon} size={20} class="size-5" />
             </Button>
             <Button
               variant="ghost"
@@ -449,7 +459,7 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
               aria-label={`Settle ${formatCurrency(person.outstanding)} with ${person.counterparty}`}
               onclick={() => recordSettlements(targetFor(person, rows).rows)}
             >
-              <CheckCircleIcon class="size-5" />
+              <HugeiconsIcon icon={CheckmarkCircle02Icon} size={20} class="size-5" />
             </Button>
           {/if}
         </div>
@@ -487,7 +497,7 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
             >
               <TableCell class="font-medium">
                 <span class="flex items-center gap-1">
-                  <UserIcon class="size-3" />
+                  <HugeiconsIcon icon={UserIcon} size={12} class="size-3" />
                   {person.counterparty}
                   {@render personStatus(person)}
                 </span>
@@ -516,7 +526,7 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
                         target = targetFor(person, rows)
                       }}
                     >
-                      <PercentIcon class="size-4" />
+                      <HugeiconsIcon icon={PercentIcon} size={16} class="size-4" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -526,7 +536,7 @@ function targetFor(person: PersonData, rows: OutstandingMovement[]): SettleTarge
                       aria-label={`Settle ${formatCurrency(person.outstanding)} with ${person.counterparty}`}
                       onclick={() => recordSettlements(targetFor(person, rows).rows)}
                     >
-                      <CheckCircleIcon class="size-4" />
+                      <HugeiconsIcon icon={CheckmarkCircle02Icon} size={16} class="size-4" />
                     </Button>
                   </div>
                 {/if}

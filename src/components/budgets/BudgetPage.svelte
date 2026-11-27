@@ -1,5 +1,6 @@
 <script lang="ts">
-import PlusIcon from 'phosphor-svelte/lib/PlusIcon'
+import { PlusSignIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { MediaQuery } from 'svelte/reactivity'
 import ConfirmDialog from '@/components/common/ConfirmDialog.svelte'
 import EmptyState from '@/components/common/EmptyState.svelte'
@@ -20,12 +21,14 @@ import {
   groupBudgetsByRange,
   monthRelation,
 } from '@/domain/ledger'
+import { DESKTOP_QUERY } from '@/lib/breakpoints'
+import { resolveCategoryIcon } from '@/lib/category-icons'
 import { formatCurrency } from '@/lib/currency'
 import { finance } from '@/lib/stores/finance.svelte'
 import BudgetFormDialog from './BudgetFormDialog.svelte'
 
 const financeState = $derived(finance.state)
-const isDesktop = new MediaQuery('(min-width: 640px)')
+const isDesktop = new MediaQuery(DESKTOP_QUERY)
 
 const currentMonth = currentYM()
 const rangeLabel = (range: BudgetRange) =>
@@ -107,8 +110,15 @@ function closeForm() {
         {#each Object.entries(range.budget.categoryLimits).filter(
           ([, value]) => value > 0,
         ) as [category, value] (category)}
-          <div class="flex items-baseline justify-between gap-2 text-xs">
-            <span class="truncate text-muted-foreground">{category}</span>
+          <div class="flex items-center justify-between gap-2 text-xs">
+            <span class="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+              <HugeiconsIcon
+                icon={resolveCategoryIcon(category, range.budget.categoryIcons?.[category])}
+                size={12}
+                class="size-3 shrink-0"
+              />
+              <span class="truncate">{category}</span>
+            </span>
             <span class="font-mono">{formatCurrency(value)}</span>
           </div>
         {/each}
@@ -129,7 +139,7 @@ function closeForm() {
         showForm = true
       }}
     >
-      <PlusIcon /> New Budget
+      <HugeiconsIcon icon={PlusSignIcon} size={16} /> New Budget
     </Button>
   </div>
 
@@ -198,7 +208,14 @@ function closeForm() {
                   {#each Object.entries(range.budget.categoryLimits).filter(
                     ([, value]) => value > 0,
                   ) as [category, value] (category)}
-                    <span class="rounded-[3px] bg-muted px-1.5 py-0.5 text-xs">
+                    <span
+                      class="flex items-center gap-1 rounded-[3px] bg-muted px-1.5 py-0.5 text-xs"
+                    >
+                      <HugeiconsIcon
+                        icon={resolveCategoryIcon(category, range.budget.categoryIcons?.[category])}
+                        size={12}
+                        class="size-3 shrink-0"
+                      />
                       {category}: {formatCurrency(value)}
                     </span>
                   {/each}

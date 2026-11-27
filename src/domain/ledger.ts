@@ -1214,8 +1214,19 @@ function sameBudget(a: Budget, b: Budget): boolean {
   const aKeys = Object.keys(a.categoryLimits).sort()
   const bKeys = Object.keys(b.categoryLimits).sort()
   if (aKeys.length !== bKeys.length) return false
-  return aKeys.every(
-    (key, index) => bKeys[index] === key && a.categoryLimits[key] === b.categoryLimits[key],
+  if (
+    !aKeys.every(
+      (key, index) => bKeys[index] === key && a.categoryLimits[key] === b.categoryLimits[key],
+    )
+  ) {
+    return false
+  }
+  const aIcons = a.categoryIcons ?? {}
+  const bIcons = b.categoryIcons ?? {}
+  const iconKeys = Object.keys(aIcons).sort()
+  return (
+    iconKeys.length === Object.keys(bIcons).length &&
+    iconKeys.every((key) => bIcons[key] === aIcons[key])
   )
 }
 
