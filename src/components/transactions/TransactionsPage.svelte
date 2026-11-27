@@ -130,7 +130,7 @@ const months = $derived.by(() => {
 const allCategories = $derived(allCategoryNames(financeState.budgets, financeState.movements))
 
 function categoriesForMonth(month: string | null) {
-  return categoryOptionsForMonth(month ?? currentYM(), financeState.budgets, financeState.movements)
+  return categoryOptionsForMonth(month ?? currentYM(), financeState.budgets)
 }
 
 const allCounterparties = $derived.by(() => {

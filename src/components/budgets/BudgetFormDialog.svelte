@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Copy01Icon, Delete02Icon, PlusSignIcon } from '@hugeicons/core-free-icons'
+import { Copy01Icon, Delete02Icon, Tick02Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/svelte'
 import { untrack } from 'svelte'
 import ConfirmDialog from '@/components/common/ConfirmDialog.svelte'
@@ -12,6 +12,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import type { Budget } from '@/domain/entities'
 import { addMonths } from '@/domain/ledger'
 import type { CategoryIconName } from '@/lib/category-icons'
+import { resolveCategoryIconName } from '@/lib/category-icons'
 import { addCurrency, formatCurrency } from '@/lib/currency'
 import { finance } from '@/lib/stores/finance.svelte'
 import { toast } from '@/lib/stores/toast.svelte'
@@ -57,7 +58,7 @@ let rangeEnd = $state(initial.rangeEnd)
 let isRange = $state(initial.isRange)
 let pendingConflict = $state<PendingConflict | null>(null)
 let newCategoryName = $state('')
-let showAddCategory = $state(false)
+let newCategoryIcon = $state<CategoryIconName | null>(null)
 
 const categoryRows = $derived(Object.keys(form.categoryLimits))
 const draftBudget = $derived(toBudget(form))
@@ -93,9 +94,14 @@ function handleAddCategory() {
     toast('Category already exists', 'error')
     return
   }
-  form = { ...form, categoryLimits: { ...form.categoryLimits, [name]: '' } }
+  const icon = newCategoryIcon ?? resolveCategoryIconName(name)
+  form = {
+    ...form,
+    categoryLimits: { ...form.categoryLimits, [name]: '' },
+    categoryIcons: { ...form.categoryIcons, [name]: icon },
+  }
   newCategoryName = ''
-  showAddCategory = false
+  newCategoryIcon = null
 }
 
 function removeCategory(category: string) {
@@ -325,29 +331,16 @@ function handleSave() {
           <Label class="text-xs font-medium">Category Limits</Label>
         </div>
 
-        <div class="grid grid-cols-2 gap-2">
+        <div class="mt-1 space-y-1">
           {#each categoryRows as cat (cat)}
             {@const catId = `budget-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`}
-            <div class="space-y-1">
-              <div class="flex items-center gap-1.5">
-                <CategoryIconPicker
-                  category={cat}
-                  value={form.categoryIcons[cat]}
-                  onSelect={(name) => setCategoryIcon(cat, name)}
-                />
-                <Label for={catId} class="min-w-0 flex-1 truncate text-[10px] text-muted-foreground"
-                  >{cat}</Label
-                >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="size-6 shrink-0 text-destructive hover:text-destructive"
-                  onclick={() => removeCategory(cat)}
-                  aria-label={`Remove category ${cat}`}
-                >
-                  <HugeiconsIcon icon={Delete02Icon} size={12} class="size-3" />
-                </Button>
-              </div>
+            <div class="flex items-center gap-2">
+              <CategoryIconPicker
+                category={cat}
+                value={form.categoryIcons[cat]}
+                onSelect={(name) => setCategoryIcon(cat, name)}
+              />
+              <Label for={catId} class="min-w-0 flex-1 truncate text-xs">{cat}</Label>
               <MoneyInput
                 id={catId}
                 placeholder="0"
@@ -358,7 +351,17 @@ function handleSave() {
                     categoryLimits: { ...form.categoryLimits, [cat]: limit },
                   }
                 }}
+                class="w-24 shrink-0 text-right font-mono sm:w-28"
               />
+              <Button
+                variant="ghost"
+                size="icon"
+                class="size-7 shrink-0 text-destructive hover:text-destructive"
+                onclick={() => removeCategory(cat)}
+                aria-label={`Remove category ${cat}`}
+              >
+                <HugeiconsIcon icon={Delete02Icon} size={14} class="size-3.5" />
+              </Button>
             </div>
           {/each}
         </div>
@@ -373,44 +376,39 @@ function handleSave() {
           </p>
         {/if}
 
-        {#if showAddCategory}
-          <div class="mt-2 flex gap-1">
-            <Input
-              placeholder="Category name"
-              value={newCategoryName}
-              oninput={(event) => {
-                newCategoryName = event.currentTarget.value
-              }}
-              onkeydown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  handleAddCategory()
-                }
-              }}
-              class="flex-1"
-            />
-            <Button onclick={handleAddCategory}>Add</Button>
-            <Button
-              variant="outline"
-              onclick={() => {
-                showAddCategory = false
-                newCategoryName = ''
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-        {:else}
-          <Button
-            variant="outline"
-            class="mt-2 w-full"
-            onclick={() => {
-              showAddCategory = true
+        <div class="mt-2 flex items-center gap-2 border-t border-border pt-2">
+          <CategoryIconPicker
+            category={newCategoryName || 'New category'}
+            value={newCategoryIcon ?? undefined}
+            onSelect={(name) => {
+              newCategoryIcon = name
             }}
+          />
+          <Input
+            placeholder="New category"
+            aria-label="New category name"
+            value={newCategoryName}
+            oninput={(event) => {
+              newCategoryName = event.currentTarget.value
+            }}
+            onkeydown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                handleAddCategory()
+              }
+            }}
+            class="h-9 min-w-0 flex-1"
+          />
+          <Button
+            size="icon"
+            class="size-9 shrink-0"
+            onclick={handleAddCategory}
+            disabled={!newCategoryName.trim()}
+            aria-label="Add category"
           >
-            <HugeiconsIcon icon={PlusSignIcon} size={12} class="size-3" /> Add Category
+            <HugeiconsIcon icon={Tick02Icon} size={16} />
           </Button>
-        {/if}
+        </div>
       </div>
 
       <div class="flex justify-end gap-2 pt-2">

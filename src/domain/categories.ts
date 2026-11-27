@@ -21,14 +21,9 @@ export function budgetForMonth(month: string, budgets: Budget[]): Budget | null 
   return budgets.find((budget) => budget.referenceMonth === month) ?? latestBudget(budgets)
 }
 
-export function categoryOptionsForMonth(
-  month: string,
-  budgets: Budget[],
-  movements: Movement[],
-): string[] {
-  const budget = budgets.find((candidate) => candidate.referenceMonth === month)
-  if (budget) return budgetCategoryNames(budget)
-  return allCategoryNames(budgets, movements)
+export function categoryOptionsForMonth(month: string, budgets: Budget[]): string[] {
+  const budget = budgetForMonth(month, budgets)
+  return budget ? budgetCategoryNames(budget) : []
 }
 
 export function allCategoryNames(budgets: Budget[], movements: Movement[]): string[] {

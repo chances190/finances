@@ -138,7 +138,7 @@ function sharesOf(movements: Movement[]): PurchaseShare[] {
 
 const financeState = $derived(finance.state)
 const defaultCategory = $derived(
-  categoryOptionsForMonth(currentYM(), financeState.budgets, financeState.movements)[0] ?? 'Other',
+  categoryOptionsForMonth(currentYM(), financeState.budgets)[0] ?? 'Other',
 )
 const editGroup = $derived(purchaseGroup(editMovement, financeState.movements))
 const editRoot = $derived(
@@ -156,14 +156,18 @@ let shares = $state<PurchaseShare[]>(untrack(() => sharesOf(editGroup)))
 let showSplitConfig = $state(false)
 let showCsvImport = $state(false)
 let error = $state<string | null>(null)
-let customCategory = $state(false)
 
 const isGroupedInstallment = $derived(editGroup.length > 1)
 
-const categories = $derived.by(() => {
+const budgetCategories = $derived.by(() => {
   const month = form.date ? monthOf(form.date) : currentYM()
-  const options = categoryOptionsForMonth(month, financeState.budgets, financeState.movements)
-  const all = options.includes(form.category) ? options : [form.category, ...options]
+  return categoryOptionsForMonth(month, financeState.budgets)
+})
+
+const categories = $derived.by(() => {
+  const all = budgetCategories.includes(form.category)
+    ? budgetCategories
+    : [form.category, ...budgetCategories]
   return all.filter(Boolean)
 })
 
@@ -406,31 +410,16 @@ function commit(movements: Movement[]) {
 
       {#if form.type === 'Expense'}
         <div class="space-y-1">
-          <div class="flex items-center justify-between">
-            <Label for="tx-category" class="text-xs">Category</Label>
-            {#if !customCategory}
-              <button
-                type="button"
-                class="text-[10px] font-semibold text-primary"
-                onclick={() => {
-                  customCategory = true
-                  form.category = ''
-                }}
-              >
-                New category
-              </button>
-            {/if}
-          </div>
+          <Label for="tx-category" class="text-xs">Category</Label>
           <Select
             type="single"
             value={form.category}
             onValueChange={(value) => {
-              customCategory = false
               form.category = value ?? 'Other'
             }}
           >
             <SelectTrigger id="tx-category" class="w-full min-w-0">
-              {form.category || 'Choose…'}
+              {form.category}
             </SelectTrigger>
             <SelectContent>
               {#each categories as category (category)}
@@ -438,14 +427,10 @@ function commit(movements: Movement[]) {
               {/each}
             </SelectContent>
           </Select>
-          {#if customCategory}
-            <Input
-              value={form.category}
-              oninput={(event) => {
-                form.category = event.currentTarget.value
-              }}
-              placeholder="Category name"
-            />
+          {#if form.category && !budgetCategories.includes(form.category)}
+            <p class="text-[10px] text-muted-foreground">
+              Not in this month's budget. Add it in Budgets to reuse it.
+            </p>
           {/if}
         </div>
       {/if}

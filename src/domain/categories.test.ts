@@ -45,28 +45,23 @@ describe('budgetForMonth', () => {
 
 describe('categoryOptionsForMonth', () => {
   test('offers exactly the categories of the month budget', () => {
-    expect(categoryOptionsForMonth('2026-09', budgets, [])).toEqual(['Food', 'Rent'])
+    expect(categoryOptionsForMonth('2026-09', budgets)).toEqual(['Food', 'Rent'])
   })
 
-  test('falls back to every known category when the month has none', () => {
-    expect(categoryOptionsForMonth('2025-03', budgets, [])).toEqual(['Food', 'Rent'])
+  test('falls back to the latest budget when the month has none', () => {
+    expect(categoryOptionsForMonth('2025-03', budgets)).toEqual(['Food'])
   })
 
   test('new events in the current month use the current budget', () => {
-    expect(categoryOptionsForMonth('2026-10', budgets, [movement('Family')])).toEqual(['Food'])
+    expect(categoryOptionsForMonth('2026-10', budgets)).toEqual(['Food'])
   })
 
-  test('with no budgets at all, offers categories already present in the data', () => {
-    expect(categoryOptionsForMonth('2026-10', [], [movement('Family'), movement('Pets')])).toEqual([
-      'Family',
-      'Pets',
-    ])
+  test('with no budgets at all, offers no categories', () => {
+    expect(categoryOptionsForMonth('2026-10', [])).toEqual([])
   })
 
   test('a budget with a zeroed category still exposes it', () => {
-    expect(categoryOptionsForMonth('2026-10', [budget('2026-10', { Food: 0 })], [])).toEqual([
-      'Food',
-    ])
+    expect(categoryOptionsForMonth('2026-10', [budget('2026-10', { Food: 0 })])).toEqual(['Food'])
   })
 })
 
