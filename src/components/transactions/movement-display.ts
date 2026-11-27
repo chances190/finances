@@ -1,6 +1,7 @@
 import {
   ACCOUNT_LABELS,
   CASH_ACCOUNTS,
+  type DisplayPaymentMethod,
   expenseAmount,
   type FundingAccount,
   fundingAccountOf,
@@ -16,6 +17,25 @@ import {
   transferAccounts,
 } from '@/domain/ledger'
 import { formatCurrency } from '@/lib/currency'
+
+const PAYMENT_COLOR_VARS: Record<DisplayPaymentMethod, string> = {
+  'Debit/PIX': '--pay-debit',
+  Credit: '--pay-credit',
+  'Voucher Debit': '--pay-voucher',
+  Cash: '--pay-cash',
+  Salary: '--pay-salary',
+  Transfer: '--pay-transfer',
+  'Voucher Income': '--pay-voucher-income',
+  'Someone else': '--pay-other',
+}
+
+export function paymentColorVar(method: DisplayPaymentMethod | null): string | undefined {
+  return method ? `var(${PAYMENT_COLOR_VARS[method]})` : undefined
+}
+
+export function paymentColorForMovement(movement: Movement): string | undefined {
+  return paymentColorVar(paymentMethodOf(movement))
+}
 
 export function accountOf(movement: Movement): FundingAccount | null {
   if (movement.kind === 'transfer') {

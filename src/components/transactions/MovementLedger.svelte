@@ -10,7 +10,14 @@ import { resolveCategoryIcon } from '@/lib/category-icons'
 import { formatCurrency } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 import DebtStatusBadge from './DebtStatusBadge.svelte'
-import { amountClass, amountOf, detailOf, kindLabelOf, paymentLabelOf } from './movement-display'
+import {
+  amountClass,
+  amountOf,
+  detailOf,
+  kindLabelOf,
+  paymentColorForMovement,
+  paymentLabelOf,
+} from './movement-display'
 import PaymentBadge from './PaymentBadge.svelte'
 
 interface Props {
@@ -195,6 +202,7 @@ function groupKey(index: number): string | number {
               {@const debtRows = debtRowsById.get(movement.id) ?? []}
               {@const detail = detailOf(movement, debtRows)}
               {@const Icon = iconFor(movement, category)}
+              {@const payVar = paymentColorForMovement(movement)}
               <button
                 type="button"
                 class={cn(
@@ -205,7 +213,9 @@ function groupKey(index: number): string | number {
                 aria-pressed={selectedId === movement.id}
                 onclick={() => onSelect(movement)}
               >
-                <span class="tx-hybrid-icon"
+                <span
+                  class="tx-hybrid-icon {payVar ? 'tx-pay-icon' : ''}"
+                  style={payVar ? `--pay: ${payVar}` : undefined}
                   >{#key Icon}
                     <HugeiconsIcon icon={Icon} size={16} class="size-4" />
                   {/key}</span
@@ -267,6 +277,7 @@ function groupKey(index: number): string | number {
               {@const debtRows = debtRowsById.get(movement.id) ?? []}
               {@const detail = detailOf(movement, debtRows)}
               {@const Icon = iconFor(movement, category)}
+              {@const payVar = paymentColorForMovement(movement)}
               <button
                 type="button"
                 class={cn(
@@ -277,7 +288,9 @@ function groupKey(index: number): string | number {
                 aria-pressed={selectedId === movement.id}
                 onclick={() => onSelect(movement)}
               >
-                <span class="tx-feed-icon"
+                <span
+                  class="tx-feed-icon {payVar ? 'tx-pay-icon' : ''}"
+                  style={payVar ? `--pay: ${payVar}` : undefined}
                   >{#key Icon}
                     <HugeiconsIcon icon={Icon} size={16} class="size-4" />
                   {/key}</span
@@ -295,7 +308,9 @@ function groupKey(index: number): string | number {
                   <span
                     class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
                   >
-                    <span>{paymentLabelOf(movement)}</span>
+                    <span style={payVar ? `color: ${payVar}` : undefined}
+                      >{paymentLabelOf(movement)}</span
+                    >
                     {#if category}
                       <span>·</span>
                       <span>{category}</span>

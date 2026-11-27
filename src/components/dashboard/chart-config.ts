@@ -49,6 +49,7 @@ export interface ChartPalette {
   series: typeof CHART_COLORS
   categories: string[]
   actualBar: string
+  payment: Record<DisplayPaymentMethod, string>
 }
 
 const SERIES_DARK: typeof CHART_COLORS = {
@@ -64,21 +65,32 @@ const SERIES_DARK: typeof CHART_COLORS = {
 }
 
 const PAYMENT_METHOD_COLORS_DARK: Record<DisplayPaymentMethod, string> = {
-  'Debit/PIX': '#7fc6da',
-  Credit: '#c79ab9',
-  'Voucher Debit': '#d9a4b8',
-  Cash: '#9ecdd8',
-  Salary: '#d8c98f',
-  Transfer: '#95d6c7',
-  'Voucher Income': '#d7b28d',
-  'Someone else': '#c7b9a0',
+  'Debit/PIX': '#2dd4bf',
+  Credit: '#a78bfa',
+  'Voucher Debit': '#fb7185',
+  Cash: '#38bdf8',
+  Salary: '#facc15',
+  Transfer: '#60a5fa',
+  'Voucher Income': '#fb923c',
+  'Someone else': '#c084fc',
+}
+
+const PAYMENT_METHOD_VARS: Record<DisplayPaymentMethod, string> = {
+  'Debit/PIX': '--pay-debit',
+  Credit: '--pay-credit',
+  'Voucher Debit': '--pay-voucher',
+  Cash: '--pay-cash',
+  Salary: '--pay-salary',
+  Transfer: '--pay-transfer',
+  'Voucher Income': '--pay-voucher-income',
+  'Someone else': '--pay-other',
 }
 
 export function paymentMethodChartColor(
   method: DisplayPaymentMethod,
   palette: ChartPalette,
 ): string {
-  return palette.dark ? PAYMENT_METHOD_COLORS_DARK[method] : PAYMENT_METHOD_COLORS[method]
+  return palette.payment[method]
 }
 
 function readVar(style: CSSStyleDeclaration, name: string, fallback: string): string {
@@ -93,6 +105,16 @@ export function chartPalette(): ChartPalette {
   const read = (name: string, fallback: string) => readVar(style, name, fallback)
   const chart = (index: number, fallback: string) => read(`--chart-${index}`, fallback)
   const series = dark ? SERIES_DARK : CHART_COLORS
+  const payment = {} as Record<DisplayPaymentMethod, string>
+  for (const [method, variable] of Object.entries(PAYMENT_METHOD_VARS) as [
+    DisplayPaymentMethod,
+    string,
+  ][]) {
+    payment[method] = read(
+      variable,
+      dark ? PAYMENT_METHOD_COLORS_DARK[method] : PAYMENT_METHOD_COLORS[method],
+    )
+  }
   return {
     dark,
     accent,
@@ -123,6 +145,7 @@ export function chartPalette(): ChartPalette {
       chart(6, CATEGORY_COLORS[5]),
     ],
     actualBar: chart(1, dark ? SERIES_DARK.actual : CHART_COLORS.actual),
+    payment,
   }
 }
 
@@ -237,7 +260,12 @@ function barDataset(label: string, data: number[], color: string) {
   }
 }
 
-function lineDataset(label: string, data: (number | null)[], color: string, dashed = false) {
+function lineDataset(
+  label: string,
+  data: (number | null)[],
+  color: string,
+  dashed: boolean | number[] = false,
+) {
   return {
     type: 'line' as const,
     label,
@@ -245,7 +273,7 @@ function lineDataset(label: string, data: (number | null)[], color: string, dash
     borderColor: color,
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderDash: dashed ? [4, 5] : undefined,
+    borderDash: Array.isArray(dashed) ? dashed : dashed ? [4, 5] : undefined,
     pointRadius: 0,
     pointHoverRadius: 3,
     pointHitRadius: 12,
@@ -423,6 +451,8 @@ export function buildCategoryTrends(
   categories: string[],
   palette: ChartPalette,
 ): { data: ChartData; options: ChartOptions } {
+  const mono = palette.accent === 'ink' && palette.inkAccent === 'mono'
+  const dashes: (number[] | undefined)[] = [undefined, [5, 4], [2, 4], [8, 4], [3, 3], [10, 4]]
   return {
     data: {
       labels: data.map((entry) => monthLabel(entry.month)),
@@ -431,6 +461,7 @@ export function buildCategoryTrends(
           category,
           data.map((entry) => Number(entry[category] ?? 0)),
           palette.categories[index % palette.categories.length],
+          mono ? dashes[index % dashes.length] : false,
         ),
       ),
     },

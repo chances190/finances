@@ -177,9 +177,21 @@
   color: var(--muted-foreground);
 }
 
+.tx-pay-badge {
+  border-color: color-mix(in oklab, var(--pay) 42%, transparent);
+  background: color-mix(in oklab, var(--pay) 13%, transparent);
+  color: var(--pay);
+}
+
+.tx-hybrid-icon.tx-pay-icon,
+.tx-feed-icon.tx-pay-icon {
+  background: color-mix(in oklab, var(--pay) 16%, var(--muted));
+  color: var(--pay);
+}
+
 .tx-hybrid-grid {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) 92px 84px 48px 104px 12px;
+  grid-template-columns: 30px minmax(0, 1fr) 104px 84px 48px 104px 12px;
   align-items: center;
   gap: 10px;
 }

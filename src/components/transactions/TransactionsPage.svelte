@@ -96,6 +96,11 @@ $effect(() => {
 })
 
 $effect(() => {
+  if (desktop.current || detailOpen || selectedId === null) return
+  selectedId = null
+})
+
+$effect(() => {
   if (deepLinked || !filterMovementId) return
   selectedId = filterMovementId
   if (!desktop.current) detailOpen = true

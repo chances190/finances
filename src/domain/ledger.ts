@@ -53,14 +53,14 @@ export const ACCOUNT_LABELS: Record<Account, string> = {
 }
 
 export const PAYMENT_METHOD_COLORS: Record<DisplayPaymentMethod, string> = {
-  'Debit/PIX': '#32BCAD',
-  Credit: '#820AD1',
-  'Voucher Debit': '#FF2D6F',
-  Cash: '#0ea5e9',
-  Salary: '#eab308',
-  Transfer: '#0284c7',
-  'Voucher Income': '#f97316',
-  'Someone else': '#8b5cf6',
+  'Debit/PIX': '#0f766e',
+  Credit: '#6d28d9',
+  'Voucher Debit': '#be123c',
+  Cash: '#0369a1',
+  Salary: '#a16207',
+  Transfer: '#1d4ed8',
+  'Voucher Income': '#c2410c',
+  'Someone else': '#7e22ce',
 }
 
 export const MOVEMENT_KINDS = [

@@ -92,19 +92,27 @@
     radial-gradient(1000px 560px at 12% 0%, #e8ecee 0%, transparent 60%),
     radial-gradient(820px 460px at 100% 28%, #edf0f2 0%, transparent 56%),
     linear-gradient(135deg, #eceff0 0%, #f4f5f6 55%, #e8ebed 100%);
-  --chart-1: #4b5860;
-  --chart-2: #6f7c84;
-  --chart-3: #94a0a6;
-  --chart-4: #5f6f79;
-  --chart-5: #c4ccd0;
-  --chart-6: #8b99a1;
+  --chart-1: #11181c;
+  --chart-2: #4b5a62;
+  --chart-3: #7e8c94;
+  --chart-4: #2c3a42;
+  --chart-5: #a6b2b8;
+  --chart-6: #63727a;
   --chart-income: #2f8f62;
   --chart-expense: #c95858;
-  --chart-budgeted: #b8c4c7;
+  --chart-budgeted: #8a979e;
   --chart-grid: rgb(36 62 72 / 9%);
+  --pay-debit: #0f766e;
+  --pay-credit: #6d28d9;
+  --pay-voucher: #be123c;
+  --pay-cash: #0369a1;
+  --pay-salary: #a16207;
+  --pay-transfer: #1d4ed8;
+  --pay-voucher-income: #c2410c;
+  --pay-other: #7e22ce;
   --shadow-panel: inset 0 1px 0 rgb(255 255 255 / 88%), 0 5px 14px rgb(38 70 84 / 7%);
   --shadow-floating: 0 2px 6px rgb(35 65 80 / 4%);
-  --shadow-dialog: inset 0 1px 0 rgb(255 255 255 / 95%), 0 12px 30px rgb(35 65 80 / 12%);
+  --shadow-dialog: inset 0 1px 0 rgb(255 255 255 / 95%), 0 10px 26px rgb(35 65 80 / 10%);
   --sheet-lift: 0px;
   --sheet-height: 100dvh;
 }
@@ -137,19 +145,27 @@
     radial-gradient(900px 540px at 15% 0%, #232a2d 0%, transparent 60%),
     radial-gradient(700px 420px at 100% 25%, #242a2e 0%, transparent 55%),
     linear-gradient(135deg, #15191b 0%, #1e2427 50%, #171b1e 100%);
-  --chart-1: #c3ccd1;
-  --chart-2: #a3afb5;
-  --chart-3: #dde4e7;
-  --chart-4: #aebcc2;
-  --chart-5: #c9d4d9;
-  --chart-6: #d5dde0;
+  --chart-1: #f4f7f8;
+  --chart-2: #b7c3c9;
+  --chart-3: #7f8f97;
+  --chart-4: #d9e2e6;
+  --chart-5: #5d6c74;
+  --chart-6: #9fadb4;
   --chart-income: #6fd4a0;
   --chart-expense: #f08a8a;
-  --chart-budgeted: #5c6b73;
+  --chart-budgeted: #6f7f87;
   --chart-grid: rgb(220 245 237 / 7%);
+  --pay-debit: #2dd4bf;
+  --pay-credit: #a78bfa;
+  --pay-voucher: #fb7185;
+  --pay-cash: #38bdf8;
+  --pay-salary: #facc15;
+  --pay-transfer: #60a5fa;
+  --pay-voucher-income: #fb923c;
+  --pay-other: #c084fc;
   --shadow-panel: inset 0 1px 0 rgb(255 255 255 / 4%), 0 10px 26px rgb(0 0 0 / 18%);
   --shadow-floating: 0 4px 12px rgb(0 0 0 / 16%);
-  --shadow-dialog: inset 0 1px 0 rgb(255 255 255 / 6%), 0 28px 70px rgb(0 0 0 / 34%);
+  --shadow-dialog: inset 0 1px 0 rgb(255 255 255 / 6%), 0 18px 44px rgb(0 0 0 / 22%);
 }
 
 [data-accent="sage"] {
@@ -448,8 +464,16 @@
   body {
     @apply text-foreground antialiased;
     min-height: 100dvh;
+    background: transparent;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
     background: var(--page-bg);
-    background-attachment: fixed;
+    pointer-events: none;
   }
 }
 
@@ -534,6 +558,25 @@
 
   .dark .dialog-surface {
     background: color-mix(in srgb, var(--popover) 94%, transparent);
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .panel,
+    .list-panel,
+    .app-header,
+    .dialog-surface,
+    .floating-surface {
+      background: var(--surface-solid);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .dialog-overlay,
+    .sheet-overlay {
+      background: rgb(3 9 11 / 55%);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
   }
 
   .nav-item {
