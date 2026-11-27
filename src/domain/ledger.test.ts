@@ -14,6 +14,7 @@ import {
   categoryTotals,
   currentYM,
   expensesByAccount,
+  expensesByPaymentMethod,
   futureCommitments,
   groupBudgetsByRange,
   incomeByMonth,
@@ -493,6 +494,10 @@ describe('selectors', () => {
   test('aggregates category, account, month, and year values', () => {
     expect(categoryTotals(movements, '2026-11')).toEqual({ Food: 30, Transport: 40 })
     expect(expensesByAccount(movements, '2026-11')).toEqual({ card: 30, voucher: 40 })
+    expect(expensesByPaymentMethod(movements, '2026-11')).toEqual({
+      Credit: 30,
+      'Voucher Debit': 40,
+    })
     expect(availableMonths(movements)).toEqual(['2026-11'])
     expect(yearSummary(movements, 2026).totalExpenses).toBe(70)
     expect(yearSummary(movements, 2026).totalIncome).toBe(1000)

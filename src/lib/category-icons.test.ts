@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { resolveCategoryIcon, resolveCategoryIconName } from './category-icons'
+import { CATEGORY_ICONS, resolveCategoryIcon, resolveCategoryIconName } from './category-icons'
 
 describe('category icons', () => {
   test('known category names map to defaults', () => {
@@ -20,7 +20,8 @@ describe('category icons', () => {
     expect(resolveCategoryIconName('Food', 'not-an-icon')).toBe('food')
   })
 
-  test('resolves icon data', () => {
-    expect(resolveCategoryIcon('Adhoc')).toBeDefined()
+  test('resolves icon data and honors overrides', () => {
+    expect(resolveCategoryIcon('Adhoc')).toBe(CATEGORY_ICONS.tag)
+    expect(resolveCategoryIcon('Food', 'gift')).toBe(CATEGORY_ICONS.gift)
   })
 })
