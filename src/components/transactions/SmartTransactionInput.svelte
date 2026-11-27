@@ -1,5 +1,6 @@
 <script lang="ts">
-import PlusIcon from 'phosphor-svelte/lib/PlusIcon'
+import { PlusSignIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { localYMD } from '@/domain/calculations'
 import type { PaymentMethod } from '@/domain/ledger'
 import { formatCurrency } from '@/lib/currency'
@@ -50,7 +51,7 @@ function attemptSubmit() {
     }}
   >
     <button type="submit" class="tx-quick-add-icon" aria-label="Add from input">
-      <PlusIcon class="size-4" />
+      <HugeiconsIcon icon={PlusSignIcon} size={16} class="size-4" />
     </button>
 
     <input

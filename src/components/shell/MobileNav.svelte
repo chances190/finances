@@ -1,5 +1,6 @@
 <script lang="ts">
-import ListIcon from 'phosphor-svelte/lib/ListIcon'
+import { Menu01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
@@ -29,7 +30,7 @@ const sheetOverlay = 'sheet-overlay data-open:animate-none data-closed:animate-n
         aria-expanded={open}
         {...props}
       >
-        <ListIcon class="size-4" />
+        <HugeiconsIcon icon={Menu01Icon} size={16} class="size-4" />
       </Button>
     {/snippet}
   </DialogTrigger>

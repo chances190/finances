@@ -1,6 +1,6 @@
 <script lang="ts">
-import FunnelIcon from 'phosphor-svelte/lib/FunnelIcon'
-import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon'
+import { FilterIcon, Search01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { MediaQuery } from 'svelte/reactivity'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -387,7 +387,11 @@ function handleDelete(id: string) {
 
       <div class="tx-filter-bar">
         <div class="tx-search">
-          <MagnifyingGlassIcon class="size-4 shrink-0 text-muted-foreground" />
+          <HugeiconsIcon
+            icon={Search01Icon}
+            size={16}
+            class="size-4 shrink-0 text-muted-foreground"
+          />
           <input
             placeholder="Search description..."
             value={localSearch}
@@ -425,7 +429,7 @@ function handleDelete(id: string) {
               showFilters = true
             }}
           >
-            <FunnelIcon class="size-3" />
+            <HugeiconsIcon icon={FilterIcon} size={16} class="size-3" />
             Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
           </button>
         {/if}
