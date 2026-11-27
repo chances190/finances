@@ -206,7 +206,9 @@ function groupKey(index: number): string | number {
                 onclick={() => onSelect(movement)}
               >
                 <span class="tx-hybrid-icon"
-                  ><HugeiconsIcon icon={Icon} size={16} class="size-4" /></span
+                  >{#key Icon}
+                    <HugeiconsIcon icon={Icon} size={16} class="size-4" />
+                  {/key}</span
                 >
                 <span class="tx-hybrid-main">
                   <span class="tx-hybrid-title">
@@ -276,7 +278,9 @@ function groupKey(index: number): string | number {
                 onclick={() => onSelect(movement)}
               >
                 <span class="tx-feed-icon"
-                  ><HugeiconsIcon icon={Icon} size={16} class="size-4" /></span
+                  >{#key Icon}
+                    <HugeiconsIcon icon={Icon} size={16} class="size-4" />
+                  {/key}</span
                 >
                 <span class="min-w-0 flex-1 text-left">
                   <span class="flex min-w-0 items-center gap-1.5">

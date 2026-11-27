@@ -76,7 +76,7 @@ function closeForm() {
   <button
     type="button"
     onclick={() => openEdit(range)}
-    class="block w-full px-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+    class="panel block w-full px-3 py-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
   >
     <div class="flex items-start gap-2">
       <div class="min-w-0 flex-1">
@@ -112,11 +112,13 @@ function closeForm() {
         ) as [category, value] (category)}
           <div class="flex items-center justify-between gap-2 text-xs">
             <span class="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-              <HugeiconsIcon
-                icon={resolveCategoryIcon(category, range.budget.categoryIcons?.[category])}
-                size={12}
-                class="size-3 shrink-0"
-              />
+              {#key resolveCategoryIcon(category, range.budget.categoryIcons?.[category])}
+                <HugeiconsIcon
+                  icon={resolveCategoryIcon(category, range.budget.categoryIcons?.[category])}
+                  size={12}
+                  class="size-3 shrink-0"
+                />
+              {/key}
               <span class="truncate">{category}</span>
             </span>
             <span class="font-mono">{formatCurrency(value)}</span>
@@ -211,11 +213,16 @@ function closeForm() {
                     <span
                       class="flex items-center gap-1 rounded-[3px] bg-muted px-1.5 py-0.5 text-xs"
                     >
-                      <HugeiconsIcon
-                        icon={resolveCategoryIcon(category, range.budget.categoryIcons?.[category])}
-                        size={12}
-                        class="size-3 shrink-0"
-                      />
+                      {#key resolveCategoryIcon(category, range.budget.categoryIcons?.[category])}
+                        <HugeiconsIcon
+                          icon={resolveCategoryIcon(
+                            category,
+                            range.budget.categoryIcons?.[category],
+                          )}
+                          size={12}
+                          class="size-3 shrink-0"
+                        />
+                      {/key}
                       {category}: {formatCurrency(value)}
                     </span>
                   {/each}
@@ -226,15 +233,15 @@ function closeForm() {
         </TableBody>
       </Table>
     </div>
+  {:else if ranges.length === 0}
+    <div class="panel">
+      <EmptyState message="No budgets yet. Create one to start planning." />
+    </div>
   {:else}
-    <div class="list-panel">
-      {#if ranges.length === 0}
-        <EmptyState message="No budgets yet. Create one to start planning." />
-      {:else}
-        {#each ranges as range (range.startMonth)}
-          {@render budgetCard(range)}
-        {/each}
-      {/if}
+    <div class="space-y-2">
+      {#each ranges as range (range.startMonth)}
+        {@render budgetCard(range)}
+      {/each}
     </div>
   {/if}
 </div>

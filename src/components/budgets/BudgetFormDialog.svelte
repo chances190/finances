@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Copy01Icon, Delete02Icon, Tick02Icon } from '@hugeicons/core-free-icons'
+import { Copy01Icon, Delete02Icon, PlusSignIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/svelte'
 import { untrack } from 'svelte'
 import ConfirmDialog from '@/components/common/ConfirmDialog.svelte'
@@ -12,7 +12,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import type { Budget } from '@/domain/entities'
 import { addMonths } from '@/domain/ledger'
 import type { CategoryIconName } from '@/lib/category-icons'
-import { resolveCategoryIconName } from '@/lib/category-icons'
+import { resolveCategoryIcon, resolveCategoryIconName } from '@/lib/category-icons'
 import { addCurrency, formatCurrency } from '@/lib/currency'
 import { finance } from '@/lib/stores/finance.svelte'
 import { toast } from '@/lib/stores/toast.svelte'
@@ -58,6 +58,7 @@ let rangeEnd = $state(initial.rangeEnd)
 let isRange = $state(initial.isRange)
 let pendingConflict = $state<PendingConflict | null>(null)
 let newCategoryName = $state('')
+let newCategoryLimit = $state('')
 let newCategoryIcon = $state<CategoryIconName | null>(null)
 
 const categoryRows = $derived(Object.keys(form.categoryLimits))
@@ -97,10 +98,11 @@ function handleAddCategory() {
   const icon = newCategoryIcon ?? resolveCategoryIconName(name)
   form = {
     ...form,
-    categoryLimits: { ...form.categoryLimits, [name]: '' },
+    categoryLimits: { ...form.categoryLimits, [name]: newCategoryLimit },
     categoryIcons: { ...form.categoryIcons, [name]: icon },
   }
   newCategoryName = ''
+  newCategoryLimit = ''
   newCategoryIcon = null
 }
 
@@ -110,10 +112,6 @@ function removeCategory(category: string) {
   delete next[category]
   delete icons[category]
   form = { ...form, categoryLimits: next, categoryIcons: icons }
-}
-
-function setCategoryIcon(category: string, name: CategoryIconName) {
-  form = { ...form, categoryIcons: { ...form.categoryIcons, [category]: name } }
 }
 
 function commitSave(months: string[], toDelete: string[], budget: Budget) {
@@ -331,16 +329,21 @@ function handleSave() {
           <Label class="text-xs font-medium">Category Limits</Label>
         </div>
 
-        <div class="mt-1 space-y-1">
+        <div class="mt-1 space-y-1.5">
           {#each categoryRows as cat (cat)}
             {@const catId = `budget-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`}
             <div class="flex items-center gap-2">
-              <CategoryIconPicker
-                category={cat}
-                value={form.categoryIcons[cat]}
-                onSelect={(name) => setCategoryIcon(cat, name)}
-              />
-              <Label for={catId} class="min-w-0 flex-1 truncate text-xs">{cat}</Label>
+              <span
+                class="grid size-7 shrink-0 place-items-center rounded-[4px] border border-border bg-card text-muted-foreground"
+              >
+                {#key resolveCategoryIcon(cat, form.categoryIcons[cat])}
+                  <HugeiconsIcon
+                    icon={resolveCategoryIcon(cat, form.categoryIcons[cat])}
+                    size={14}
+                  />
+                {/key}
+              </span>
+              <Label for={catId} class="min-w-0 flex-1 truncate text-sm">{cat}</Label>
               <MoneyInput
                 id={catId}
                 placeholder="0"
@@ -399,6 +402,15 @@ function handleSave() {
             }}
             class="h-9 min-w-0 flex-1"
           />
+          <MoneyInput
+            placeholder="0"
+            aria-label="New category limit"
+            value={newCategoryLimit}
+            onValueChange={(limit) => {
+              newCategoryLimit = limit
+            }}
+            class="h-9 w-24 shrink-0 text-right font-mono"
+          />
           <Button
             size="icon"
             class="size-9 shrink-0"
@@ -406,7 +418,7 @@ function handleSave() {
             disabled={!newCategoryName.trim()}
             aria-label="Add category"
           >
-            <HugeiconsIcon icon={Tick02Icon} size={16} />
+            <HugeiconsIcon icon={PlusSignIcon} size={16} />
           </Button>
         </div>
       </div>

@@ -18,6 +18,7 @@ let { category, value, onSelect }: Props = $props()
 
 let open = $state(false)
 const selected = $derived(resolveCategoryIconName(category, value))
+const resolvedIcon = $derived(resolveCategoryIcon(category, value))
 </script>
 
 <Popover bind:open>
@@ -25,7 +26,9 @@ const selected = $derived(resolveCategoryIconName(category, value))
     class="grid size-7 shrink-0 place-items-center rounded-[4px] border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
     aria-label={`Choose icon for ${category}`}
   >
-    <HugeiconsIcon icon={resolveCategoryIcon(category, value)} size={14} />
+    {#key resolvedIcon}
+      <HugeiconsIcon icon={resolvedIcon} size={14} />
+    {/key}
   </PopoverTrigger>
   <PopoverContent class="w-56 p-2" align="start">
     <div class="grid grid-cols-6 gap-1">

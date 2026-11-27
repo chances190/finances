@@ -93,10 +93,7 @@ onMount(() => {
       >
         <BrandMark class="size-8 shrink-0" />
         <span class="min-w-0">
-          <span class="flex items-center gap-2">
-            <span class="brand-name">Finances</span>
-            <span class="brand-tag">Glass + Clay</span>
-          </span>
+          <span class="brand-name">Finances</span>
           <span class="brand-sub hidden md:block">{monthLabel} · personal ledger</span>
         </span>
       </a>
