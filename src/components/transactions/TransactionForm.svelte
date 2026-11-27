@@ -1,5 +1,6 @@
 <script lang="ts">
-import TrashIcon from 'phosphor-svelte/lib/TrashIcon'
+import { Delete02Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/svelte'
 import { untrack } from 'svelte'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -405,28 +406,36 @@ function commit(movements: Movement[]) {
 
       {#if form.type === 'Expense'}
         <div class="space-y-1">
-          <Label for="tx-category" class="text-xs">Category</Label>
+          <div class="flex items-center justify-between">
+            <Label for="tx-category" class="text-xs">Category</Label>
+            {#if !customCategory}
+              <button
+                type="button"
+                class="text-[10px] font-semibold text-primary"
+                onclick={() => {
+                  customCategory = true
+                  form.category = ''
+                }}
+              >
+                New category
+              </button>
+            {/if}
+          </div>
           <Select
             type="single"
-            value={customCategory ? '__custom' : form.category}
+            value={form.category}
             onValueChange={(value) => {
-              if (value === '__custom') {
-                customCategory = true
-                form.category = ''
-                return
-              }
               customCategory = false
               form.category = value ?? 'Other'
             }}
           >
             <SelectTrigger id="tx-category" class="w-full min-w-0">
-              {customCategory ? 'Choose…' : form.category}
+              {form.category || 'Choose…'}
             </SelectTrigger>
             <SelectContent>
               {#each categories as category (category)}
                 <SelectItem value={category}>{category}</SelectItem>
               {/each}
-              <SelectItem value="__custom">New category…</SelectItem>
             </SelectContent>
           </Select>
           {#if customCategory}
@@ -549,7 +558,7 @@ function commit(movements: Movement[]) {
             onDelete(id)
           }}
         >
-          <TrashIcon /> Delete
+          <HugeiconsIcon icon={Delete02Icon} size={16} /> Delete
         </Button>
       {/if}
       <Button variant="outline" onclick={() => onOpenChange(false)}>Cancel</Button>
