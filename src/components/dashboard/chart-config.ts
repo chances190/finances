@@ -53,8 +53,8 @@ export interface ChartPalette {
 }
 
 const SERIES_DARK: typeof CHART_COLORS = {
-  income: '#6fd4a0',
-  expense: '#f08a8a',
+  income: '#4ade80',
+  expense: '#f87171',
   primary: '#95d6c7',
   warning: '#f3c777',
   suggestion: '#a9c4b4',
@@ -63,6 +63,21 @@ const SERIES_DARK: typeof CHART_COLORS = {
   budgeted: '#5c6b73',
   actual: '#95d6c7',
 }
+
+const CATEGORY_COLORS_DARK = [
+  '#60a5fa',
+  '#4ade80',
+  '#fbbf24',
+  '#c084fc',
+  '#f87171',
+  '#22d3ee',
+  '#f472b6',
+  '#2dd4bf',
+  '#fb923c',
+  '#818cf8',
+  '#a3e635',
+  '#e879f9',
+]
 
 const PAYMENT_METHOD_COLORS_DARK: Record<DisplayPaymentMethod, string> = {
   'Debit/PIX': '#2dd4bf',
@@ -136,14 +151,7 @@ export function chartPalette(): ChartPalette {
       budgeted: read('--chart-budgeted', series.budgeted),
       actual: chart(1, series.actual),
     },
-    categories: [
-      chart(1, CATEGORY_COLORS[0]),
-      chart(2, CATEGORY_COLORS[1]),
-      chart(3, CATEGORY_COLORS[2]),
-      chart(4, CATEGORY_COLORS[3]),
-      chart(5, CATEGORY_COLORS[4]),
-      chart(6, CATEGORY_COLORS[5]),
-    ],
+    categories: dark ? CATEGORY_COLORS_DARK : CATEGORY_COLORS,
     actualBar: chart(1, dark ? SERIES_DARK.actual : CHART_COLORS.actual),
     payment,
   }
