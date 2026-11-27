@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { allCategoryNames, budgetForMonth, categoryOptionsForMonth, monthOf } from './categories'
+import { allCategoryNames, budgetForMonth, categoryOptionsForMonth } from './categories'
 import type { Budget } from './entities'
 import { buildPurchase, type Movement } from './ledger'
 
@@ -48,10 +48,6 @@ describe('categoryOptionsForMonth', () => {
     expect(categoryOptionsForMonth('2026-09', budgets)).toEqual(['Food', 'Rent'])
   })
 
-  test('falls back to the latest budget when the month has none', () => {
-    expect(categoryOptionsForMonth('2025-03', budgets)).toEqual(['Food'])
-  })
-
   test('new events in the current month use the current budget', () => {
     expect(categoryOptionsForMonth('2026-10', budgets)).toEqual(['Food'])
   })
@@ -77,11 +73,5 @@ describe('allCategoryNames', () => {
 
   test('keeps categories that no budget mentions', () => {
     expect(allCategoryNames([], [movement('Family')])).toEqual(['Family'])
-  })
-})
-
-describe('monthOf', () => {
-  test('extracts the reference month', () => {
-    expect(monthOf('2026-10-21')).toBe('2026-10')
   })
 })

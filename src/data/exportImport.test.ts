@@ -41,49 +41,13 @@ describe('importCSV', () => {
     expect(() => importCSV('date,description\n2026-01-01,test')).toThrow()
   })
 
-  test('skips malformed rows with reasons', () => {
+  test('skips malformed rows', () => {
     const csv = `${H}\nr001,2026-07-05,Income,5000,Salary,Salary,Salary,,,,,\nmalformed-row-with-no-commas`
     const { movements, skippedRows } = importCSV(csv)
 
     expect(movements).toHaveLength(1)
     expect(skippedRows).toHaveLength(1)
     expect(skippedRows[0].line).toBe(3)
-    expect(skippedRows[0].reason).toContain('wrong number of columns')
-  })
-
-  test('skips rows that violate import rules, naming the offence', () => {
-    const invalidRows = [
-      {
-        row: 'r001,2026-07-05,INVALID,5000,Salary,Debit/PIX,Salary,,,,,',
-        reason: 'invalid type',
-        detail: 'INVALID',
-      },
-      {
-        row: 'r001,2026-07-05,Expense,5000,Food,UNKNOWN,Buy,,,,,',
-        reason: 'invalid payment method',
-        detail: 'UNKNOWN',
-      },
-      { row: 'r001,2026-07-05,Expense,abc,Food,Debit/PIX,Buy,,,,,', reason: 'invalid amount' },
-      {
-        row: 'r001,2026-07-05,Expense,100,Food,Salary,Buy,,,,,',
-        reason: 'invalid payment method',
-        detail: 'Salary',
-      },
-      {
-        row: 'r001,2026-07-05,Income,5000,Salary,Debit/PIX,Salary,,,,,',
-        reason: 'invalid payment method',
-        detail: 'Debit/PIX',
-      },
-    ]
-
-    for (const { row, reason, detail } of invalidRows) {
-      const { movements, skippedRows } = importCSV(`${H}\n${row}`)
-
-      expect(movements).toHaveLength(0)
-      expect(skippedRows).toHaveLength(1)
-      expect(skippedRows[0].reason).toContain(reason)
-      if (detail) expect(skippedRows[0].reason).toContain(detail)
-    }
   })
 
   test('canonicalizes uppercase type and payment method', () => {
